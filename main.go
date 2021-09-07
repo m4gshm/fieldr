@@ -237,8 +237,8 @@ func (f *GoFile) findTypeTags(typeName string, tag tagName) func(node ast.Node) 
 				fieldTagValues, fieldTagNames := parseTags(tagsValues)
 
 				if tag != "" {
-					_tagValue, ok := fieldTagValues[tag]
-					if ok {
+					_tagValue, tagValueOk := fieldTagValues[tag]
+					if tagValueOk {
 						fieldTagValues = map[tagName]tagValue{tag: _tagValue}
 						fieldTagNames = []tagName{tag}
 					} else {
@@ -252,14 +252,14 @@ func (f *GoFile) findTypeTags(typeName string, tag tagName) func(node ast.Node) 
 				for _, fieldTagName := range fieldTagNames {
 					fieldTagValue := fieldTagValues[fieldTagName]
 
-					fieldsOfTag, ok := tags[fieldTagName]
-					if !ok {
-						fieldsOfTag = make(map[fieldName]tagValue)
-						tags[fieldTagName] = fieldsOfTag
+					tagFields, tagFieldsOk := tags[fieldTagName]
+					if !tagFieldsOk {
+						tagFields = make(map[fieldName]tagValue)
+						tags[fieldTagName] = tagFields
 						tagNames = append(tagNames, fieldTagName)
 					}
 
-					fieldsOfTag[fldName] = fieldTagValue
+					tagFields[fldName] = fieldTagValue
 				}
 			}
 		}
@@ -283,7 +283,7 @@ func parseTags(tags string) (map[tagName]tagValue, []tagName) {
 	for pos := 0; pos < tagValueLen; pos++ {
 		character := rune(tags[pos])
 		switch character {
-		case '`', ',':
+		case '`', ' ':
 			prevTagPos = pos + 1
 		case ':':
 			_tagName := tagName(tags[prevTagPos:pos])
@@ -298,7 +298,7 @@ func parseTags(tags string) (map[tagName]tagValue, []tagName) {
 				pos++
 				findEndBorder = true
 			}
-			tagDelim := ','
+			tagDelim := ' '
 
 			var endValuePos int
 			for endValuePos = pos; endValuePos < tagValueLen; endValuePos++ {
