@@ -179,12 +179,13 @@ func (g *TagConstantsGenerator) generate(
 		}
 		for _, _fieldName := range fieldNames {
 			tagFields := tags[_tagName]
-			_tagValue := tagFields[_fieldName]
-
-			constTypeName := getTypeName(typeName, _tagName)
-			constName := getConstName(typeName, _tagName, _fieldName)
-			g.printf("%v=%v(\"%v\")\n", constName, constTypeName, _tagValue)
-			generated = true
+			_tagValue, ok := tagFields[_fieldName]
+			if ok {
+				constTypeName := getTypeName(typeName, _tagName)
+				constName := getConstName(typeName, _tagName, _fieldName)
+				g.printf("%v=%v(\"%v\")\n", constName, constTypeName, _tagValue)
+				generated = true
+			}
 		}
 	}
 	g.printf(")\n")
