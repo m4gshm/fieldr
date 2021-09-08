@@ -1,4 +1,4 @@
-module tag-constanter
+module github.com/m4gshm/tag-constanter
 
 go 1.16
 
