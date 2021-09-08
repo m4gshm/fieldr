@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"const_generator/struc"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -13,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"tag-constanter/struc"
 
 	"golang.org/x/tools/go/packages"
 )
