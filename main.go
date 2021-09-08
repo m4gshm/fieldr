@@ -12,7 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"tag-constanter/struc"
+
+	"github.com/m4gshm/tag-constanter/struc"
 
 	"golang.org/x/tools/go/packages"
 )
