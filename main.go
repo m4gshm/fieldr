@@ -21,7 +21,7 @@ const name = "const"
 
 var (
 	typ    = flag.String("type", "", "type name; must be set")
-	output = flag.String("output", "", "output file name; default srcdir/<type_file>_const.go")
+	output = flag.String("output", "", "output file name; default srcdir/<type>_const.go")
 	tag    = flag.String("tag", "", "tag used to constant naming")
 	wrap   = flag.Bool("wrap", false, "wrap tag const by own type")
 )

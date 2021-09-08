@@ -1,4 +1,4 @@
-module const_generator
+module tag-constanter
 
 go 1.16
 
