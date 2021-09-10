@@ -12,6 +12,7 @@ type Struct struct {
 	TypeName    string
 	PackageName string
 	Tags        map[TagName]map[FieldName]TagValue
+	Fields      map[FieldName]map[TagName]TagValue
 	FieldNames  []FieldName
 	TagNames    []TagName
 }
@@ -40,14 +41,17 @@ func FindStructTags(file *ast.File, typeName string, tag TagName) *Struct {
 			return true
 		}
 
-		fields := structType.Fields.List
+		_fields := structType.Fields.List
 
 		tags := make(map[TagName]map[FieldName]TagValue)
-		fieldNames := make([]FieldName, 0, len(fields))
+		fields := make(map[FieldName]map[TagName]TagValue)
+
+		fieldNames := make([]FieldName, 0, len(_fields))
 		tagNames := make([]TagName, 0)
 
-		for _, field := range fields {
+		for _, field := range _fields {
 			for _, _fieldName := range field.Names {
+
 				tagsValues := field.Tag.Value
 				fieldTagValues, fieldTagNames := ParseTags(tagsValues)
 
@@ -62,6 +66,8 @@ func FindStructTags(file *ast.File, typeName string, tag TagName) *Struct {
 				}
 
 				fldName := FieldName(_fieldName.Name)
+
+				fields[fldName] = make(map[TagName]TagValue)
 				fieldNames = append(fieldNames, fldName)
 
 				for _, fieldTagName := range fieldTagNames {
@@ -75,6 +81,8 @@ func FindStructTags(file *ast.File, typeName string, tag TagName) *Struct {
 					}
 
 					tagFields[fldName] = fieldTagValue
+
+					fields[fldName][fieldTagName] = fieldTagValue
 				}
 			}
 		}
@@ -84,6 +92,7 @@ func FindStructTags(file *ast.File, typeName string, tag TagName) *Struct {
 				TypeName:    typeName,
 				PackageName: file.Name.Name,
 				Tags:        tags,
+				Fields:      fields,
 				FieldNames:  fieldNames,
 				TagNames:    tagNames,
 			}
