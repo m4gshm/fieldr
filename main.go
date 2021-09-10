@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/m4gshm/fieldr/generator"
+	"github.com/m4gshm/fieldr/struc"
 	"go/ast"
 	"io/fs"
 	"io/ioutil"
@@ -10,9 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/m4gshm/tag-constanter/struc"
-	tag2 "github.com/m4gshm/tag-constanter/tag"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -63,7 +62,7 @@ func main() {
 		return
 	}
 
-	g := tag2.TagConstantsGenerator{
+	g := generator.Generator{
 		Name:       name,
 		WrapType:   *wrap,
 		ReturnRefs: *ref,

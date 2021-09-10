@@ -1,2 +1,2 @@
-# tag-constanter
-Generate constant based on tag values of struct fields
+# Fielder
+Generate util constants, vars, methods based on fields, field tag values of structs

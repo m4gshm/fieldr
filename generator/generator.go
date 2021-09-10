@@ -1,17 +1,16 @@
-package tag
+package generator
 
 import (
 	"bytes"
 	"fmt"
+	"github.com/m4gshm/fieldr/struc"
 	"go/format"
 	"os"
 	"strings"
 	"unicode"
-
-	"github.com/m4gshm/tag-constanter/struc"
 )
 
-type TagConstantsGenerator struct {
+type Generator struct {
 	Export     bool
 	ExportVars bool
 	ReturnRefs bool
@@ -20,11 +19,11 @@ type TagConstantsGenerator struct {
 	Name       string
 }
 
-func (g *TagConstantsGenerator) printf(format string, args ...interface{}) {
+func (g *Generator) printf(format string, args ...interface{}) {
 	fmt.Fprintf(&g.buf, format, args...)
 }
 
-func (g *TagConstantsGenerator) FormatSrc() ([]byte, error) {
+func (g *Generator) FormatSrc() ([]byte, error) {
 	src := g.Src()
 	fmtSrc, err := format.Source(src)
 	if err != nil {
@@ -33,17 +32,17 @@ func (g *TagConstantsGenerator) FormatSrc() ([]byte, error) {
 	return fmtSrc, nil
 }
 
-func (g *TagConstantsGenerator) Src() []byte {
+func (g *Generator) Src() []byte {
 	return g.buf.Bytes()
 }
 
-func (g *TagConstantsGenerator) GenerateFile(str *struc.Struct) {
+func (g *Generator) GenerateFile(str *struc.Struct) {
 	g.Generate(str.PackageName, str.TypeName, str.TagNames, str.FieldNames, str.Fields)
 }
 
 const baseType = "string"
 
-func (g *TagConstantsGenerator) Generate(packageName string, typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName,
+func (g *Generator) Generate(packageName string, typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName,
 	fields map[struc.FieldName]map[struc.TagName]struc.TagValue,
 ) {
 
@@ -139,7 +138,7 @@ func goName(name string, export bool) string {
 	return result
 }
 
-func (g *TagConstantsGenerator) generateTagsValuesByFieldMapVar(
+func (g *Generator) generateTagsValuesByFieldMapVar(
 	fieldNames []struc.FieldName, typeName string, fields map[struc.FieldName]map[struc.TagName]struc.TagValue,
 ) {
 	var varValue string
@@ -178,7 +177,7 @@ func (g *TagConstantsGenerator) generateTagsValuesByFieldMapVar(
 	g.printf("%v=%v\n\n", varName, varValue)
 }
 
-func (g *TagConstantsGenerator) generateTagsByFieldsMapVar(typeName string, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) {
+func (g *Generator) generateTagsByFieldsMapVar(typeName string, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) {
 	var varValue string
 	if g.WrapType {
 		varValue = "map[" + getFieldType(typeName, g.Export) + "]" + arrayType(getTagType(typeName, g.Export)) + "{\n"
@@ -215,7 +214,7 @@ func (g *TagConstantsGenerator) generateTagsByFieldsMapVar(typeName string, fiel
 	g.printf("%v=%v\n\n", varName, varValue)
 }
 
-func (g *TagConstantsGenerator) generateTagValuesByTagMapVar(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) {
+func (g *Generator) generateTagValuesByTagMapVar(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) {
 	var varValue string
 	if g.WrapType {
 		varValue = "map[" + getTagType(typeName, g.Export) + "]" + arrayType(getTagValueType(typeName, g.Export)) + "{\n"
@@ -260,7 +259,7 @@ func (g *TagConstantsGenerator) generateTagValuesByTagMapVar(typeName string, ta
 	g.printf("%v=%v\n\n", varName, varValue)
 }
 
-func (g *TagConstantsGenerator) generateTagFieldsByTagMapVar(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) {
+func (g *Generator) generateTagFieldsByTagMapVar(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) {
 	var varValue string
 	if g.WrapType {
 		varValue = "map[" + getTagType(typeName, g.Export) + "]" + arrayType(getFieldType(typeName, g.Export)) + "{\n"
@@ -300,7 +299,7 @@ func (g *TagConstantsGenerator) generateTagFieldsByTagMapVar(typeName string, ta
 	g.printf("%v=%v\n\n", varName, varValue)
 }
 
-func (g *TagConstantsGenerator) generateTagFieldConstants(
+func (g *Generator) generateTagFieldConstants(
 	typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName,
 	fields map[struc.FieldName]map[struc.TagName]struc.TagValue,
 ) {
@@ -322,7 +321,7 @@ func (g *TagConstantsGenerator) generateTagFieldConstants(
 	}
 }
 
-func (g *TagConstantsGenerator) generateFieldConstants(typeName string, fieldNames []struc.FieldName) {
+func (g *Generator) generateFieldConstants(typeName string, fieldNames []struc.FieldName) {
 	for _, name := range fieldNames {
 		constName := getFieldConstName(typeName, name, g.Export)
 		if g.WrapType {
@@ -333,7 +332,7 @@ func (g *TagConstantsGenerator) generateFieldConstants(typeName string, fieldNam
 	}
 }
 
-func (g *TagConstantsGenerator) generateTagConstants(typeName string, tagNames []struc.TagName) {
+func (g *Generator) generateTagConstants(typeName string, tagNames []struc.TagName) {
 	for _, name := range tagNames {
 		constName := getTagConstName(typeName, name, g.Export)
 		if g.WrapType {
@@ -344,7 +343,7 @@ func (g *TagConstantsGenerator) generateTagConstants(typeName string, tagNames [
 	}
 }
 
-func (g *TagConstantsGenerator) generateFieldsArrayVar(typeName string, fieldNames []struc.FieldName) {
+func (g *Generator) generateFieldsArrayVar(typeName string, fieldNames []struc.FieldName) {
 	var arrayVar string
 	if g.WrapType {
 		arrayVar = arrayType(getFieldType(typeName, g.Export)) + "{"
@@ -364,7 +363,7 @@ func (g *TagConstantsGenerator) generateFieldsArrayVar(typeName string, fieldNam
 	g.printf("%v=%v\n\n", varName, arrayVar)
 }
 
-func (g *TagConstantsGenerator) generateTagsArrayVar(typeName string, tagNames []struc.TagName) {
+func (g *Generator) generateTagsArrayVar(typeName string, tagNames []struc.TagName) {
 	var arrayVar string
 	if g.WrapType {
 		arrayVar = arrayType(getTagType(typeName, g.Export)) + "{"
@@ -384,7 +383,7 @@ func (g *TagConstantsGenerator) generateTagsArrayVar(typeName string, tagNames [
 	g.printf("%v=%v\n\n", varName, arrayVar)
 }
 
-func (g *TagConstantsGenerator) generateGetValueByFieldFunc(typeName string, fieldNames []struc.FieldName, returnRefs bool) {
+func (g *Generator) generateGetValueByFieldFunc(typeName string, fieldNames []struc.FieldName, returnRefs bool) {
 
 	var valType string
 	if g.WrapType {
@@ -414,7 +413,7 @@ func (g *TagConstantsGenerator) generateGetValueByFieldFunc(typeName string, fie
 	g.printf(funcBody)
 }
 
-func (g *TagConstantsGenerator) generateGetFieldValueByTagFunc(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, returnRefs bool) {
+func (g *Generator) generateGetFieldValueByTagFunc(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, returnRefs bool) {
 
 	var valType string
 	if g.WrapType {
@@ -463,7 +462,7 @@ func asRefIfNeed(receiverVar string, returnRefs bool) string {
 	return receiverRef
 }
 
-func (g *TagConstantsGenerator) generateArrayToStringsFunc(arrayTypeName string) {
+func (g *Generator) generateArrayToStringsFunc(arrayTypeName string) {
 	funcName := goName("Strings", g.Export)
 	g.printf("" +
 		"func (v " + arrayTypeName + ") " + funcName + "() []string {\n" +
@@ -475,7 +474,7 @@ func (g *TagConstantsGenerator) generateArrayToStringsFunc(arrayTypeName string)
 		"	}\n")
 }
 
-func (g *TagConstantsGenerator) generateAsMapFunc(typeName string, fieldNames []struc.FieldName, returnRefs bool) {
+func (g *Generator) generateAsMapFunc(typeName string, fieldNames []struc.FieldName, returnRefs bool) {
 	receiverVar := "v"
 	receiverRef := asRefIfNeed(receiverVar, returnRefs)
 

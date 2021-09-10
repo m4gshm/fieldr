@@ -1,4 +1,4 @@
-module github.com/m4gshm/tag-constanter
+module github.com/m4gshm/fieldr
 
 go 1.16
 
