@@ -464,11 +464,12 @@ func asRefIfNeed(receiverVar string, returnRefs bool) string {
 
 func (g *Generator) generateArrayToStringsFunc(arrayTypeName string) {
 	funcName := goName("Strings", g.Export)
+	receiverVar := "v"
 	g.printf("" +
-		"func (v " + arrayTypeName + ") " + funcName + "() []string {\n" +
+		"func (" + receiverVar + " " + arrayTypeName + ") " + funcName + "() []string {\n" +
 		"	strings := make([]string, 0, len(v))\n" +
-		"	for i, v := range v {\n" +
-		"		strings[i] = string(v)\n" +
+		"	for i, val := range " + receiverVar + " {\n" +
+		"		strings[i] = string(val)\n" +
 		"		}\n" +
 		"		return strings\n" +
 		"	}\n")
