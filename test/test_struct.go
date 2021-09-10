@@ -9,4 +9,4 @@ type TestStruct struct {
 	ts     time.Time `db:"TS" json:"ts"`
 }
 
-//go:generate fieldr -type TestStruct -wrap -export -output test_struct_const.go
+//go:generate fieldr -type TestStruct -wrap -export -output test_struct_util.go

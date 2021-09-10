@@ -16,11 +16,12 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-const name = "const"
+const name = "fieldr"
+const defaultSuffix = "_" + name + ".go"
 
 var (
 	typ        = flag.String("type", "", "type name; must be set")
-	output     = flag.String("output", "", "output file name; default srcdir/<type>_const.go")
+	output     = flag.String("output", "", "output file name; default srcdir/<type>"+defaultSuffix)
 	tag        = flag.String("tag", "", "tag used to constant naming")
 	wrap       = flag.Bool("wrap", false, "wrap tag const by own type")
 	ref        = flag.Bool("ref", false, "return field as refs in generated methods")
@@ -75,7 +76,8 @@ func main() {
 
 	outputName := *output
 	if outputName == "" {
-		baseName := fmt.Sprintf("%s_const.go", typeName)
+
+		baseName := typeName + defaultSuffix
 		outputName = filepath.Join(outDirectory, strings.ToLower(baseName))
 	}
 	const userWriteOtherRead = fs.FileMode(0644)
