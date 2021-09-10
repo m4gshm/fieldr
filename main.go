@@ -68,6 +68,7 @@ func main() {
 		WrapType:   *wrap,
 		ReturnRefs: *ref,
 		Export:     *export,
+		ExportVars: *exportVars,
 	}
 
 	g.GenerateFile(typeFile)
