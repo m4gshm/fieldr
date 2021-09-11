@@ -62,7 +62,10 @@ func main() {
 		return
 	}
 
-	typeFile := findTypeFile(files, typeName, *tag)
+	typeFile, err := findTypeFile(files, typeName, *tag)
+	if err != nil {
+		log.Fatal(err)
+	}
 	if typeFile == nil {
 		log.Printf("type not found, %s", typeName)
 		return
@@ -131,12 +134,15 @@ func extractPackage(patterns ...string) *packages.Package {
 	return pack
 }
 
-func findTypeFile(files []*ast.File, typeName string, tag string) *struc.Struct {
+func findTypeFile(files []*ast.File, typeName string, tag string) (*struc.Struct, error) {
 	for _, file := range files {
-		structTags := struc.FindStructTags(file, typeName, struc.TagName(tag))
+		structTags, err := struc.FindStructTags(file, typeName, struc.TagName(tag))
+		if err != nil {
+			return nil, err
+		}
 		if structTags != nil {
-			return structTags
+			return structTags, nil
 		}
 	}
-	return nil
+	return nil, nil
 }

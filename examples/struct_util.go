@@ -26,7 +26,7 @@ const (
 	Struct_db_ts     = StructTagValue("TS")
 
 	Struct_json_ID   = StructTagValue("id")
-	Struct_json_Name = StructTagValue("name,omitempty")
+	Struct_json_Name = StructTagValue("name")
 	Struct_json_ts   = StructTagValue("ts")
 )
 

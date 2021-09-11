@@ -2,6 +2,9 @@ package struc
 
 import (
 	"go/ast"
+	"log"
+	"regexp"
+	"strings"
 )
 
 type TagName string
@@ -16,7 +19,39 @@ type Struct struct {
 	TagNames    []TagName
 }
 
-func FindStructTags(file *ast.File, typeName string, tag TagName) *Struct {
+type tagValueParser = func(tagValue string) TagValue
+
+var tagParsers = map[TagName]tagValueParser{
+	"json": jsonTagParser,
+}
+
+func jsonTagParser(tagContent string) TagValue {
+	omitEmptySuffix := ",omitempty"
+	if strings.HasSuffix(tagContent, omitEmptySuffix) {
+		s := tagContent[0 : len(tagContent)-len(omitEmptySuffix)]
+		return TagValue(s)
+	}
+	return TagValue(tagContent)
+
+}
+
+func regExpParser(regExpr string) tagValueParser {
+	pattern, err := regexp.Compile(regExpr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return func(tagContent string) TagValue {
+		return TagValue(extractTagValue(string(tagContent), pattern))
+	}
+}
+
+func FindStructTags(file *ast.File, typeName string, tag TagName) (*Struct, error) {
+
+	tagValTemplate, err := getTagValueTemplates()
+	if err != nil {
+		return nil, err
+	}
 
 	var str *Struct
 
@@ -52,7 +87,7 @@ func FindStructTags(file *ast.File, typeName string, tag TagName) *Struct {
 			for _, _fieldName := range field.Names {
 
 				tagsValues := field.Tag.Value
-				fieldTagValues, fieldTagNames := ParseTags(tagsValues)
+				fieldTagValues, fieldTagNames := ParseTags(tagsValues, tagValTemplate)
 
 				if tag != "" {
 					_tagValue, tagValueOk := fieldTagValues[tag]
@@ -100,11 +135,20 @@ func FindStructTags(file *ast.File, typeName string, tag TagName) *Struct {
 	}
 	ast.Inspect(file, inspectRoutine)
 
-	return str
-
+	return str, nil
 }
 
-func ParseTags(tags string) (map[TagName]TagValue, []TagName) {
+func getTagValueTemplates() (map[TagName]*regexp.Regexp, error) {
+	jsonPattern, err := regexp.Compile(`(?P<value>[\p{L}\d]*)(,.*)*`)
+	if err != nil {
+		return nil, err
+	}
+	return map[TagName]*regexp.Regexp{
+		"json": jsonPattern,
+	}, nil
+}
+
+func ParseTags(tags string, tagValTemplate map[TagName]*regexp.Regexp) (map[TagName]TagValue, []TagName) {
 	tagNames := make([]TagName, 0)
 	tagValues := make(map[TagName]TagValue)
 
@@ -140,8 +184,14 @@ func ParseTags(tags string) (map[TagName]TagValue, []TagName) {
 				}
 			}
 
-			_tagValue := TagValue(tags[pos:endValuePos])
-			tagValues[_tagName] = _tagValue
+			tagContent := tags[pos:endValuePos]
+
+			parser, ok := tagParsers[_tagName]
+			if ok {
+				tagValues[_tagName] = parser(tagContent)
+			} else {
+				tagValues[_tagName] = TagValue(tagContent)
+			}
 			tagNames = append(tagNames, _tagName)
 			prevTagPos = endValuePos
 			pos = prevTagPos
@@ -149,4 +199,18 @@ func ParseTags(tags string) (map[TagName]TagValue, []TagName) {
 		}
 	}
 	return tagValues, tagNames
+}
+
+func extractTagValue(value string, template *regexp.Regexp) string {
+	submatches := template.FindStringSubmatch(value)
+	names := template.SubexpNames()
+	for i, groupName := range names {
+		if groupName == "value" {
+			submatch := submatches[i]
+			if len(submatch) == 0 {
+				return submatch
+			}
+		}
+	}
+	return value
 }
