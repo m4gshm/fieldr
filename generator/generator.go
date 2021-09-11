@@ -111,6 +111,8 @@ func (g *Generator) Generate(packageName string, typeName string, tagNames []str
 	g.generateGetFieldValuesByTagValueFunc(typeName, fieldNames, tagNames, fields, returnRefs)
 	g.printf("\n")
 	g.generateAsMapFunc(typeName, fieldNames, returnRefs)
+	g.printf("\n")
+	g.generateAsTagMapFunc(typeName, fieldNames, tagNames, fields, returnRefs)
 
 }
 
@@ -470,8 +472,10 @@ func (g *Generator) generateGetFieldValuesByTagValueFunc(typeName string, fieldN
 	receiverVar := "v"
 	receiverRef := asRefIfNeed(receiverVar, returnRefs)
 
+	resultType := "[]interface{}"
+
 	funcName := goName("GetFieldValuesByTag", g.Export)
-	funcBody := "func (" + receiverVar + " *" + typeName + ") " + funcName + "(" + valVar + " " + valType + ") interface{} " +
+	funcBody := "func (" + receiverVar + " *" + typeName + ") " + funcName + "(" + valVar + " " + valType + ") " + resultType + " " +
 		"{\n" + "switch " + valVar + " {\n"
 	for _, tagName := range tagNames {
 
@@ -488,7 +492,7 @@ func (g *Generator) generateGetFieldValuesByTagValueFunc(typeName string, fieldN
 		}
 		if len(fieldExpr) > 0 {
 			funcBody += "case " + caseExpr + ":\n" +
-				"return " + fieldExpr + "\n"
+				"return " + resultType + "{" + fieldExpr + "}\n"
 		}
 	}
 
@@ -498,17 +502,6 @@ func (g *Generator) generateGetFieldValuesByTagValueFunc(typeName string, fieldN
 
 	g.printf(funcBody)
 }
-
-//func (v *Struct) FieldValuesByTag(tag StructTag) []interface{} {
-//	switch tag {
-//	case Struct_db:
-//		return []interface{}{v.ID, v.Name, v.NoJson, v.ts}
-//	case Struct_json:
-//		return []interface{}{v.ID, v.Name, v.ts}
-//	}
-//	return nil
-//}
-//
 
 func asRefIfNeed(receiverVar string, returnRefs bool) string {
 	receiverRef := receiverVar
@@ -535,16 +528,16 @@ func (g *Generator) generateAsMapFunc(typeName string, fieldNames []struc.FieldN
 	receiverVar := "v"
 	receiverRef := asRefIfNeed(receiverVar, returnRefs)
 
-	fieldType := baseType
+	keyType := baseType
 	if g.WrapType {
 
-		fieldType = getFieldType(typeName, g.Export)
+		keyType = getFieldType(typeName, g.Export)
 	}
 
 	funcName := goName("AsMap", g.Export)
 	funcBody := "" +
-		"func (" + receiverVar + " *" + typeName + ") " + funcName + "() map[" + fieldType + "]interface{} {\n" +
-		"	return map[" + fieldType + "]interface{}{\n"
+		"func (" + receiverVar + " *" + typeName + ") " + funcName + "() map[" + keyType + "]interface{} {\n" +
+		"	return map[" + keyType + "]interface{}{\n"
 
 	for _, fieldName := range fieldNames {
 		funcBody += getFieldConstName(typeName, fieldName, g.Export) + ": " + receiverRef + "." + string(fieldName) + ",\n"
@@ -556,15 +549,61 @@ func (g *Generator) generateAsMapFunc(typeName string, fieldNames []struc.FieldN
 	g.printf(funcBody)
 }
 
-//func (v *Struct) AsTagMap(tag StructTag) map[StructTagValue]interface{} {
-//	switch tag {
-//	case Struct_db:
-//		return map[StructTagValue]interface{}{Struct_db_ID: v.ID, Struct_db_Name: v.Name, Struct_db_NoJson: v.NoJson, Struct_db_ts: v.ts}
-//	case Struct_json:
-//		return map[StructTagValue]interface{}{Struct_json_ID: v.ID, Struct_json_Name: v.Name, Struct_json_ts: v.ts}
-//	}
-//	return nil
-//}
+func (g *Generator) generateAsTagMapFunc(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, returnRefs bool) {
+	receiverVar := "v"
+	receiverRef := asRefIfNeed(receiverVar, returnRefs)
+
+	keyType := baseType
+	if g.WrapType {
+		keyType = getTagValueType(typeName, g.Export)
+	}
+
+	valueType := "interface{}"
+
+	varName := "tag"
+
+	//func (v *Struct) AsTagMap(tag StructTag) map[StructTagValue]interface{} {
+	//	switch tag {
+	//	case Struct_db:
+	//		return map[StructTagValue]interface{}{
+	//			Struct_db_ID:     v.ID,
+	//			Struct_db_Name:   v.Name,
+	//			Struct_db_NoJson: v.NoJson,
+	//			Struct_db_ts:     v.ts,
+	//		}
+	//
+	//	}
+	//
+	//}
+
+	mapType := "map[" + keyType + "]" + valueType
+
+	funcName := goName("AsTagMap", g.Export)
+	funcBody := "" +
+		"func (" + receiverVar + " *" + typeName + ") " + funcName + "(" + varName + " " + getTagType(typeName, g.Export) + ") " + mapType + " {\n" +
+		"switch " + varName + " {\n" +
+		""
+
+	for _, tagName := range tagNames {
+		funcBody += "case " + getTagConstName(typeName, tagName, g.Export) + ":\n" +
+			"return " + mapType + "{\n"
+		for _, fieldName := range fieldNames {
+			_, ok := fields[fieldName][tagName]
+
+			if ok {
+				funcBody += getTagValueConstName(typeName, tagName, fieldName, g.Export) + ": " + receiverRef + "." + string(fieldName) + ",\n"
+			}
+		}
+
+		funcBody += "}\n"
+	}
+	funcBody += "" +
+		"	}\n" +
+		"return nil" +
+		"}"
+
+	g.printf(funcBody)
+}
 
 func getTagConstName(typeName string, tag struc.TagName, export bool) string {
 	return goName(typeName+"_"+string(tag), export)
