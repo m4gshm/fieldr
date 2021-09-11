@@ -82,13 +82,13 @@ func (g *Generator) Generate(packageName string, typeName string, tagNames []str
 	g.generateFieldsArrayVar(typeName, fieldNames)
 	g.generateTagsArrayVar(typeName, tagNames)
 
-	g.generateTagsByFieldsMapVar(typeName, fieldNames, fields)
+	g.generateTagsByFieldsMapVar(typeName, tagNames, fieldNames, fields)
 
 	g.generateTagValuesByTagMapVar(typeName, tagNames, fieldNames, fields)
 
 	g.generateTagFieldsByTagMapVar(typeName, tagNames, fieldNames, fields)
 
-	g.generateTagsValuesByFieldMapVar(fieldNames, typeName, fields)
+	g.generateTagsValuesByFieldMapVar(fieldNames, tagNames, typeName, fields)
 
 	g.printf(")\n")
 
@@ -143,9 +143,7 @@ func goName(name string, export bool) string {
 	return result
 }
 
-func (g *Generator) generateTagsValuesByFieldMapVar(
-	fieldNames []struc.FieldName, typeName string, fields map[struc.FieldName]map[struc.TagName]struc.TagValue,
-) {
+func (g *Generator) generateTagsValuesByFieldMapVar(fieldNames []struc.FieldName, tagNames []struc.TagName, typeName string, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) {
 	var varValue string
 	if g.WrapType {
 		varValue = "map[" + getFieldType(typeName, g.Export) + "]map[" + getTagType(typeName, g.Export) + "]" + getTagValueType(typeName, g.Export) + "{\n"
@@ -160,16 +158,18 @@ func (g *Generator) generateTagsValuesByFieldMapVar(
 			varValue += fieldConstName + ": map[string]string{"
 		}
 
-		fieldTags := fields[fieldName]
-
 		ti := 0
-		for fieldTag := range fieldTags {
+		for _, tagName := range tagNames {
+			_, ok := fields[fieldName][tagName]
+			if !ok {
+				continue
+			}
 			if ti > 0 {
 				varValue += ", "
 			}
 
-			tagConstName := getTagConstName(typeName, fieldTag, g.Export)
-			varValue += tagConstName + ": " + getTagValueConstName(typeName, fieldTag, fieldName, g.Export)
+			tagConstName := getTagConstName(typeName, tagName, g.Export)
+			varValue += tagConstName + ": " + getTagValueConstName(typeName, tagName, fieldName, g.Export)
 			ti++
 		}
 
@@ -182,7 +182,7 @@ func (g *Generator) generateTagsValuesByFieldMapVar(
 	g.printf("%v=%v\n\n", varName, varValue)
 }
 
-func (g *Generator) generateTagsByFieldsMapVar(typeName string, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) {
+func (g *Generator) generateTagsByFieldsMapVar(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) {
 	var varValue string
 	if g.WrapType {
 		varValue = "map[" + getFieldType(typeName, g.Export) + "]" + arrayType(getTagType(typeName, g.Export)) + "{\n"
@@ -198,14 +198,17 @@ func (g *Generator) generateTagsByFieldsMapVar(typeName string, fieldNames []str
 			varValue += fieldConstName + ": []string{"
 		}
 
-		fieldTags := fields[fieldName]
-
 		ti := 0
-		for fieldTag := range fieldTags {
+		for _, tagName := range tagNames {
+			_, ok := fields[fieldName][tagName]
+			if !ok {
+				continue
+			}
+
 			if ti > 0 {
 				varValue += ", "
 			}
-			tagConstName := getTagConstName(typeName, fieldTag, g.Export)
+			tagConstName := getTagConstName(typeName, tagName, g.Export)
 			varValue += tagConstName
 			ti++
 		}
@@ -235,14 +238,9 @@ func (g *Generator) generateTagValuesByTagMapVar(typeName string, tagNames []str
 			varValue += constName + ": []string{"
 		}
 
-		//tagValues := tags[tagName]
-
 		ti := 0
-		for _, field := range fieldNames {
-
-			_, ok := fields[field][tagName]
-
-			//_, ok := tagValues[field]
+		for _, fieldName := range fieldNames {
+			_, ok := fields[fieldName][tagName]
 			if !ok {
 				continue
 			}
@@ -250,7 +248,7 @@ func (g *Generator) generateTagValuesByTagMapVar(typeName string, tagNames []str
 			if ti > 0 {
 				varValue += ", "
 			}
-			tagConstName := getTagValueConstName(typeName, tagName, field, g.Export)
+			tagConstName := getTagValueConstName(typeName, tagName, fieldName, g.Export)
 			varValue += tagConstName
 			ti++
 		}
