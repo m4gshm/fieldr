@@ -562,20 +562,6 @@ func (g *Generator) generateAsTagMapFunc(typeName string, fieldNames []struc.Fie
 
 	varName := "tag"
 
-	//func (v *Struct) AsTagMap(tag StructTag) map[StructTagValue]interface{} {
-	//	switch tag {
-	//	case Struct_db:
-	//		return map[StructTagValue]interface{}{
-	//			Struct_db_ID:     v.ID,
-	//			Struct_db_Name:   v.Name,
-	//			Struct_db_NoJson: v.NoJson,
-	//			Struct_db_ts:     v.ts,
-	//		}
-	//
-	//	}
-	//
-	//}
-
 	mapType := "map[" + keyType + "]" + valueType
 
 	funcName := goName("AsTagMap", g.Export)
