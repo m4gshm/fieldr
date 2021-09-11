@@ -3,8 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/m4gshm/fieldr/generator"
-	"github.com/m4gshm/fieldr/struc"
 	"go/ast"
 	"io/fs"
 	"io/ioutil"
@@ -13,6 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/m4gshm/fieldr/generator"
+	"github.com/m4gshm/fieldr/struc"
+
 	"golang.org/x/tools/go/packages"
 )
 
@@ -20,13 +21,14 @@ const name = "fieldr"
 const defaultSuffix = "_" + name + ".go"
 
 var (
-	typ        = flag.String("type", "", "type name; must be set")
-	output     = flag.String("output", "", "output file name; default srcdir/<type>"+defaultSuffix)
-	tag        = flag.String("tag", "", "tag used to constant naming")
-	wrap       = flag.Bool("wrap", false, "wrap tag const by own type")
-	ref        = flag.Bool("ref", false, "return field as refs in generated methods")
-	export     = flag.Bool("export", false, "export generated types, constant, methods")
-	exportVars = flag.Bool("exportVars", false, "export generated variables only")
+	typ            = flag.String("type", "", "type name; must be set")
+	output         = flag.String("output", "", "output file name; default srcdir/<type>"+defaultSuffix)
+	tag            = flag.String("tag", "", "tag used to constant naming")
+	wrap           = flag.Bool("wrap", false, "wrap tag const by own type")
+	ref            = flag.Bool("ref", false, "return field as refs in generated methods")
+	export         = flag.Bool("export", false, "export generated types, constant, methods")
+	exportVars     = flag.Bool("exportVars", false, "export generated variables only")
+	packagePattern = flag.String("package", "", "package pattern")
 )
 
 func Usage() {
@@ -47,9 +49,12 @@ func main() {
 	}
 
 	args := flag.Args()
-	outDirectory := outDir(args)
+	err := os.Chdir(outDir(args))
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	pkg := extractPackage(args)
+	pkg := extractPackage(*packagePattern)
 	packageName := pkg.Name
 	files := pkg.Syntax
 	if len(files) == 0 {
@@ -78,7 +83,7 @@ func main() {
 	if outputName == "" {
 
 		baseName := typeName + defaultSuffix
-		outputName = filepath.Join(outDirectory, strings.ToLower(baseName))
+		outputName = filepath.Join(outDir(args), strings.ToLower(baseName))
 	}
 	const userWriteOtherRead = fs.FileMode(0644)
 	if writeErr := ioutil.WriteFile(outputName, src, userWriteOtherRead); writeErr != nil {
@@ -104,7 +109,7 @@ func isDir(name string) bool {
 	return info.IsDir()
 }
 
-func extractPackage(patterns []string) *packages.Package {
+func extractPackage(patterns ...string) *packages.Package {
 	packages, err := packages.Load(&packages.Config{
 		Mode:  packages.NeedSyntax,
 		Tests: false,
@@ -115,7 +120,15 @@ func extractPackage(patterns []string) *packages.Package {
 	if len(packages) != 1 {
 		log.Fatalf("error: %d packages found", len(packages))
 	}
-	return packages[0]
+
+	pack := packages[0]
+
+	errors := pack.Errors
+	if len(errors) > 0 {
+		log.Fatal(errors[0])
+	}
+
+	return pack
 }
 
 func findTypeFile(files []*ast.File, typeName string, tag string) *struc.Struct {

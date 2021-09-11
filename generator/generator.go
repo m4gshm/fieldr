@@ -3,11 +3,12 @@ package generator
 import (
 	"bytes"
 	"fmt"
-	"github.com/m4gshm/fieldr/struc"
 	"go/format"
 	"os"
 	"strings"
 	"unicode"
+
+	"github.com/m4gshm/fieldr/struc"
 )
 
 type Generator struct {
@@ -92,11 +93,11 @@ func (g *Generator) Generate(packageName string, typeName string, tagNames []str
 	g.printf(")\n")
 
 	if g.WrapType {
-		g.generateArrayToStringsFunc(arrayType(getFieldType(typeName, g.Export)))
+		g.generateArrayToStringsFunc(arrayType(getFieldType(typeName, g.Export)), baseType)
 		g.printf("\n")
-		g.generateArrayToStringsFunc(arrayType(getTagType(typeName, g.Export)))
+		g.generateArrayToStringsFunc(arrayType(getTagType(typeName, g.Export)), baseType)
 		g.printf("\n")
-		g.generateArrayToStringsFunc(arrayType(getTagValueType(typeName, g.Export)))
+		g.generateArrayToStringsFunc(arrayType(getTagValueType(typeName, g.Export)), baseType)
 		g.printf("\n")
 	}
 
@@ -106,6 +107,8 @@ func (g *Generator) Generate(packageName string, typeName string, tagNames []str
 	g.printf("\n")
 
 	g.generateGetFieldValueByTagFunc(typeName, fieldNames, tagNames, fields, returnRefs)
+	g.printf("\n")
+	g.generateGetFieldValuesByTagValueFunc(typeName, fieldNames, tagNames, fields, returnRefs)
 	g.printf("\n")
 	g.generateAsMapFunc(typeName, fieldNames, returnRefs)
 
@@ -396,7 +399,7 @@ func (g *Generator) generateGetValueByFieldFunc(typeName string, fieldNames []st
 	receiverVar := "v"
 	receiverRef := asRefIfNeed(receiverVar, returnRefs)
 
-	funcName := goName("FieldValue", g.Export)
+	funcName := goName("GetFieldValue", g.Export)
 	funcBody := "func (" + receiverVar + " *" + typeName + ") " + funcName + "(" + valVar + " " + valType + ") interface{} " +
 		"{\n" + "switch " + valVar + " {\n"
 
@@ -426,7 +429,7 @@ func (g *Generator) generateGetFieldValueByTagFunc(typeName string, fieldNames [
 	receiverVar := "v"
 	receiverRef := asRefIfNeed(receiverVar, returnRefs)
 
-	funcName := goName("FieldValueByTagValue", g.Export)
+	funcName := goName("GetFieldValueByTagValue", g.Export)
 	funcBody := "func (" + receiverVar + " *" + typeName + ") " + funcName + "(" + valVar + " " + valType + ") interface{} " +
 		"{\n" + "switch " + valVar + " {\n"
 
@@ -454,6 +457,59 @@ func (g *Generator) generateGetFieldValueByTagFunc(typeName string, fieldNames [
 	g.printf(funcBody)
 }
 
+func (g *Generator) generateGetFieldValuesByTagValueFunc(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, returnRefs bool) {
+
+	var valType string
+	if g.WrapType {
+		valType = getTagType(typeName, g.Export)
+	} else {
+		valType = baseType
+	}
+
+	valVar := "tag"
+	receiverVar := "v"
+	receiverRef := asRefIfNeed(receiverVar, returnRefs)
+
+	funcName := goName("GetFieldValuesByTag", g.Export)
+	funcBody := "func (" + receiverVar + " *" + typeName + ") " + funcName + "(" + valVar + " " + valType + ") interface{} " +
+		"{\n" + "switch " + valVar + " {\n"
+	for _, tagName := range tagNames {
+
+		caseExpr := getTagConstName(typeName, tagName, g.Export)
+		fieldExpr := ""
+		for _, fieldName := range fieldNames {
+			_, ok := fields[fieldName][tagName]
+			if ok {
+				if len(fieldExpr) > 0 {
+					fieldExpr += ", "
+				}
+				fieldExpr += receiverRef + "." + string(fieldName)
+			}
+		}
+		if len(fieldExpr) > 0 {
+			funcBody += "case " + caseExpr + ":\n" +
+				"return " + fieldExpr + "\n"
+		}
+	}
+
+	funcBody += "}\n" +
+		"return nil" +
+		"\n}\n"
+
+	g.printf(funcBody)
+}
+
+//func (v *Struct) FieldValuesByTag(tag StructTag) []interface{} {
+//	switch tag {
+//	case Struct_db:
+//		return []interface{}{v.ID, v.Name, v.NoJson, v.ts}
+//	case Struct_json:
+//		return []interface{}{v.ID, v.Name, v.ts}
+//	}
+//	return nil
+//}
+//
+
 func asRefIfNeed(receiverVar string, returnRefs bool) string {
 	receiverRef := receiverVar
 	if returnRefs {
@@ -462,12 +518,12 @@ func asRefIfNeed(receiverVar string, returnRefs bool) string {
 	return receiverRef
 }
 
-func (g *Generator) generateArrayToStringsFunc(arrayTypeName string) {
+func (g *Generator) generateArrayToStringsFunc(arrayTypeName string, resultType string) {
 	funcName := goName("Strings", g.Export)
 	receiverVar := "v"
 	g.printf("" +
-		"func (" + receiverVar + " " + arrayTypeName + ") " + funcName + "() []string {\n" +
-		"	strings := make([]string, 0, len(v))\n" +
+		"func (" + receiverVar + " " + arrayTypeName + ") " + funcName + "() []" + resultType + " {\n" +
+		"	strings := make([]" + resultType + ", 0, len(v))\n" +
 		"	for i, val := range " + receiverVar + " {\n" +
 		"		strings[i] = string(val)\n" +
 		"		}\n" +
@@ -499,6 +555,16 @@ func (g *Generator) generateAsMapFunc(typeName string, fieldNames []struc.FieldN
 
 	g.printf(funcBody)
 }
+
+//func (v *Struct) AsTagMap(tag StructTag) map[StructTagValue]interface{} {
+//	switch tag {
+//	case Struct_db:
+//		return map[StructTagValue]interface{}{Struct_db_ID: v.ID, Struct_db_Name: v.Name, Struct_db_NoJson: v.NoJson, Struct_db_ts: v.ts}
+//	case Struct_json:
+//		return map[StructTagValue]interface{}{Struct_json_ID: v.ID, Struct_json_Name: v.Name, Struct_json_ts: v.ts}
+//	}
+//	return nil
+//}
 
 func getTagConstName(typeName string, tag struc.TagName, export bool) string {
 	return goName(typeName+"_"+string(tag), export)

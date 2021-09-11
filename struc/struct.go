@@ -11,7 +11,6 @@ type FieldName string
 type Struct struct {
 	TypeName    string
 	PackageName string
-	Tags        map[TagName]map[FieldName]TagValue
 	Fields      map[FieldName]map[TagName]TagValue
 	FieldNames  []FieldName
 	TagNames    []TagName
@@ -91,7 +90,6 @@ func FindStructTags(file *ast.File, typeName string, tag TagName) *Struct {
 			str = &Struct{
 				TypeName:    typeName,
 				PackageName: file.Name.Name,
-				Tags:        tags,
 				Fields:      fields,
 				FieldNames:  fieldNames,
 				TagNames:    tagNames,
