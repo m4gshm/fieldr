@@ -8,7 +8,7 @@ import (
 const placeholder = "?"
 
 var (
-	columns  = struct_Tag_Values[Struct_db].Strings()
+	columns  = Struct_TagValues[Struct_db].Strings()
 	idColumn = Struct_ID
 
 	sqlSelect = GetSqlSelect(columns)

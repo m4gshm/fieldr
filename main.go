@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/m4gshm/fieldr/generator"
@@ -29,6 +30,23 @@ var (
 	export         = flag.Bool("export", false, "export generated types, constant, methods")
 	exportVars     = flag.Bool("exportVars", false, "export generated variables only")
 	packagePattern = flag.String("package", "", "package pattern")
+
+	generateContentOptions = generator.GenerateContentOptions{
+		Fields:               flag.Bool("Fields", false, "Fields"),
+		Tags:                 flag.Bool("Tags", false, "Tags"),
+		TagsByFieldsMap:      flag.Bool("TagsByFieldsMap", false, "TagsByFieldsMap"),
+		TagValuesMap:         flag.Bool("TagValuesMap", false, "TagValuesMap"),
+		TagFieldsMap:         flag.Bool("TagFieldsMap", false, "TagFieldsMap"),
+		TagsValuesByFieldMap: flag.Bool("TagsValuesByFieldMap", false, "TagsValuesByFieldMap"),
+
+		GetFieldValue:       flag.Bool("GetFieldValue", false, "GetFieldValue"),
+		GetFieldValueByTag:  flag.Bool("GetFieldValueByTag", false, "GetFieldValueByTag"),
+		GetFieldValuesByTag: flag.Bool("GetFieldValuesByTag", false, "GetFieldValuesByTag"),
+		AsMap:               flag.Bool("AsMap", false, "AsMap"),
+		AsTagMap:            flag.Bool("AsTagMap", false, "AsTagMap"),
+
+		Strings: flag.Bool("Strings", false, "Strings"),
+	}
 )
 
 func Usage() {
@@ -71,12 +89,28 @@ func main() {
 		return
 	}
 
+	generateAll := true
+	optionFields := reflect.ValueOf(generateContentOptions)
+	field := optionFields.NumField()
+	for i := 0; i < field; i++ {
+		structField := optionFields.Field(i)
+		notGenerate := structField.Elem().Bool() == false
+		generateAll = generateAll && notGenerate
+	}
+
+	if generateAll {
+		for i := 0; i < field; i++ {
+			optionFields.Field(i).Elem().SetBool(true)
+		}
+	}
+
 	g := generator.Generator{
 		Name:       name,
 		WrapType:   *wrap,
 		ReturnRefs: *ref,
 		Export:     *export,
 		ExportVars: *exportVars,
+		Opts:       &generateContentOptions,
 	}
 
 	g.GenerateFile(typeFile)

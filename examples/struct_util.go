@@ -35,24 +35,24 @@ var (
 
 	struct_Tags = StructTags{Struct_db, Struct_json}
 
-	struct_Field_Tags = map[StructField]StructTags{
+	struct_FieldTags = map[StructField]StructTags{
 		Struct_ID:     StructTags{Struct_db, Struct_json},
 		Struct_Name:   StructTags{Struct_db, Struct_json},
 		Struct_NoJson: StructTags{Struct_db},
 		Struct_ts:     StructTags{Struct_db, Struct_json},
 	}
 
-	struct_Tag_Values = map[StructTag]StructTagValues{
+	struct_TagValues = map[StructTag]StructTagValues{
 		Struct_db:   StructTagValues{Struct_db_ID, Struct_db_Name, Struct_db_NoJson, Struct_db_ts},
 		Struct_json: StructTagValues{Struct_json_ID, Struct_json_Name, Struct_json_ts},
 	}
 
-	struct_Tag_Fields = map[StructTag]StructFields{
+	struct_TagFields = map[StructTag]StructFields{
 		Struct_db:   StructFields{Struct_ID, Struct_Name, Struct_NoJson, Struct_ts},
 		Struct_json: StructFields{Struct_ID, Struct_Name, Struct_ts},
 	}
 
-	struct_Field_Tag_Value = map[StructField]map[StructTag]StructTagValue{
+	struct_FieldTagValue = map[StructField]map[StructTag]StructTagValue{
 		Struct_ID:     map[StructTag]StructTagValue{Struct_db: Struct_db_ID, Struct_json: Struct_json_ID},
 		Struct_Name:   map[StructTag]StructTagValue{Struct_db: Struct_db_Name, Struct_json: Struct_json_Name},
 		Struct_NoJson: map[StructTag]StructTagValue{Struct_db: Struct_db_NoJson},
