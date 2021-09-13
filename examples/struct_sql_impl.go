@@ -8,13 +8,13 @@ import (
 const placeholder = "?"
 
 var (
-	columns  = struct_Tag_Values[Struct_db]
+	columns  = struct_Tag_Values[Struct_db].Strings()
 	idColumn = Struct_ID
 
 	sqlSelect = GetSqlSelect(columns)
 	sqlInsert = GetSqlInsert(columns, positionPlaceholder)
-	sqlUpsert = GetPostgresUpsert(columns, idColumn, positionPlaceholder)
-	sqlDelete = GetSqlDelete(idColumn, placeholder)
+	sqlUpsert = GetPostgresUpsert(columns, string(idColumn), positionPlaceholder)
+	sqlDelete = GetSqlDelete(string(idColumn), placeholder)
 )
 
 func (s *Struct) sqlSelectStatement(tableName string) string {
