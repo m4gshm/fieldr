@@ -27,7 +27,6 @@ const (
 
 	Struct_json_ID   = StructTagValue("id")
 	Struct_json_Name = StructTagValue("name")
-	Struct_json_ts   = StructTagValue("ts")
 )
 
 var (
@@ -39,24 +38,24 @@ var (
 		Struct_ID:     StructTags{Struct_db, Struct_json},
 		Struct_Name:   StructTags{Struct_db, Struct_json},
 		Struct_NoJson: StructTags{Struct_db},
-		Struct_ts:     StructTags{Struct_db, Struct_json},
+		Struct_ts:     StructTags{Struct_db},
 	}
 
 	struct_TagValues = map[StructTag]StructTagValues{
 		Struct_db:   StructTagValues{Struct_db_ID, Struct_db_Name, Struct_db_NoJson, Struct_db_ts},
-		Struct_json: StructTagValues{Struct_json_ID, Struct_json_Name, Struct_json_ts},
+		Struct_json: StructTagValues{Struct_json_ID, Struct_json_Name},
 	}
 
 	struct_TagFields = map[StructTag]StructFields{
 		Struct_db:   StructFields{Struct_ID, Struct_Name, Struct_NoJson, Struct_ts},
-		Struct_json: StructFields{Struct_ID, Struct_Name, Struct_ts},
+		Struct_json: StructFields{Struct_ID, Struct_Name},
 	}
 
 	struct_FieldTagValue = map[StructField]map[StructTag]StructTagValue{
 		Struct_ID:     map[StructTag]StructTagValue{Struct_db: Struct_db_ID, Struct_json: Struct_json_ID},
 		Struct_Name:   map[StructTag]StructTagValue{Struct_db: Struct_db_Name, Struct_json: Struct_json_Name},
 		Struct_NoJson: map[StructTag]StructTagValue{Struct_db: Struct_db_NoJson},
-		Struct_ts:     map[StructTag]StructTagValue{Struct_db: Struct_db_ts, Struct_json: Struct_json_ts},
+		Struct_ts:     map[StructTag]StructTagValue{Struct_db: Struct_db_ts},
 	}
 )
 
@@ -106,7 +105,7 @@ func (v *Struct) GetFieldValueByTagValue(tag StructTagValue) interface{} {
 		return v.Name
 	case Struct_db_NoJson:
 		return v.NoJson
-	case Struct_db_ts, Struct_json_ts:
+	case Struct_db_ts:
 		return v.ts
 	}
 	return nil
@@ -117,7 +116,7 @@ func (v *Struct) GetFieldValuesByTag(tag StructTag) []interface{} {
 	case Struct_db:
 		return []interface{}{v.ID, v.Name, v.NoJson, v.ts}
 	case Struct_json:
-		return []interface{}{v.ID, v.Name, v.ts}
+		return []interface{}{v.ID, v.Name}
 	}
 	return nil
 }
@@ -143,7 +142,6 @@ func (v *Struct) AsTagMap(tag StructTag) map[StructTagValue]interface{} {
 		return map[StructTagValue]interface{}{
 			Struct_json_ID:   v.ID,
 			Struct_json_Name: v.Name,
-			Struct_json_ts:   v.ts,
 		}
 	}
 	return nil

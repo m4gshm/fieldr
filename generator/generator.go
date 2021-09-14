@@ -22,12 +22,12 @@ type Generator struct {
 }
 
 type GenerateContentOptions struct {
-	Fields               *bool
-	Tags                 *bool
-	TagsByFieldsMap      *bool
-	TagValuesMap         *bool
-	TagFieldsMap         *bool
-	TagsValuesByFieldMap *bool
+	Fields           *bool
+	Tags             *bool
+	FieldTagsMap     *bool
+	TagValuesMap     *bool
+	TagFieldsMap     *bool
+	FieldTagValueMap *bool
 
 	GetFieldValue       *bool
 	GetFieldValueByTag  *bool
@@ -99,14 +99,14 @@ func (g *Generator) Generate(packageName string, typeName string, tagNames []str
 
 	opts := g.Opts
 	if *opts.Fields {
-		g.generateFieldsArrayVar(typeName, fieldNames)
+		g.generateFieldsVar(typeName, fieldNames)
 	}
 
 	if *opts.Tags {
-		g.generateTagsArrayVar(typeName, tagNames)
+		g.generateTagsVar(typeName, tagNames)
 	}
 
-	if *opts.TagsByFieldsMap {
+	if *opts.FieldTagsMap {
 		g.generateFieldTagsMapVar(typeName, tagNames, fieldNames, fields)
 	}
 
@@ -118,7 +118,7 @@ func (g *Generator) Generate(packageName string, typeName string, tagNames []str
 		g.generateTagFieldsMapVar(typeName, tagNames, fieldNames, fields)
 	}
 
-	if *opts.TagsValuesByFieldMap {
+	if *opts.FieldTagValueMap {
 		g.generateFieldTagValueMapVar(fieldNames, tagNames, typeName, fields)
 	}
 
@@ -402,7 +402,7 @@ func (g *Generator) generateTagConstants(typeName string, tagNames []struc.TagNa
 	}
 }
 
-func (g *Generator) generateFieldsArrayVar(typeName string, fieldNames []struc.FieldName) {
+func (g *Generator) generateFieldsVar(typeName string, fieldNames []struc.FieldName) {
 	fieldType := getFieldType(typeName, g.Export)
 	var arrayVar string
 	if g.WrapType {
@@ -423,7 +423,7 @@ func (g *Generator) generateFieldsArrayVar(typeName string, fieldNames []struc.F
 	g.printf("%v=%v\n\n", varName, arrayVar)
 }
 
-func (g *Generator) generateTagsArrayVar(typeName string, tagNames []struc.TagName) {
+func (g *Generator) generateTagsVar(typeName string, tagNames []struc.TagName) {
 	var arrayVar string
 	if g.WrapType {
 		arrayVar = arrayType(getTagType(typeName, g.Export)) + "{"

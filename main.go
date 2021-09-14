@@ -21,31 +21,43 @@ import (
 const name = "fieldr"
 const defaultSuffix = "_" + name + ".go"
 
+const json = struc.TagName("json")
+
 var (
-	typ            = flag.String("type", "", "type name; must be set")
-	output         = flag.String("output", "", "output file name; default srcdir/<type>"+defaultSuffix)
-	tag            = flag.String("tag", "", "tag used to constant naming")
-	wrap           = flag.Bool("wrap", false, "wrap tag const by own type")
-	ref            = flag.Bool("ref", false, "return field as refs in generated methods")
-	export         = flag.Bool("export", false, "export generated types, constant, methods")
-	exportVars     = flag.Bool("exportVars", false, "export generated variables only")
-	packagePattern = flag.String("package", "", "package pattern")
+	TagParsers = struc.TagValueParsers{
+		json: struc.JsonTagParser,
+	}
+	ExcludeValues = map[struc.TagName]map[struc.TagValue]bool{
+		json: {"-": true},
+	}
+)
+
+var (
+	typ             = flag.String("type", "", "type name; must be set")
+	output          = flag.String("output", "", "output file name; default srcdir/<type>"+defaultSuffix)
+	tag             = flag.String("tag", "", "tag used to constant naming")
+	wrap            = flag.Bool("wrap", false, "wrap tag const by own type")
+	ref             = flag.Bool("ref", false, "return field as refs in generated methods")
+	export          = flag.Bool("export", false, "export generated types, constant, methods")
+	exportVars      = flag.Bool("exportVars", false, "export generated variables only")
+	noDefaultParser = flag.Bool("noDefaultParser", false, "disable default tag parser ("+TagParsers.Keys()+")")
+	packagePattern  = flag.String("package", "", "package pattern")
 
 	generateContentOptions = generator.GenerateContentOptions{
-		Fields:               flag.Bool("Fields", false, "Fields"),
-		Tags:                 flag.Bool("Tags", false, "Tags"),
-		TagsByFieldsMap:      flag.Bool("TagsByFieldsMap", false, "TagsByFieldsMap"),
-		TagValuesMap:         flag.Bool("TagValuesMap", false, "TagValuesMap"),
-		TagFieldsMap:         flag.Bool("TagFieldsMap", false, "TagFieldsMap"),
-		TagsValuesByFieldMap: flag.Bool("TagsValuesByFieldMap", false, "TagsValuesByFieldMap"),
+		Fields:           flag.Bool("Fields", false, "generate Fields list var"),
+		Tags:             flag.Bool("Tags", false, "generate Tags list var"),
+		FieldTagsMap:     flag.Bool("FieldTagsMap", false, "generate FieldTags map var"),
+		TagValuesMap:     flag.Bool("TagValuesMap", false, "generate TagValues map var"),
+		TagFieldsMap:     flag.Bool("TagFieldsMap", false, "generate TagFields map var"),
+		FieldTagValueMap: flag.Bool("FieldTagValueMap", false, "generate FieldTagValue map var"),
 
-		GetFieldValue:       flag.Bool("GetFieldValue", false, "GetFieldValue"),
-		GetFieldValueByTag:  flag.Bool("GetFieldValueByTag", false, "GetFieldValueByTag"),
-		GetFieldValuesByTag: flag.Bool("GetFieldValuesByTag", false, "GetFieldValuesByTag"),
-		AsMap:               flag.Bool("AsMap", false, "AsMap"),
-		AsTagMap:            flag.Bool("AsTagMap", false, "AsTagMap"),
+		GetFieldValue:       flag.Bool("GetFieldValue", false, "generate GetFieldValue func"),
+		GetFieldValueByTag:  flag.Bool("GetFieldValueByTag", false, "generate GetFieldValueByTag func"),
+		GetFieldValuesByTag: flag.Bool("GetFieldValuesByTag", false, "generate GetFieldValuesByTag func"),
+		AsMap:               flag.Bool("AsMap", false, "generate AsMap func"),
+		AsTagMap:            flag.Bool("AsTagMap", false, "generate AsTagMap func"),
 
-		Strings: flag.Bool("Strings", false, "Strings"),
+		Strings: flag.Bool("Strings", false, "generate Strings func for list types (field, tag, tag values)"),
 	}
 )
 
@@ -70,6 +82,12 @@ func main() {
 	err := os.Chdir(outDir(args))
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if *noDefaultParser {
+		//clear
+		TagParsers = make(map[struc.TagName]struc.TagValueParser)
+		ExcludeValues = make(map[struc.TagName]map[struc.TagValue]bool)
 	}
 
 	pkg := extractPackage(*packagePattern)
@@ -170,7 +188,7 @@ func extractPackage(patterns ...string) *packages.Package {
 
 func findTypeFile(files []*ast.File, typeName string, tag string) (*struc.Struct, error) {
 	for _, file := range files {
-		structTags, err := struc.FindStructTags(file, typeName, struc.TagName(tag))
+		structTags, err := struc.FindStructTags(file, typeName, struc.TagName(tag), TagParsers, ExcludeValues)
 		if err != nil {
 			return nil, err
 		}

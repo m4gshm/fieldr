@@ -1,8 +1,11 @@
 .PHONY: all
-all: generate
+all: baseMake generate
+
+.PHONY: baseMake
+baseMake:
+	cd ../ && make
 
 .PHONY: generate
 generate:
 	$(info #Generate...)
-	go install github.com/m4gshm/fieldr@latest
 	go generate -v

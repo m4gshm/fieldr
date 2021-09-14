@@ -9,4 +9,4 @@ test:
 .PHONY: build
 build:
 	$(info #Building...)
-	go build -o bin/
+	go install
