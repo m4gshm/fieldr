@@ -3,11 +3,11 @@ package examples
 import "strings"
 
 func GetSqlDelete(idColumn string, placeholder string) string {
-	return "delete from %s where " + idColumn + "=" + placeholder
+	return "DELETE FROM %s WHERE " + idColumn + "=" + placeholder
 }
 
 func GetSqlSelect(columns []string) string {
-	return "select " + strings.Join(columns, ", ") + " from %s"
+	return "SELECT " + strings.Join(columns, ", ") + " FROM %s"
 }
 
 func GetSqlInsert(columns []string, placeholder func(int) string) string {
@@ -23,11 +23,11 @@ func GetSqlInsert(columns []string, placeholder func(int) string) string {
 		placeholderExp += placeholder(i)
 	}
 
-	return "insert into %s (" + colExpr + ")" + " values(" + placeholderExp + ")"
+	return "INSERT INTO %s (" + colExpr + ")" + " VALUES(" + placeholderExp + ")"
 }
 
 func GetSqlUpdate(columns []string, placeholder func(int) string) string {
-	return "update %s " + GetSqlSetExpr(columns, placeholder)
+	return "UPDATE %s " + GetSqlSetExpr(columns, placeholder)
 }
 
 func GetSqlSetExpr(columns []string, placeholder func(int) string) string {
@@ -44,9 +44,9 @@ func GetSqlSetExpr(columns []string, placeholder func(int) string) string {
 }
 
 func GetSqlUpdateByID(columns []string, idColumn string, placeholder func(int) string) string {
-	return GetSqlUpdate(columns, placeholder) + " where " + idColumn + "=" + placeholder(len(columns))
+	return GetSqlUpdate(columns, placeholder) + " WHERE " + idColumn + "=" + placeholder(len(columns))
 }
 
 func GetPostgresUpsert(columns []string, idColumn string, placeholder func(int) string) string {
-	return GetSqlInsert(columns, placeholder) + " on conflict (" + idColumn + ") do update " + GetSqlSetExpr(columns, placeholder)
+	return GetSqlInsert(columns, placeholder) + " ON CONFLICT (" + idColumn + ") DO UPDATE " + GetSqlSetExpr(columns, placeholder)
 }

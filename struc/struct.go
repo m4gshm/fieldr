@@ -51,7 +51,12 @@ func FindStructTags(file *ast.File, typeName string, tag TagName, tagParsers map
 		for _, field := range _fields {
 			for _, _fieldName := range field.Names {
 
-				tagsValues := field.Tag.Value
+				fieldTag := field.Tag
+				if fieldTag == nil {
+					continue
+				}
+
+				tagsValues := fieldTag.Value
 				fieldTagValues, fieldTagNames := ParseTags(tagsValues, tagParsers, excludeTagValues)
 
 				if tag != "" {

@@ -571,7 +571,7 @@ func (g *Generator) generateArrayToStringsFunc(arrayTypeName string, resultType 
 	receiverVar := "v"
 	g.printf("" +
 		"func (" + receiverVar + " " + arrayTypeName + ") " + funcName + "() []" + resultType + " {\n" +
-		"	strings := make([]" + resultType + ", 0, len(v))\n" +
+		"	strings := make([]" + resultType + ", len(v))\n" +
 		"	for i, val := range " + receiverVar + " {\n" +
 		"		strings[i] = string(val)\n" +
 		"		}\n" +
@@ -648,13 +648,13 @@ func (g *Generator) generateAsTagMapFunc(typeName string, fieldNames []struc.Fie
 }
 
 func getTagConstName(typeName string, tag struc.TagName, export bool) string {
-	return goName(typeName+"_"+string(tag), export)
+	return goName(getTagType(typeName, export)+"_"+string(tag), export)
 }
 
 func getTagValueConstName(typeName string, tag struc.TagName, field struc.FieldName, export bool) string {
-	return goName(typeName+"_"+string(tag)+"_"+string(field), export)
+	return goName(getTagValueType(typeName, export)+"_"+string(tag)+"_"+string(field), export)
 }
 
 func getFieldConstName(typeName string, fieldName struc.FieldName, export bool) string {
-	return goName(typeName+"_"+string(fieldName), export)
+	return goName(getFieldType(typeName, export)+"_"+string(fieldName), export)
 }

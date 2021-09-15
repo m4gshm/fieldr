@@ -8,8 +8,8 @@ import (
 const placeholder = "?"
 
 var (
-	columns  = struct_TagValues[Struct_db].Strings()
-	idColumn = Struct_ID
+	columns  = struct_TagValues[StructTag_db].Strings()
+	idColumn = StructField_ID
 
 	sqlSelect = GetSqlSelect(columns)
 	sqlInsert = GetSqlInsert(columns, positionPlaceholder)
@@ -22,7 +22,7 @@ func (s *Struct) sqlSelectStatement(tableName string) string {
 }
 
 func (s *Struct) sqlUpsertStatement(tableName string) (string, []interface{}) {
-	return fmt.Sprintf(sqlInsert, tableName), s.GetFieldValuesByTag(Struct_db)
+	return fmt.Sprintf(sqlInsert, tableName), s.GetFieldValuesByTag(StructTag_db)
 }
 
 func (s *Struct) sqlDeleteStatement(tableName string) (string, interface{}) {
