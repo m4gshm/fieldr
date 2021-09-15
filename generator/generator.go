@@ -600,7 +600,7 @@ func (g *Generator) generateAsMapFunc(typeName string, fieldNames []struc.FieldN
 	}
 	funcBody += "" +
 		"	}\n" +
-		"}"
+		"}\n"
 
 	g.printf(funcBody)
 }
@@ -642,7 +642,7 @@ func (g *Generator) generateAsTagMapFunc(typeName string, fieldNames []struc.Fie
 	funcBody += "" +
 		"	}\n" +
 		"return nil" +
-		"}"
+		"}\n"
 
 	g.printf(funcBody)
 }

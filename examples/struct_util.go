@@ -129,6 +129,7 @@ func (v *Struct) AsMap() map[StructField]interface{} {
 		StructField_ts:     v.ts,
 	}
 }
+
 func (v *Struct) AsTagMap(tag StructTag) map[StructTagValue]interface{} {
 	switch tag {
 	case StructTag_db:
