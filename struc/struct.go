@@ -52,11 +52,13 @@ func FindStructTags(file *ast.File, typeName string, tag TagName, tagParsers map
 			for _, _fieldName := range field.Names {
 
 				fieldTag := field.Tag
-				if fieldTag == nil {
-					continue
+				var tagsValues string
+				if fieldTag != nil {
+					tagsValues = fieldTag.Value
+				} else {
+					tagsValues = ""
 				}
 
-				tagsValues := fieldTag.Value
 				fieldTagValues, fieldTagNames := ParseTags(tagsValues, tagParsers, excludeTagValues)
 
 				if tag != "" {
@@ -108,15 +110,15 @@ func FindStructTags(file *ast.File, typeName string, tag TagName, tagParsers map
 	return str, nil
 }
 
-func getTagValueTemplates() (map[TagName]*regexp.Regexp, error) {
-	jsonPattern, err := regexp.Compile(`(?P<value>[\p{L}\d]*)(,.*)*`)
-	if err != nil {
-		return nil, err
-	}
-	return map[TagName]*regexp.Regexp{
-		"json": jsonPattern,
-	}, nil
-}
+//func getTagValueTemplates() (map[TagName]*regexp.Regexp, error) {
+//	jsonPattern, err := regexp.Compile(`(?P<value>[\p{L}\d]*)(,.*)*`)
+//	if err != nil {
+//		return nil, err
+//	}
+//	return map[TagName]*regexp.Regexp{
+//		"json": jsonPattern,
+//	}, nil
+//}
 
 func ParseTags(tags string, parsers map[TagName]TagValueParser, excludeTagValues map[TagName]map[TagValue]bool) (map[TagName]TagValue, []TagName) {
 	tagNames := make([]TagName, 0)

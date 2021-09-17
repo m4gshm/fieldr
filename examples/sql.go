@@ -40,7 +40,7 @@ func GetSqlSetExpr(columns []string, placeholder func(int) string) string {
 		colExpr += string(column) + "=" + placeholder(i)
 	}
 
-	return "set " + colExpr
+	return "SET " + colExpr
 }
 
 func GetSqlUpdateByID(columns []string, idColumn string, placeholder func(int) string) string {

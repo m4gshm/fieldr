@@ -12,50 +12,59 @@ type (
 )
 
 const (
-	StructField_ID     = StructField("ID")
-	StructField_Name   = StructField("Name")
-	StructField_NoJson = StructField("NoJson")
-	StructField_ts     = StructField("ts")
+	StructField_ID       = StructField("ID")
+	StructField_Name     = StructField("Name")
+	StructField_Surname  = StructField("Surname")
+	StructField_NoJson   = StructField("NoJson")
+	structField_noExport = StructField("noExport")
+	structField_ts       = StructField("ts")
+	StructField_NoTag    = StructField("NoTag")
 
 	StructTag_db   = StructTag("db")
 	StructTag_json = StructTag("json")
 
-	StructTagValue_db_ID     = StructTagValue("ID")
-	StructTagValue_db_Name   = StructTagValue("NAME")
-	StructTagValue_db_NoJson = StructTagValue("NO_JSON")
-	StructTagValue_db_ts     = StructTagValue("TS")
+	StructTagValue_db_ID      = StructTagValue("ID")
+	StructTagValue_db_Name    = StructTagValue("NAME")
+	StructTagValue_db_Surname = StructTagValue("SURNAME")
+	StructTagValue_db_NoJson  = StructTagValue("NO_JSON")
+	structTagValue_db_ts      = StructTagValue("TS")
 
-	StructTagValue_json_ID   = StructTagValue("id")
-	StructTagValue_json_Name = StructTagValue("name")
+	StructTagValue_json_ID       = StructTagValue("id")
+	StructTagValue_json_Name     = StructTagValue("name,omitempty")
+	StructTagValue_json_Surname  = StructTagValue("surname,omitempty")
+	StructTagValue_json_NoJson   = StructTagValue("-")
+	structTagValue_json_noExport = StructTagValue("no_export")
 )
 
 var (
-	struct_Fields = StructFields{StructField_ID, StructField_Name, StructField_NoJson, StructField_ts}
+	struct_Fields = StructFields{StructField_ID, StructField_Name, StructField_Surname, StructField_NoJson, StructField_NoTag}
 
 	struct_Tags = StructTags{StructTag_db, StructTag_json}
 
 	struct_FieldTags = map[StructField]StructTags{
-		StructField_ID:     StructTags{StructTag_db, StructTag_json},
-		StructField_Name:   StructTags{StructTag_db, StructTag_json},
-		StructField_NoJson: StructTags{StructTag_db},
-		StructField_ts:     StructTags{StructTag_db},
+		StructField_ID:      StructTags{StructTag_db, StructTag_json},
+		StructField_Name:    StructTags{StructTag_db, StructTag_json},
+		StructField_Surname: StructTags{StructTag_db, StructTag_json},
+		StructField_NoJson:  StructTags{StructTag_db, StructTag_json},
+		StructField_NoTag:   StructTags{},
 	}
 
 	struct_TagValues = map[StructTag]StructTagValues{
-		StructTag_db:   StructTagValues{StructTagValue_db_ID, StructTagValue_db_Name, StructTagValue_db_NoJson, StructTagValue_db_ts},
-		StructTag_json: StructTagValues{StructTagValue_json_ID, StructTagValue_json_Name},
+		StructTag_db:   StructTagValues{StructTagValue_db_ID, StructTagValue_db_Name, StructTagValue_db_Surname, StructTagValue_db_NoJson},
+		StructTag_json: StructTagValues{StructTagValue_json_ID, StructTagValue_json_Name, StructTagValue_json_Surname, StructTagValue_json_NoJson},
 	}
 
 	struct_TagFields = map[StructTag]StructFields{
-		StructTag_db:   StructFields{StructField_ID, StructField_Name, StructField_NoJson, StructField_ts},
-		StructTag_json: StructFields{StructField_ID, StructField_Name},
+		StructTag_db:   StructFields{StructField_ID, StructField_Name, StructField_Surname, StructField_NoJson},
+		StructTag_json: StructFields{StructField_ID, StructField_Name, StructField_Surname, StructField_NoJson},
 	}
 
 	struct_FieldTagValue = map[StructField]map[StructTag]StructTagValue{
-		StructField_ID:     map[StructTag]StructTagValue{StructTag_db: StructTagValue_db_ID, StructTag_json: StructTagValue_json_ID},
-		StructField_Name:   map[StructTag]StructTagValue{StructTag_db: StructTagValue_db_Name, StructTag_json: StructTagValue_json_Name},
-		StructField_NoJson: map[StructTag]StructTagValue{StructTag_db: StructTagValue_db_NoJson},
-		StructField_ts:     map[StructTag]StructTagValue{StructTag_db: StructTagValue_db_ts},
+		StructField_ID:      map[StructTag]StructTagValue{StructTag_db: StructTagValue_db_ID, StructTag_json: StructTagValue_json_ID},
+		StructField_Name:    map[StructTag]StructTagValue{StructTag_db: StructTagValue_db_Name, StructTag_json: StructTagValue_json_Name},
+		StructField_Surname: map[StructTag]StructTagValue{StructTag_db: StructTagValue_db_Surname, StructTag_json: StructTagValue_json_Surname},
+		StructField_NoJson:  map[StructTag]StructTagValue{StructTag_db: StructTagValue_db_NoJson, StructTag_json: StructTagValue_json_NoJson},
+		StructField_NoTag:   map[StructTag]StructTagValue{},
 	}
 )
 
@@ -89,10 +98,12 @@ func (v *Struct) GetFieldValue(field StructField) interface{} {
 		return v.ID
 	case StructField_Name:
 		return v.Name
+	case StructField_Surname:
+		return v.Surname
 	case StructField_NoJson:
 		return v.NoJson
-	case StructField_ts:
-		return v.ts
+	case StructField_NoTag:
+		return v.NoTag
 	}
 	return nil
 }
@@ -103,10 +114,10 @@ func (v *Struct) GetFieldValueByTagValue(tag StructTagValue) interface{} {
 		return v.ID
 	case StructTagValue_db_Name, StructTagValue_json_Name:
 		return v.Name
-	case StructTagValue_db_NoJson:
+	case StructTagValue_db_Surname, StructTagValue_json_Surname:
+		return v.Surname
+	case StructTagValue_db_NoJson, StructTagValue_json_NoJson:
 		return v.NoJson
-	case StructTagValue_db_ts:
-		return v.ts
 	}
 	return nil
 }
@@ -114,19 +125,20 @@ func (v *Struct) GetFieldValueByTagValue(tag StructTagValue) interface{} {
 func (v *Struct) GetFieldValuesByTag(tag StructTag) []interface{} {
 	switch tag {
 	case StructTag_db:
-		return []interface{}{v.ID, v.Name, v.NoJson, v.ts}
+		return []interface{}{v.ID, v.Name, v.Surname, v.NoJson}
 	case StructTag_json:
-		return []interface{}{v.ID, v.Name}
+		return []interface{}{v.ID, v.Name, v.Surname, v.NoJson}
 	}
 	return nil
 }
 
 func (v *Struct) AsMap() map[StructField]interface{} {
 	return map[StructField]interface{}{
-		StructField_ID:     v.ID,
-		StructField_Name:   v.Name,
-		StructField_NoJson: v.NoJson,
-		StructField_ts:     v.ts,
+		StructField_ID:      v.ID,
+		StructField_Name:    v.Name,
+		StructField_Surname: v.Surname,
+		StructField_NoJson:  v.NoJson,
+		StructField_NoTag:   v.NoTag,
 	}
 }
 
@@ -134,15 +146,17 @@ func (v *Struct) AsTagMap(tag StructTag) map[StructTagValue]interface{} {
 	switch tag {
 	case StructTag_db:
 		return map[StructTagValue]interface{}{
-			StructTagValue_db_ID:     v.ID,
-			StructTagValue_db_Name:   v.Name,
-			StructTagValue_db_NoJson: v.NoJson,
-			StructTagValue_db_ts:     v.ts,
+			StructTagValue_db_ID:      v.ID,
+			StructTagValue_db_Name:    v.Name,
+			StructTagValue_db_Surname: v.Surname,
+			StructTagValue_db_NoJson:  v.NoJson,
 		}
 	case StructTag_json:
 		return map[StructTagValue]interface{}{
-			StructTagValue_json_ID:   v.ID,
-			StructTagValue_json_Name: v.Name,
+			StructTagValue_json_ID:      v.ID,
+			StructTagValue_json_Name:    v.Name,
+			StructTagValue_json_Surname: v.Surname,
+			StructTagValue_json_NoJson:  v.NoJson,
 		}
 	}
 	return nil

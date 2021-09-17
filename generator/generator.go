@@ -7,18 +7,20 @@ import (
 	"os"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/m4gshm/fieldr/struc"
 )
 
 type Generator struct {
-	Export     bool
-	ExportVars bool
-	ReturnRefs bool
-	WrapType   bool
-	Opts       *GenerateContentOptions
-	buf        bytes.Buffer
-	Name       string
+	Export       bool
+	ExportVars   bool
+	OnlyExported bool
+	ReturnRefs   bool
+	WrapType     bool
+	Opts         *GenerateContentOptions
+	buf          bytes.Buffer
+	Name         string
 }
 
 type GenerateContentOptions struct {
@@ -198,6 +200,9 @@ func (g *Generator) generateFieldTagValueMapVar(fieldNames []struc.FieldName, ta
 		varValue = "map[" + baseType + "]map[" + baseType + "]" + baseType + "{\n"
 	}
 	for _, fieldName := range fieldNames {
+		if g.isFieldExcluded(fieldName) {
+			continue
+		}
 		fieldConstName := getFieldConstName(typeName, fieldName, export)
 		if g.WrapType {
 			varValue += fieldConstName + ": map[" + tagType + "]" + tagValueType + "{"
@@ -240,6 +245,9 @@ func (g *Generator) generateFieldTagsMapVar(typeName string, tagNames []struc.Ta
 		varValue = "map[" + baseType + "][]" + baseType + "{\n"
 	}
 	for _, fieldName := range fieldNames {
+		if g.isFieldExcluded(fieldName) {
+			continue
+		}
 		fieldConstName := getFieldConstName(typeName, fieldName, g.Export)
 
 		if g.WrapType {
@@ -297,6 +305,10 @@ func (g *Generator) generateTagValuesMapVar(typeName string, tagNames []struc.Ta
 				continue
 			}
 
+			if g.isFieldExcluded(fieldName) {
+				continue
+			}
+
 			if ti > 0 {
 				varValue += ", "
 			}
@@ -334,16 +346,19 @@ func (g *Generator) generateTagFieldsMapVar(typeName string, tagNames []struc.Ta
 		}
 
 		ti := 0
-		for _, field := range fieldNames {
-			_, ok := fields[field][tagName]
+		for _, fieldName := range fieldNames {
+			_, ok := fields[fieldName][tagName]
 			if !ok {
+				continue
+			}
+			if g.isFieldExcluded(fieldName) {
 				continue
 			}
 
 			if ti > 0 {
 				varValue += ", "
 			}
-			tagConstName := getFieldConstName(typeName, field, g.Export)
+			tagConstName := getFieldConstName(typeName, fieldName, g.Export)
 			varValue += tagConstName
 			ti++
 		}
@@ -381,12 +396,12 @@ func (g *Generator) generateTagFieldConstants(
 
 func (g *Generator) generateFieldConstants(typeName string, fieldNames []struc.FieldName) {
 	export := g.Export
-	for _, name := range fieldNames {
-		constName := getFieldConstName(typeName, name, export)
+	for _, fieldName := range fieldNames {
+		constName := getFieldConstName(typeName, fieldName, export)
 		if g.WrapType {
-			g.printf("%v=%v(\"%v\")\n", constName, getFieldType(typeName, export), name)
+			g.printf("%v=%v(\"%v\")\n", constName, getFieldType(typeName, export), fieldName)
 		} else {
-			g.printf("%v=\"%v\"\n", constName, name)
+			g.printf("%v=\"%v\"\n", constName, fieldName)
 		}
 	}
 }
@@ -411,16 +426,28 @@ func (g *Generator) generateFieldsVar(typeName string, fieldNames []struc.FieldN
 		arrayVar = "[]" + baseType + "{"
 	}
 
-	for i, fieldName := range fieldNames {
+	i := 0
+	for _, fieldName := range fieldNames {
+		if g.isFieldExcluded(fieldName) {
+			continue
+		}
+
 		if i > 0 {
 			arrayVar += ", "
 		}
 		constName := getFieldConstName(typeName, fieldName, g.Export)
 		arrayVar += constName
+		i++
 	}
 	arrayVar += "}"
-	varName := goName(typeName+"_Fields", g.ExportVars)
+
+	varNameTemplate := typeName + "_Fields"
+	varName := goName(varNameTemplate, g.ExportVars)
 	g.printf("%v=%v\n\n", varName, arrayVar)
+}
+
+func (g *Generator) isFieldExcluded(fieldName struc.FieldName) bool {
+	return g.OnlyExported && isPrivate(fieldName)
 }
 
 func (g *Generator) generateTagsVar(typeName string, tagNames []struc.TagName) {
@@ -461,6 +488,9 @@ func (g *Generator) generateGetFieldValueFunc(typeName string, fieldNames []stru
 		"{\n" + "switch " + valVar + " {\n"
 
 	for _, fieldName := range fieldNames {
+		if g.isFieldExcluded(fieldName) {
+			continue
+		}
 		fieldExpr := receiverRef + "." + string(fieldName)
 		funcBody += "case " + getFieldConstName(typeName, fieldName, g.Export) + ":\n" +
 			"return " + fieldExpr + "\n"
@@ -491,8 +521,9 @@ func (g *Generator) generateGetFieldValueByTagFunc(typeName string, fieldNames [
 		"{\n" + "switch " + valVar + " {\n"
 
 	for _, fieldName := range fieldNames {
-		fieldExpr := receiverRef + "." + string(fieldName)
-
+		if g.isFieldExcluded(fieldName) {
+			continue
+		}
 		var caseExpr string
 		for _, tagName := range tagNames {
 			_, ok := fields[fieldName][tagName]
@@ -503,8 +534,10 @@ func (g *Generator) generateGetFieldValueByTagFunc(typeName string, fieldNames [
 				caseExpr += getTagValueConstName(typeName, tagName, fieldName, g.Export)
 			}
 		}
-		funcBody += "case " + caseExpr + ":\n" +
-			"return " + fieldExpr + "\n"
+		if caseExpr != "" {
+			funcBody += "case " + caseExpr + ":\n" +
+				"return " + receiverRef + "." + string(fieldName) + "\n"
+		}
 	}
 
 	funcBody += "}\n" +
@@ -537,6 +570,9 @@ func (g *Generator) generateGetFieldValuesByTagFunc(typeName string, fieldNames 
 		caseExpr := getTagConstName(typeName, tagName, g.Export)
 		fieldExpr := ""
 		for _, fieldName := range fieldNames {
+			if g.isFieldExcluded(fieldName) {
+				continue
+			}
 			_, ok := fields[fieldName][tagName]
 			if ok {
 				if len(fieldExpr) > 0 {
@@ -596,6 +632,9 @@ func (g *Generator) generateAsMapFunc(typeName string, fieldNames []struc.FieldN
 		"	return map[" + keyType + "]interface{}{\n"
 
 	for _, fieldName := range fieldNames {
+		if g.isFieldExcluded(fieldName) {
+			continue
+		}
 		funcBody += getFieldConstName(typeName, fieldName, export) + ": " + receiverRef + "." + string(fieldName) + ",\n"
 	}
 	funcBody += "" +
@@ -630,6 +669,9 @@ func (g *Generator) generateAsTagMapFunc(typeName string, fieldNames []struc.Fie
 		funcBody += "case " + getTagConstName(typeName, tagName, g.Export) + ":\n" +
 			"return " + mapType + "{\n"
 		for _, fieldName := range fieldNames {
+			if g.isFieldExcluded(fieldName) {
+				continue
+			}
 			_, ok := fields[fieldName][tagName]
 
 			if ok {
@@ -651,10 +693,21 @@ func getTagConstName(typeName string, tag struc.TagName, export bool) string {
 	return goName(getTagType(typeName, export)+"_"+string(tag), export)
 }
 
-func getTagValueConstName(typeName string, tag struc.TagName, field struc.FieldName, export bool) string {
-	return goName(getTagValueType(typeName, export)+"_"+string(tag)+"_"+string(field), export)
+func getTagValueConstName(typeName string, tag struc.TagName, fieldName struc.FieldName, export bool) string {
+	export = isExport(fieldName, export)
+	return goName(getTagValueType(typeName, export)+"_"+string(tag)+"_"+string(fieldName), export)
 }
 
 func getFieldConstName(typeName string, fieldName struc.FieldName, export bool) string {
+	export = isExport(fieldName, export)
 	return goName(getFieldType(typeName, export)+"_"+string(fieldName), export)
+}
+
+func isPrivate(field struc.FieldName) bool {
+	first, _ := utf8.DecodeRuneInString(string(field))
+	return unicode.IsLower(first)
+}
+
+func isExport(fieldName struc.FieldName, export bool) bool {
+	return !isPrivate(fieldName) && export
 }

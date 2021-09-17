@@ -11,7 +11,7 @@ type TagValueParsers map[TagName]TagValueParser
 
 func (p TagValueParsers) Keys() string {
 	result := ""
-	for k, _ := range p {
+	for k := range p {
 		if len(result) > 0 {
 			result += ", "
 		}

@@ -1,5 +1,5 @@
 .PHONY: all
-all: baseMake generate test bench
+all: baseMake generate test lint bench
 
 .PHONY: baseMake
 baseMake:
@@ -20,3 +20,12 @@ test:
 bench:
 	$(info #Benchmark...)
 	go test -bench . -benchtime 5s ./...
+
+.PHONY: lint-install
+lint-install:
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint
+
+.PHONY: lint
+lint: lint-install
+	$(info #Lint...)
+	golangci-lint run

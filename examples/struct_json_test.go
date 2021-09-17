@@ -10,8 +10,8 @@ import (
 
 var testStruct = Struct{
 	ID:     1,
-	Name:   "Name",
-	NoJson: "NoJson",
+	Name:   "NameValue",
+	NoJson: "NoJsonValue",
 	ts:     time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC),
 }
 

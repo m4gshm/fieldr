@@ -21,14 +21,14 @@ import (
 const name = "fieldr"
 const defaultSuffix = "_" + name + ".go"
 
-const json = struc.TagName("json")
+//const json = struc.TagName("json")
 
 var (
 	TagParsers = struc.TagValueParsers{
-		json: struc.JsonTagParser,
+		//json: struc.JsonTagParser,
 	}
 	ExcludeValues = map[struc.TagName]map[struc.TagValue]bool{
-		json: {"-": true},
+		//json: {"-": true},
 	}
 )
 
@@ -40,6 +40,7 @@ var (
 	ref             = flag.Bool("ref", false, "return field as refs in generated methods")
 	export          = flag.Bool("export", false, "export generated types, constant, methods")
 	exportVars      = flag.Bool("exportVars", false, "export generated variables only")
+	allFields       = flag.Bool("allFields", false, "include all fields (not only exported) in generated content")
 	noDefaultParser = flag.Bool("noDefaultParser", false, "disable default tag parser ("+TagParsers.Keys()+")")
 	packagePattern  = flag.String("package", "", "package pattern")
 
@@ -112,7 +113,8 @@ func main() {
 	field := optionFields.NumField()
 	for i := 0; i < field; i++ {
 		structField := optionFields.Field(i)
-		notGenerate := structField.Elem().Bool() == false
+		elem := structField.Elem()
+		notGenerate := elem.Kind() == reflect.Bool && !elem.Bool()
 		generateAll = generateAll && notGenerate
 	}
 
@@ -122,13 +124,15 @@ func main() {
 		}
 	}
 
+	_allFields := *allFields
 	g := generator.Generator{
-		Name:       name,
-		WrapType:   *wrap,
-		ReturnRefs: *ref,
-		Export:     *export,
-		ExportVars: *exportVars,
-		Opts:       &generateContentOptions,
+		Name:         name,
+		WrapType:     *wrap,
+		ReturnRefs:   *ref,
+		Export:       *export,
+		OnlyExported: !_allFields,
+		ExportVars:   *exportVars,
+		Opts:         &generateContentOptions,
 	}
 
 	g.GenerateFile(typeFile)
