@@ -33,16 +33,17 @@ var (
 )
 
 var (
-	typ             = flag.String("type", "", "type name; must be set")
-	output          = flag.String("output", "", "output file name; default srcdir/<type>"+defaultSuffix)
-	tag             = flag.String("tag", "", "tag used to constant naming")
-	wrap            = flag.Bool("wrap", false, "wrap tag const by own type")
-	ref             = flag.Bool("ref", false, "return field as refs in generated methods")
-	export          = flag.Bool("export", false, "export generated types, constant, methods")
-	exportVars      = flag.Bool("exportVars", false, "export generated variables only")
-	allFields       = flag.Bool("allFields", false, "include all fields (not only exported) in generated content")
-	noDefaultParser = flag.Bool("noDefaultParser", false, "disable default tag parser ("+TagParsers.Keys()+")")
-	packagePattern  = flag.String("package", "", "package pattern")
+	typ        = flag.String("type", "", "type name; must be set")
+	output     = flag.String("output", "", "output file name; default srcdir/<type>"+defaultSuffix)
+	tag        = flag.String("tag", "", "tag used to constant naming")
+	wrap       = flag.Bool("wrap", false, "wrap tag const by own type")
+	ref        = flag.Bool("ref", false, "return field as refs in generated methods")
+	export     = flag.Bool("export", false, "export generated types, constant, methods")
+	exportVars = flag.Bool("exportVars", false, "export generated variables only")
+	allFields  = flag.Bool("allFields", false, "include all fields (not only exported) in generated content")
+	noEmptyTag = flag.Bool("noEmptyTag", false, "exclude tags without value")
+	//noDefaultParser = flag.Bool("noDefaultParser", false, "disable default tag parser ("+TagParsers.Keys()+")")
+	packagePattern = flag.String("package", "", "package pattern")
 
 	generateContentOptions = generator.GenerateContentOptions{
 		Fields:           flag.Bool("Fields", false, "generate Fields list var"),
@@ -75,6 +76,7 @@ func main() {
 
 	typeName := *typ
 	if len(typeName) == 0 {
+		log.Print("no type arg")
 		flag.Usage()
 		os.Exit(2)
 	}
@@ -85,11 +87,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if *noDefaultParser {
-		//clear
-		TagParsers = make(map[struc.TagName]struc.TagValueParser)
-		ExcludeValues = make(map[struc.TagName]map[struc.TagValue]bool)
-	}
+	//if *noDefaultParser {
+	//	//clear
+	//	TagParsers = make(map[struc.TagName]struc.TagValueParser)
+	//	ExcludeValues = make(map[struc.TagName]map[struc.TagValue]bool)
+	//}
 
 	pkg := extractPackage(*packagePattern)
 	packageName := pkg.Name
@@ -124,16 +126,7 @@ func main() {
 		}
 	}
 
-	_allFields := *allFields
-	g := generator.Generator{
-		Name:         name,
-		WrapType:     *wrap,
-		ReturnRefs:   *ref,
-		Export:       *export,
-		OnlyExported: !_allFields,
-		ExportVars:   *exportVars,
-		Opts:         &generateContentOptions,
-	}
+	g := generator.NewGenerator(name, *wrap, *ref, *export, !*allFields, *exportVars, *noEmptyTag, &generateContentOptions)
 
 	g.GenerateFile(typeFile)
 	src, fmtErr := g.FormatSrc()

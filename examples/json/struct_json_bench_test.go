@@ -1,17 +1,15 @@
-package examples
+package json
 
 import (
 	"encoding/json"
 	"strings"
 	"testing"
-	"time"
 )
 
 var benchStruct = Struct{
 	ID:     1,
 	Name:   "Name",
 	NoJson: "NoJson",
-	ts:     time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC),
 }
 
 func Benchmark_TestStruct_MarshalJSON(b *testing.B) {

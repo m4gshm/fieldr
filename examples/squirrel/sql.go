@@ -1,4 +1,4 @@
-package examples
+package squirrel
 
 import "strings"
 

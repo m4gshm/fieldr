@@ -1,9 +1,8 @@
-package examples
+package json
 
 import (
 	"encoding/json"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -12,7 +11,6 @@ var testStruct = Struct{
 	ID:     1,
 	Name:   "NameValue",
 	NoJson: "NoJsonValue",
-	ts:     time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC),
 }
 
 func TestStruct_MarshalJSON(t *testing.T) {

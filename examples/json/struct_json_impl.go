@@ -1,4 +1,4 @@
-package examples
+package json
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	jsonFields     = make([]StructField, 0, len(struct_Fields))
+	jsonFields     = make([]string, 0, len(struct_Fields))
 	jsonFieldNames = make([]string, 0, len(struct_Fields))
 	jsonOmitEmpty  = make([]bool, 0, len(struct_Fields))
 )
@@ -18,12 +18,12 @@ func init() {
 	for _, field := range struct_Fields {
 		tag, ok := struct_FieldTagValue[field][StructTag_json]
 
-		jsonFieldName := string(field)
+		jsonFieldName := field
 		include := true
 		omitEmpty := false
 		if ok {
 			include = tag != "-"
-			strTag := string(tag)
+			strTag := tag
 			if include {
 				const omitEmptySuffix = ",omitempty"
 				if strings.HasSuffix(strTag, omitEmptySuffix) {

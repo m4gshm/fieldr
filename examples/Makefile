@@ -8,13 +8,12 @@ baseMake:
 .PHONY: generate
 generate:
 	$(info #Generate...)
-	go generate -v
+	go generate -v ./...
 
 .PHONY: test
 test:
 	$(info #Test...)
 	go test ./...
-
 
 .PHONY: bench
 bench:
