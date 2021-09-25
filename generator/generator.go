@@ -438,7 +438,7 @@ func (g *Generator) generateTagValuesMapVar(typeName string, tagNames []struc.Ta
 
 	if g.WrapType {
 		tagValueType = g.getTagValueType(typeName)
-		tagValueArrayType = g.getTagValueArrayType(typeName, tagValueType)
+		tagValueArrayType = g.getTagValueArrayType(tagValueType)
 		tagType = g.getTagType(typeName)
 		varValue = "map[" + tagType + "]" + tagValueArrayType + "{\n"
 	} else {
@@ -485,7 +485,7 @@ func (g *Generator) generateTagValuesMapVar(typeName string, tagNames []struc.Ta
 	g.writeBody("%v=%v\n\n", varName, varValue)
 }
 
-func (g *Generator) getTagValueArrayType(typeName string, tagValueType string) string {
+func (g *Generator) getTagValueArrayType(tagValueType string) string {
 	g.used.tagValueArrayType = true
 	return arrayType(tagValueType)
 }
