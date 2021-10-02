@@ -1,4 +1,4 @@
-package json
+package as_map
 
 //go:generate fieldr -type Struct -output struct_as_map.go -wrap -export -AsMap -AsTagMap
 

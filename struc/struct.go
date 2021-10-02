@@ -1,8 +1,13 @@
 package struc
 
 import (
+	"errors"
+	"fmt"
 	"go/ast"
+	"log"
+	"reflect"
 	"regexp"
+	"strings"
 )
 
 type TagName string
@@ -10,104 +15,171 @@ type TagValue string
 type FieldName string
 
 type Struct struct {
-	TypeName    string
-	PackageName string
-	Fields      map[FieldName]map[TagName]TagValue
-	FieldNames  []FieldName
-	TagNames    []TagName
+	TypeName       string
+	PackageName    string
+	TagValueMap    map[FieldName]map[TagName]TagValue
+	FieldNames     []FieldName
+	TagNames       []TagName
+	Constants      []string
+	ConstantValues map[string]string
 }
 
-func FindStructTags(file *ast.File, typeName string, tag TagName, tagParsers map[TagName]TagValueParser, excludeTagValues map[TagName]map[TagValue]bool) (*Struct, error) {
+func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers map[TagName]TagValueParser, excludeTagValues map[TagName]map[TagValue]bool, constants []string) (*Struct, error) {
 	var str *Struct
 
-	inspectRoutine := func(node ast.Node) bool {
-		var typeSpec *ast.TypeSpec
-		var ok bool
-		typeSpec, ok = node.(*ast.TypeSpec)
-		if !ok {
-			return true
-		}
-
-		rawType := typeSpec.Type
-		n := typeSpec.Name.Name
-		if typeName != "" && n != typeName {
-			return true
-		}
-
-		var structType *ast.StructType
-		structType, ok = rawType.(*ast.StructType)
-		if !ok {
-			return true
-		}
-
-		_fields := structType.Fields.List
-
-		tags := make(map[TagName]map[FieldName]TagValue)
-		fields := make(map[FieldName]map[TagName]TagValue)
-
-		fieldNames := make([]FieldName, 0, len(_fields))
-		tagNames := make([]TagName, 0)
-
-		for _, field := range _fields {
-			for _, _fieldName := range field.Names {
-
-				fieldTag := field.Tag
-				var tagsValues string
-				if fieldTag != nil {
-					tagsValues = fieldTag.Value
-				} else {
-					tagsValues = ""
-				}
-
-				fieldTagValues, fieldTagNames := ParseTags(tagsValues, tagParsers, excludeTagValues)
-
-				if tag != "" {
-					_tagValue, tagValueOk := fieldTagValues[tag]
-					if tagValueOk {
-						fieldTagValues = map[TagName]TagValue{tag: _tagValue}
-						fieldTagNames = []TagName{tag}
-					} else {
-						fieldTagNames = make([]TagName, 0)
-					}
-				}
-
-				fldName := FieldName(_fieldName.Name)
-
-				fields[fldName] = make(map[TagName]TagValue)
-				fieldNames = append(fieldNames, fldName)
-
-				for _, fieldTagName := range fieldTagNames {
-					fieldTagValue := fieldTagValues[fieldTagName]
-
-					tagFields, tagFieldsOk := tags[fieldTagName]
-					if !tagFieldsOk {
-						tagFields = make(map[FieldName]TagValue)
-						tags[fieldTagName] = tagFields
-						tagNames = append(tagNames, fieldTagName)
-					}
-
-					tagFields[fldName] = fieldTagValue
-
-					fields[fldName][fieldTagName] = fieldTagValue
-				}
-			}
-		}
-
-		if len(tags) > 0 {
-			str = &Struct{
-				TypeName:    typeName,
-				PackageName: file.Name.Name,
-				Fields:      fields,
-				FieldNames:  fieldNames,
-				TagNames:    tagNames,
-			}
-		}
-
-		return false
+	constSet := make(map[string]int, len(constants))
+	for i, c := range constants {
+		constSet[c] = i
 	}
-	ast.Inspect(file, inspectRoutine)
+	constantValues := make(map[string]string, len(constants))
 
+	for _, file := range files {
+		ast.Inspect(file, func(node ast.Node) bool {
+			switch nt := node.(type) {
+			case *ast.TypeSpec:
+				return handleTypeSpec(nt, typeName, tagParsers, excludeTagValues, tag, &str, file)
+			case *ast.ValueSpec:
+				for _, name := range nt.Names {
+					n := name.Name
+					_, ok := constSet[n]
+					if ok {
+						for _, value := range nt.Values {
+							strValue, err := toStringValue(value)
+							if err != nil {
+								log.Fatalf("cons template error, const %v, error %v", n, err)
+							}
+							constantValues[n] = strValue
+
+							break //only first
+						}
+					}
+				}
+				return false
+			default:
+				return true
+			}
+		})
+	}
+
+	if len(constants) != len(constantValues) {
+		notFound := make([]string, 0)
+		for _, constant := range constants {
+			_, ok := constantValues[constant]
+			if !ok {
+				notFound = append(notFound, constant)
+			}
+		}
+		return nil, errors.New("invalid const: " + strings.Join(notFound, ", "))
+	}
+
+	if str != nil {
+		str.Constants = constants
+		str.ConstantValues = constantValues
+	}
 	return str, nil
+
+}
+
+func toStringValue(value ast.Expr) (string, error) {
+	var strValue string
+	switch vt := value.(type) {
+	case *ast.BasicLit:
+		strValue = vt.Value
+	case *ast.BinaryExpr:
+		x, err := toStringValue(vt.X)
+		if err != nil {
+			return "", err
+		}
+		y, err := toStringValue(vt.Y)
+		if err != nil {
+			return "", err
+		}
+		strValue = x + vt.Op.String() + y
+	case *ast.Ident:
+		strValue = vt.Name
+	default:
+		return "", fmt.Errorf("unsupported constant value part %s, type %v", value, reflect.TypeOf(value))
+	}
+	return strValue, nil
+}
+
+func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, tagParsers map[TagName]TagValueParser, excludeTagValues map[TagName]map[TagValue]bool, tag TagName, str **Struct, file *ast.File) bool {
+	rawType := typeSpec.Type
+	n := typeSpec.Name.Name
+
+	if typeName != "" && n != typeName {
+		return true
+	}
+
+	structType, ok := rawType.(*ast.StructType)
+	if !ok {
+		return true
+	}
+
+	_fields := structType.Fields.List
+
+	tags := make(map[TagName]map[FieldName]TagValue)
+	fields := make(map[FieldName]map[TagName]TagValue)
+
+	fieldNames := make([]FieldName, 0, len(_fields))
+	tagNames := make([]TagName, 0)
+
+	for _, field := range _fields {
+		for _, _fieldName := range field.Names {
+
+			fieldTag := field.Tag
+			var tagsValues string
+			if fieldTag != nil {
+				tagsValues = fieldTag.Value
+			} else {
+				tagsValues = ""
+			}
+
+			fieldTagValues, fieldTagNames := ParseTags(tagsValues, tagParsers, excludeTagValues)
+
+			if tag != "" {
+				_tagValue, tagValueOk := fieldTagValues[tag]
+				if tagValueOk {
+					fieldTagValues = map[TagName]TagValue{tag: _tagValue}
+					fieldTagNames = []TagName{tag}
+				} else {
+					fieldTagNames = make([]TagName, 0)
+				}
+			}
+
+			fldName := FieldName(_fieldName.Name)
+
+			fields[fldName] = make(map[TagName]TagValue)
+			fieldNames = append(fieldNames, fldName)
+
+			for _, fieldTagName := range fieldTagNames {
+				fieldTagValue := fieldTagValues[fieldTagName]
+
+				tagFields, tagFieldsOk := tags[fieldTagName]
+				if !tagFieldsOk {
+					tagFields = make(map[FieldName]TagValue)
+					tags[fieldTagName] = tagFields
+					tagNames = append(tagNames, fieldTagName)
+				}
+
+				tagFields[fldName] = fieldTagValue
+
+				fields[fldName][fieldTagName] = fieldTagValue
+			}
+		}
+	}
+
+	if len(tags) > 0 {
+		*str = &Struct{
+			TypeName:    typeName,
+			PackageName: file.Name.Name,
+			TagValueMap: fields,
+			FieldNames:  fieldNames,
+			TagNames:    tagNames,
+		}
+	}
+
+	return false
 }
 
 //func getTagValueTemplates() (map[TagName]*regexp.Regexp, error) {

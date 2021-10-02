@@ -1,4 +1,4 @@
-package json
+package as_map
 
 //go:generate fieldr -type StructNoEmptyTag -output struct_no_empty_tag_as_map.go -wrap -export -AsMap -AsTagMap -noEmptyTag
 
