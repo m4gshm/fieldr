@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/parser"
+	"go/token"
 	"io/fs"
 	"io/ioutil"
 	"log"
@@ -42,7 +44,7 @@ var (
 	noEmptyTag     = flag.Bool("noEmptyTag", false, "exclude tags without value")
 	constants      = multiflag("const", []string{}, "templated constant for generating field's tag based constant")
 	packagePattern = flag.String("package", ".", "used package")
-	//srcFiles       = multiflag("src", "go source file")
+	srcFiles       = multiflag("src", []string{}, "go source file")
 
 	generateContentOptions = generator.GenerateContentOptions{
 		Fields:           flag.Bool("Fields", false, "generate Fields list var"),
@@ -122,6 +124,16 @@ func main() {
 		return
 	}
 
+	fileSet := token.NewFileSet()
+
+	for _, srcFile := range *srcFiles {
+		file, err := parser.ParseFile(fileSet, srcFile, nil, 0)
+		if err != nil {
+			log.Fatal(err)
+		}
+		files = append(files, file)
+
+	}
 	typeFile, err := findTypeFile(files, typeName, *tag, *constants)
 	if err != nil {
 		log.Fatal(err)
@@ -210,5 +222,4 @@ func extractPackage(buildTags []string, patterns ...string) *packages.Package {
 
 func findTypeFile(files []*ast.File, typeName string, tag string, constants []string) (*struc.Struct, error) {
 	return struc.FindStructTags(files, typeName, struc.TagName(tag), TagParsers, ExcludeValues, constants)
-
 }

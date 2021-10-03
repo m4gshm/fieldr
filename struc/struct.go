@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/token"
 	"log"
 	"reflect"
 	"regexp"
@@ -44,7 +45,7 @@ func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers 
 					_, ok := constSet[n]
 					if ok {
 						for _, value := range nt.Values {
-							strValue, err := toStringValue(value)
+							strValue, _, err := toStringValue(value)
 							if err != nil {
 								log.Fatalf("cons template error, const %v, error %v", n, err)
 							}
@@ -80,27 +81,56 @@ func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers 
 
 }
 
-func toStringValue(value ast.Expr) (string, error) {
+func toStringValue(value ast.Expr) (string, token.Token, error) {
 	var strValue string
+	var kind token.Token = -1
 	switch vt := value.(type) {
 	case *ast.BasicLit:
 		strValue = vt.Value
+		kind = vt.Kind
 	case *ast.BinaryExpr:
-		x, err := toStringValue(vt.X)
+		x, xKind, err := toStringValue(vt.X)
 		if err != nil {
-			return "", err
+			return x, xKind, err
 		}
-		y, err := toStringValue(vt.Y)
+		y, yKind, err := toStringValue(vt.Y)
 		if err != nil {
-			return "", err
+			return y, yKind, err
 		}
-		strValue = x + vt.Op.String() + y
+		op := vt.Op
+		if xKind == yKind && xKind == token.STRING && op == token.ADD {
+			xLen := len(x)
+			yLen := len(y)
+
+			if xLen == 0 {
+				strValue = y
+			} else if yLen == 0 {
+				strValue = x
+			} else {
+				var xQuote string
+				var yQuote string
+				if xLen > 0 {
+					xQuote = x[xLen-1:]
+				}
+				if yLen > 0 {
+					yQuote = y[yLen-1:]
+				}
+
+				if xQuote == yQuote {
+					strValue = x[:xLen-1] + y[1:]
+				}
+			}
+		} else {
+			strValue = x + op.String() + y
+		}
+		kind = yKind
 	case *ast.Ident:
 		strValue = vt.Name
+		kind = token.IDENT
 	default:
-		return "", fmt.Errorf("unsupported constant value part %s, type %v", value, reflect.TypeOf(value))
+		return "", kind, fmt.Errorf("unsupported constant value part %s, type %v", value, reflect.TypeOf(value))
 	}
-	return strValue, nil
+	return strValue, kind, nil
 }
 
 func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, tagParsers map[TagName]TagValueParser, excludeTagValues map[TagName]map[TagValue]bool, tag TagName, str **Struct, file *ast.File) bool {
