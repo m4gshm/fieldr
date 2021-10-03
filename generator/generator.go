@@ -52,11 +52,11 @@ type GenerateContentOptions struct {
 	TagFieldsMap     *bool
 	FieldTagValueMap *bool
 
-	GetFieldValue       *bool
-	GetFieldValueByTag  *bool
-	GetFieldValuesByTag *bool
-	AsMap               *bool
-	AsTagMap            *bool
+	GetFieldValue           *bool
+	GetFieldValueByTagValue *bool
+	GetFieldValuesByTag     *bool
+	AsMap                   *bool
+	AsTagMap                *bool
 
 	Strings *bool
 }
@@ -178,8 +178,8 @@ func (g *Generator) Generate(packageName string, typeName string, tagNames []str
 		g.generateGetFieldValueFunc(typeName, fieldNames, returnRefs)
 		g.writeBody("\n")
 	}
-	if *opts.GetFieldValueByTag {
-		g.generateGetFieldValueByTagFunc(typeName, fieldNames, tagNames, fieldsTagValue, returnRefs)
+	if *opts.GetFieldValueByTagValue {
+		g.generateGetFieldValueByTagValueFunc(typeName, fieldNames, tagNames, fieldsTagValue, returnRefs)
 		g.writeBody("\n")
 	}
 	if *opts.GetFieldValuesByTag {
@@ -712,7 +712,7 @@ func (g *Generator) generateGetFieldValueFunc(typeName string, fieldNames []stru
 	g.writeBody(funcBody)
 }
 
-func (g *Generator) generateGetFieldValueByTagFunc(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, returnRefs bool) {
+func (g *Generator) generateGetFieldValueByTagValueFunc(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, returnRefs bool) {
 
 	var valType string
 	if g.WrapType {

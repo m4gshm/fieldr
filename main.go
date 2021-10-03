@@ -54,11 +54,11 @@ var (
 		TagFieldsMap:     flag.Bool("TagFieldsMap", false, "generate TagFields map var"),
 		FieldTagValueMap: flag.Bool("FieldTagValueMap", false, "generate FieldTagValue map var"),
 
-		GetFieldValue:       flag.Bool("GetFieldValue", false, "generate GetFieldValue func"),
-		GetFieldValueByTag:  flag.Bool("GetFieldValueByTag", false, "generate GetFieldValueByTag func"),
-		GetFieldValuesByTag: flag.Bool("GetFieldValuesByTag", false, "generate GetFieldValuesByTag func"),
-		AsMap:               flag.Bool("AsMap", false, "generate AsMap func"),
-		AsTagMap:            flag.Bool("AsTagMap", false, "generate AsTagMap func"),
+		GetFieldValue:           flag.Bool("GetFieldValue", false, "generate GetFieldValue func"),
+		GetFieldValueByTagValue: flag.Bool("GetFieldValueByTagValue", false, "generate GetFieldValueByTagValue func"),
+		GetFieldValuesByTag:     flag.Bool("GetFieldValuesByTag", false, "generate GetFieldValuesByTag func"),
+		AsMap:                   flag.Bool("AsMap", false, "generate AsMap func"),
+		AsTagMap:                flag.Bool("AsTagMap", false, "generate AsTagMap func"),
 
 		Strings: flag.Bool("Strings", false, "generate Strings func for list types (field, tag, tag values)"),
 	}

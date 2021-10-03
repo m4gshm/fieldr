@@ -16,7 +16,7 @@ const (
 	entityTagValue_db_ts      = "ts"
 )
 const (
-	sql_Upsert     = "INSERT id,name,surname INTO " + tableName + " VALUES ($1,$2,$3) DO ON CONFLICT id UPDATE SET name=$2,surname=$3 RETURNING id"
+	sql_Upsert     = "INSERT INTO " + tableName + "(id,name,surname) VALUES ($1,$2,$3) DO ON CONFLICT id UPDATE SET name=$2,surname=$3 RETURNING id"
 	sql_selectByID = "SELECT id,name,surname FROM " + tableName + " WHERE id = $1"
 	sql_deleteByID = "DELETE FROM " + tableName + " WHERE id = $1"
 	entity__pk     = "id"
