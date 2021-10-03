@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/m4gshm/fieldr/struc"
+	"github.com/pkg/errors"
 )
 
 type Generator struct {
@@ -104,12 +105,12 @@ func (g *Generator) Src() ([]byte, error) {
 }
 
 func (g *Generator) GenerateFile(str *struc.Struct) error {
-	return g.Generate(str.PackageName, str.TypeName, str.TagNames, str.FieldNames, str.TagValueMap, str.Constants, str.ConstantValues)
+	return g.Generate(str.PackageName, str.TypeName, str.TagNames, str.FieldNames, str.TagValueMap, str.Constants, str.ConstantNames, str.ConstantValues)
 }
 
 const baseType = "string"
 
-func (g *Generator) Generate(packageName string, typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fieldsTagValue map[struc.FieldName]map[struc.TagName]struc.TagValue, constants []string, constantValues map[string]string) error {
+func (g *Generator) Generate(packageName string, typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fieldsTagValue map[struc.FieldName]map[struc.TagName]struc.TagValue, constants []string, constantNames map[string]string, constantValues map[string]string) error {
 
 	if g.NoEmptyTag {
 		for fieldName, _tagNames := range fieldsTagValue {
@@ -125,7 +126,7 @@ func (g *Generator) Generate(packageName string, typeName string, tagNames []str
 	opts := g.Opts
 
 	if len(constants) > 0 {
-		err := g.generateConstants(typeName, tagNames, fieldNames, fieldsTagValue, constants, constantValues)
+		err := g.generateConstants(typeName, tagNames, fieldNames, fieldsTagValue, constants, constantNames, constantValues)
 		if err != nil {
 			return err
 		}
@@ -942,7 +943,7 @@ type ConstTemplateData struct {
 	FieldTagValue map[string]map[string]string
 }
 
-func (g *Generator) generateConstants(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fieldsTagValue map[struc.FieldName]map[struc.TagName]struc.TagValue, constants []string, constantValues map[string]string) error {
+func (g *Generator) generateConstants(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fieldsTagValue map[struc.FieldName]map[struc.TagName]struc.TagValue, constants []string, constantNames map[string]string, constantValues map[string]string) error {
 	fields := make([]string, len(fieldNames))
 	tags := make([]string, len(tagNames))
 	fieldTags := make(map[string][]string)
@@ -1013,21 +1014,7 @@ func (g *Generator) generateConstants(typeName string, tagNames []struc.TagName,
 			continue
 		}
 
-		var constName string
-		for i, sym := range text {
-			r := sym
-			if r == ' ' {
-				//badName
-				break
-			}
-			if r == ':' {
-				//first symbol is quotes, must be ignore
-				constName = text[1:i]
-				text = text[0:1] + text[i+1:]
-
-				break
-			}
-		}
+		constName := constantNames[constant]
 		if len(constName) == 0 {
 			constName = goName(typeName+"_"+constant, g.Export)
 		}
@@ -1037,9 +1024,9 @@ func (g *Generator) generateConstants(typeName string, tagNames []struc.TagName,
 			return first + second
 		}
 
-		tmpl, err := template.New(constName).Funcs(template.FuncMap{"add": add}).Parse(text)
+		tmpl, err := template.New(constant).Funcs(template.FuncMap{"add": add}).Parse(text)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "const: %s", constName)
 		}
 
 		buf := bytes.Buffer{}

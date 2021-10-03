@@ -23,14 +23,18 @@ type Struct struct {
 	TagNames       []TagName
 	Constants      []string
 	ConstantValues map[string]string
+	ConstantNames  map[string]string
 }
 
 func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers map[TagName]TagValueParser, excludeTagValues map[TagName]map[TagValue]bool, constants []string) (*Struct, error) {
 	var str *Struct
 
-	constSet := make(map[string]int, len(constants))
+	constantNames := make(map[string]string, len(constants))
+	constantTemplates := make([]string, len(constants))
 	for i, c := range constants {
-		constSet[c] = i
+		templateVar, generatingConstant := splitConstantName(c)
+		constantTemplates[i] = templateVar
+		constantNames[templateVar] = generatingConstant
 	}
 	constantValues := make(map[string]string, len(constants))
 
@@ -41,19 +45,34 @@ func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers 
 				return handleTypeSpec(nt, typeName, tagParsers, excludeTagValues, tag, &str, file)
 			case *ast.ValueSpec:
 				for _, name := range nt.Names {
-					n := name.Name
-					_, ok := constSet[n]
-					if ok {
-						for _, value := range nt.Values {
-							strValue, _, err := toStringValue(value)
-							if err != nil {
-								log.Fatalf("cons template error, const %v, error %v", n, err)
-							}
-							constantValues[n] = strValue
-
-							break //only first
-						}
+					templateConst := name.Name
+					obj := name.Obj
+					isConst := obj != nil && obj.Kind == ast.Con
+					if !isConst {
+						continue
 					}
+					constName, isTemplateConst := constantNames[templateConst]
+					if !isTemplateConst {
+						continue
+					}
+					for _, value := range nt.Values {
+						strValue, _, err := toStringValue(value)
+						if err != nil {
+							log.Fatalf("cons template error, const %v, error %v", templateConst, err)
+						}
+
+						constVal := strValue
+						if len(constName) == 0 {
+							constName, constVal = splitConstValue(strValue)
+							if len(constName) > 0 {
+								constantNames[templateConst] = constName
+							}
+						}
+						constantValues[templateConst] = constVal
+
+						break //only first
+					}
+
 				}
 				return false
 			default:
@@ -74,11 +93,39 @@ func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers 
 	}
 
 	if str != nil {
-		str.Constants = constants
+		str.Constants = constantTemplates
+		str.ConstantNames = constantNames
 		str.ConstantValues = constantValues
 	}
 	return str, nil
 
+}
+
+func splitConstantName(constant string) (string, string) {
+	index := strings.Index(constant, ":")
+	if index > 0 {
+		templateConst := constant[:index]
+		generatingConstant := constant[index+1:]
+		return templateConst, generatingConstant
+	}
+	return constant, ""
+}
+
+func splitConstValue(constVal string) (string, string) {
+	for i, sym := range constVal {
+		r := sym
+		switch r {
+		case ' ', '{', '}':
+			//badName
+			return "", constVal
+		case ':':
+			//first symbol is quotes, must be ignore
+			constName := constVal[1:i]
+			constVal = constVal[0:1] + constVal[i+1:]
+			return constName, constVal
+		}
+	}
+	return "", constVal
 }
 
 func toStringValue(value ast.Expr) (string, token.Token, error) {
