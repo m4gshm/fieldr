@@ -45,7 +45,6 @@ func NewGenerator(name string, wrapType bool, refs bool, export bool, onlyExport
 }
 
 type GenerateContentOptions struct {
-	Constants        *[]string
 	Fields           *bool
 	Tags             *bool
 	FieldTagsMap     *bool

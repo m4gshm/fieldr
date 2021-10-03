@@ -18,7 +18,7 @@ test:
 .PHONY: bench
 bench:
 	$(info #Benchmark...)
-	go test -bench . -benchtime 5s ./...
+	go test -bench . -benchtime 1s ./...
 
 .PHONY: lint-install
 lint-install:
