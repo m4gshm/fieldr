@@ -7,8 +7,7 @@ import (
 var (
 	pkColumn      = entityTagValue_db_ID
 	dbTag         = entityTag_db
-	dbColumns     = entity_TagValues[dbTag]
-	dbColumnNames = dbColumns.strings()
+	dbColumnNames = entity_TagValues_db.strings()
 )
 
 func getSqlSelectById(table string, id int) sq.Sqlizer {

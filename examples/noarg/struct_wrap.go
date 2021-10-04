@@ -1,6 +1,6 @@
 package noarg
 
-//go:generate fieldr -type Struct -wrap
+//go:generate fieldr -type StructWrap -wrap
 
 type StructWrap struct {
 	ID              int    `toMap:"id"`

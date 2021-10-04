@@ -50,6 +50,7 @@ type GenerateContentOptions struct {
 	Tags             *bool
 	FieldTagsMap     *bool
 	TagValuesMap     *bool
+	TagValues        *[]string
 	TagFieldsMap     *bool
 	FieldTagValueMap *bool
 
@@ -132,14 +133,17 @@ func (g *Generator) Generate(packageName string, typeName string, tagNames []str
 		}
 	}
 
-	genFields := *opts.Fields
-	genFieldTagsMap := *opts.FieldTagsMap
-	genTags := *opts.Tags
-	getTagValuesMap := *opts.TagValuesMap
-	genTagFieldsMap := *opts.TagFieldsMap
-	getFieldTagValueMap := *opts.FieldTagValueMap
-
-	genVars := genFields || genFieldTagsMap || genTags || getTagValuesMap || genTagFieldsMap || getFieldTagValueMap
+	var (
+		genFields           = *opts.Fields
+		genFieldTagsMap     = *opts.FieldTagsMap
+		genTags             = *opts.Tags
+		getTagValuesMap     = *opts.TagValuesMap
+		getTagValues        = *opts.TagValues
+		genTagFieldsMap     = *opts.TagFieldsMap
+		getFieldTagValueMap = *opts.FieldTagValueMap
+		genVars             = genFields || genFieldTagsMap || genTags || getTagValuesMap || len(getTagValues) > 0 ||
+			genTagFieldsMap || getFieldTagValueMap
+	)
 
 	if genVars {
 		g.writeBody("var(\n")
@@ -155,6 +159,10 @@ func (g *Generator) Generate(packageName string, typeName string, tagNames []str
 
 	if genFieldTagsMap {
 		g.generateFieldTagsMapVar(typeName, tagNames, fieldNames, fieldsTagValue)
+	}
+
+	if len(getTagValues) > 0 {
+		g.generateTagValuesVar(typeName, getTagValues, fieldNames, fieldsTagValue)
 	}
 
 	if getTagValuesMap {
@@ -449,8 +457,24 @@ func (g *Generator) generateFieldTagsMapVar(typeName string, tagNames []struc.Ta
 	g.writeBody("%v=%v\n\n", varName, varValue)
 }
 
+func (g *Generator) generateTagValuesVar(typeName string, tagNames []string, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) {
+
+	tagValueType := baseType
+	tagValueArrayType := "[]" + tagValueType
+	if g.WrapType {
+		tagValueType = g.getTagValueType(typeName)
+		tagValueArrayType = g.getTagValueArrayType(tagValueType)
+	}
+
+	for _, tagName := range tagNames {
+		varName := goName(typeName+"_TagValues_"+string(tagName), g.ExportVars)
+		valueBody := g.generateTagValueBody(typeName, tagValueArrayType, fieldNames, fields, struc.TagName(tagName))
+		g.writeBody("%v=%v\n\n", varName, valueBody)
+	}
+
+}
+
 func (g *Generator) generateTagValuesMapVar(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) {
-	var varValue string
 	tagType := baseType
 	tagValueType := baseType
 	tagValueArrayType := "[]" + tagValueType
@@ -459,49 +483,54 @@ func (g *Generator) generateTagValuesMapVar(typeName string, tagNames []struc.Ta
 		tagValueType = g.getTagValueType(typeName)
 		tagValueArrayType = g.getTagValueArrayType(tagValueType)
 		tagType = g.getTagType(typeName)
-		varValue = "map[" + tagType + "]" + tagValueArrayType + "{\n"
-	} else {
-		varValue = "map[" + tagType + "]" + tagValueArrayType + "{\n"
 	}
+
+	varValue := "map[" + tagType + "]" + tagValueArrayType + "{\n"
 	for _, tagName := range tagNames {
 		constName := g.getTagConstName(typeName, tagName)
-
-		if g.WrapType {
-			varValue += constName + ": " + tagValueArrayType + "{"
-		} else {
-			varValue += constName + ": []" + baseType + "{"
-		}
-
-		ti := 0
-		for _, fieldName := range fieldNames {
-			_, ok := fields[fieldName][tagName]
-			if !ok {
-				continue
-			}
-
-			if g.isFieldExcluded(fieldName) {
-				continue
-			}
-
-			if ti > 0 {
-				varValue += ", "
-			}
-
-			tagValueConstName := g.getTagValueConstName(typeName, tagName, fieldName)
-			if g.excludedTagValues[tagValueConstName] {
-				continue
-			}
-			varValue += tagValueConstName
-			ti++
-		}
-
-		varValue += "},\n"
+		valueBody := g.generateTagValueBody(typeName, tagValueArrayType, fieldNames, fields, tagName)
+		varValue += constName + ": " + valueBody + ",\n"
 	}
 	varValue += "}"
 
 	varName := goName(typeName+"_TagValues", g.ExportVars)
 
 	g.writeBody("%v=%v\n\n", varName, varValue)
+}
+
+func (g *Generator) generateTagValueBody(typeName string, tagValueArrayType string, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, tagName struc.TagName) string {
+	var varValue string
+	if g.WrapType {
+		varValue += tagValueArrayType + "{"
+	} else {
+		varValue += "[]" + baseType + "{"
+	}
+
+	ti := 0
+	for _, fieldName := range fieldNames {
+		_, ok := fields[fieldName][tagName]
+		if !ok {
+			continue
+		}
+
+		if g.isFieldExcluded(fieldName) {
+			continue
+		}
+
+		if ti > 0 {
+			varValue += ", "
+		}
+
+		tagValueConstName := g.getTagValueConstName(typeName, tagName, fieldName)
+		if g.excludedTagValues[tagValueConstName] {
+			continue
+		}
+		varValue += tagValueConstName
+		ti++
+	}
+
+	varValue += "}"
+	return varValue
 }
 
 func (g *Generator) getTagValueArrayType(tagValueType string) string {

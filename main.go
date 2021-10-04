@@ -10,7 +10,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -47,11 +46,13 @@ var (
 	srcFiles       = multiflag("src", []string{}, "go source file")
 
 	generateContentOptions = generator.GenerateContentOptions{
-		Fields:           flag.Bool("Fields", false, "generate Fields list var"),
-		Tags:             flag.Bool("Tags", false, "generate Tags list var"),
-		FieldTagsMap:     flag.Bool("FieldTagsMap", false, "generate FieldTags map var"),
-		TagValuesMap:     flag.Bool("TagValuesMap", false, "generate TagValues map var"),
-		TagFieldsMap:     flag.Bool("TagFieldsMap", false, "generate TagFields map var"),
+		Fields:       flag.Bool("Fields", false, "generate Fields list var"),
+		Tags:         flag.Bool("Tags", false, "generate Tags list var"),
+		FieldTagsMap: flag.Bool("FieldTagsMap", false, "generate FieldTags map var"),
+		TagValuesMap: flag.Bool("TagValuesMap", false, "generate TagValues map var"),
+		TagValues:    multiflag("TagValues", nil, "generate TagValues var per tag"),
+		TagFieldsMap: flag.Bool("TagFieldsMap", false, "generate TagFields map var"),
+
 		FieldTagValueMap: flag.Bool("FieldTagValueMap", false, "generate FieldTagValue map var"),
 
 		GetFieldValue:           flag.Bool("GetFieldValue", false, "generate GetFieldValue func"),
@@ -111,9 +112,11 @@ func main() {
 	}
 
 	args := flag.Args()
-	err := os.Chdir(outDir(args))
-	if err != nil {
-		log.Fatal(err)
+	outputDir := outDir(args)
+	if len(outputDir) > 0 {
+		if err := os.Chdir(outputDir); err != nil {
+			log.Fatalf("out dir error: %v", err)
+		}
 	}
 
 	pkg := extractPackage(*buildTags, *packagePattern)
@@ -149,13 +152,19 @@ func main() {
 	for i := 0; i < field; i++ {
 		structField := optionFields.Field(i)
 		elem := structField.Elem()
-		notGenerate := elem.Kind() == reflect.Bool && !elem.Bool()
-		generateAll = generateAll && notGenerate
+		noGenerate := isNoGenerate(elem)
+		generateAll = generateAll && noGenerate
+		if !generateAll {
+			break
+		}
 	}
 
 	if generateAll {
 		for i := 0; i < field; i++ {
-			optionFields.Field(i).Elem().SetBool(true)
+			elem := optionFields.Field(i).Elem()
+			if elem.Kind() == reflect.Bool {
+				elem.SetBool(true)
+			}
 		}
 	}
 
@@ -169,9 +178,8 @@ func main() {
 
 	outputName := *output
 	if outputName == "" {
-
 		baseName := typeName + defaultSuffix
-		outputName = filepath.Join(outDir(args), strings.ToLower(baseName))
+		outputName = strings.ToLower(baseName)
 	}
 	const userWriteOtherRead = fs.FileMode(0644)
 	if writeErr := ioutil.WriteFile(outputName, src, userWriteOtherRead); writeErr != nil {
@@ -182,11 +190,32 @@ func main() {
 
 }
 
+func isNoGenerate(elem reflect.Value) bool {
+	var notGenerate bool
+	kind := elem.Kind()
+	switch kind {
+	case reflect.Bool:
+		notGenerate = !elem.Bool()
+	case reflect.String:
+		s := elem.String()
+		notGenerate = len(s) == 0
+	case reflect.Slice:
+		notGenerate = true
+		l := elem.Len()
+		for i := 0; i < l; i++ {
+			value := elem.Index(i)
+			ng := isNoGenerate(value)
+			notGenerate = notGenerate && ng
+		}
+	}
+	return notGenerate
+}
+
 func outDir(args []string) string {
 	if len(args) > 0 && isDir(args[0]) {
 		return args[0]
 	}
-	return "."
+	return ""
 }
 
 func isDir(name string) bool {
@@ -194,7 +223,8 @@ func isDir(name string) bool {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return info.IsDir()
+	dir := info.IsDir()
+	return dir
 }
 
 func extractPackage(buildTags []string, patterns ...string) *packages.Package {
