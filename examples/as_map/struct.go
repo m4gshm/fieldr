@@ -1,6 +1,6 @@
 package as_map
 
-//go:generate fieldr -type Struct -output struct_as_map.go -wrap -export -AsMap -AsTagMap
+//go:generate fieldr -type Struct -out struct_as_map.go -wrap -export -AsMap -AsTagMap
 
 type Struct struct {
 	ID              int    `toMap:"id"`

@@ -20,8 +20,28 @@ const (
 
 )
 
+func excludes(values []string, excludes ...string) []string {
+	excl := make(map[string]interface{}, len(excludes))
+	for _, e := range excludes {
+		excl[e] = nil
+	}
+	withoutExcludes := make([]string, 0, len(values)-len(excludes))
+	for _, _v := range values {
+		if _, ok := excl[_v]; !ok {
+			withoutExcludes = append(withoutExcludes, _v)
+		}
+	}
+	return withoutExcludes
+}
+
 var (
-	struct_Fields = []string{structField_ID, structField_Name, structField_Surname, structField_NoTag, structField_IgnoredInTagMap}
+	struct_Fields = []string{
+		structField_ID,
+		structField_Name,
+		structField_Surname,
+		structField_NoTag,
+		structField_IgnoredInTagMap,
+	}
 
 	struct_Tags = []string{structTag_toMap}
 
@@ -33,12 +53,29 @@ var (
 		structField_IgnoredInTagMap: []string{},
 	}
 
+	struct_TagValues_toMap = []string{
+		structTagValue_toMap_ID,
+		structTagValue_toMap_Name,
+		structTagValue_toMap_Surname,
+		structTagValue_toMap_NoTag,
+	}
+
 	struct_TagValues = map[string][]string{
-		structTag_toMap: []string{structTagValue_toMap_ID, structTagValue_toMap_Name, structTagValue_toMap_Surname, structTagValue_toMap_NoTag},
+		structTag_toMap: []string{
+			structTagValue_toMap_ID,
+			structTagValue_toMap_Name,
+			structTagValue_toMap_Surname,
+			structTagValue_toMap_NoTag,
+		},
 	}
 
 	struct_TagFields = map[string][]string{
-		structTag_toMap: []string{structField_ID, structField_Name, structField_Surname, structField_NoTag},
+		structTag_toMap: []string{
+			structField_ID,
+			structField_Name,
+			structField_Surname,
+			structField_NoTag,
+		},
 	}
 
 	struct_FieldTagValue = map[string]map[string]string{
@@ -83,7 +120,12 @@ func (v *Struct) getFieldValueByTagValue(tag string) interface{} {
 func (v *Struct) getFieldValuesByTag(tag string) []interface{} {
 	switch tag {
 	case structTag_toMap:
-		return []interface{}{v.ID, v.Name, v.Surname, v.NoTag}
+		return []interface{}{
+			v.ID,
+			v.Name,
+			v.Surname,
+			v.NoTag,
+		}
 	}
 	return nil
 }

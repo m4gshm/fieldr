@@ -1,5 +1,5 @@
 .PHONY: all
-all: baseMake generate test lint bench
+all: baseMake generate test lint
 
 .PHONY: baseMake
 baseMake:

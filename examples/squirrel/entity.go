@@ -9,4 +9,4 @@ type Entity struct {
 	ts      time.Time `db:"TS"`
 }
 
-//go:generate fieldr -type Entity -output entity_fields.go -wrap -Strings -TagValues db -GetFieldValuesByTag
+//go:generate fieldr -type Entity -out entity_fields.go -wrap -Strings -TagValues db -GetFieldValuesByTag

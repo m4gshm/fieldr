@@ -33,25 +33,30 @@ var (
 var (
 	typ            = flag.String(_type, "", "type name; must be set")
 	buildTags      = multiflag("buildTag", []string{defBuildTag}, "build tag")
-	output         = flag.String("output", "", "output file name; default srcdir/<type>"+defaultSuffix)
+	output         = flag.String("out", "", "output file name; default srcdir/<type>"+defaultSuffix)
 	tag            = flag.String("tag", "", "tag used to constant naming")
 	wrap           = flag.Bool("wrap", false, "wrap tag const by own type")
+	hardcode       = flag.Bool("hardcode", false, "hardcode tag values intogenerated variables, methods")
 	ref            = flag.Bool("ref", false, "return field as refs in generated methods")
 	export         = flag.Bool("export", false, "export generated types, constant, methods")
 	exportVars     = flag.Bool("exportVars", false, "export generated variables only")
 	allFields      = flag.Bool("allFields", false, "include all fields (not only exported) in generated content")
 	noEmptyTag     = flag.Bool("noEmptyTag", false, "exclude tags without value")
+	compact        = flag.Bool("compact", false, "generate compact (in one line) array expressions")
 	constants      = multiflag("const", []string{}, "templated constant for generating field's tag based constant")
 	packagePattern = flag.String("package", ".", "used package")
 	srcFiles       = multiflag("src", []string{}, "go source file")
 
 	generateContentOptions = generator.GenerateContentOptions{
-		Fields:       flag.Bool("Fields", false, "generate Fields list var"),
-		Tags:         flag.Bool("Tags", false, "generate Tags list var"),
-		FieldTagsMap: flag.Bool("FieldTagsMap", false, "generate FieldTags map var"),
-		TagValuesMap: flag.Bool("TagValuesMap", false, "generate TagValues map var"),
-		TagValues:    multiflag("TagValues", nil, "generate TagValues var per tag"),
-		TagFieldsMap: flag.Bool("TagFieldsMap", false, "generate TagFields map var"),
+		EnumFields:    flag.Bool("EnumFields", false, "force to generate field constants"),
+		EnumTags:      flag.Bool("EnumTags", false, "force to generate tag constants"),
+		EnumTagValues: flag.Bool("EnumTagValues", false, "force to generate tag value constants"),
+		Fields:        flag.Bool("Fields", false, "generate Fields list var"),
+		Tags:          flag.Bool("Tags", false, "generate Tags list var"),
+		FieldTagsMap:  flag.Bool("FieldTagsMap", false, "generate FieldTags map var"),
+		TagValuesMap:  flag.Bool("TagValuesMap", false, "generate TagValues map var"),
+		TagValues:     multiflag("TagValues", nil, "generate TagValues var per tag"),
+		TagFieldsMap:  flag.Bool("TagFieldsMap", false, "generate TagFields map var"),
 
 		FieldTagValueMap: flag.Bool("FieldTagValueMap", false, "generate FieldTagValue map var"),
 
@@ -61,7 +66,8 @@ var (
 		AsMap:                   flag.Bool("AsMap", false, "generate AsMap func"),
 		AsTagMap:                flag.Bool("AsTagMap", false, "generate AsTagMap func"),
 
-		Strings: flag.Bool("Strings", false, "generate Strings func for list types (field, tag, tag values)"),
+		Strings:  flag.Bool("Strings", false, "generate Strings func for list types (field, tag, tag values)"),
+		Excludes: flag.Bool("Excludes", false, "generate Excludes func for list types (field, tag, tag values)"),
 	}
 )
 
@@ -168,7 +174,7 @@ func main() {
 		}
 	}
 
-	g := generator.NewGenerator(name, *wrap, *ref, *export, !*allFields, *exportVars, *noEmptyTag, *constants, &generateContentOptions)
+	g := generator.NewGenerator(name, *wrap, *hardcode, *ref, *export, !*allFields, *exportVars, *compact, *noEmptyTag, *constants, &generateContentOptions)
 
 	err = g.GenerateFile(typeFile)
 	if err != nil {
