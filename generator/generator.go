@@ -352,8 +352,10 @@ func (g *Generator) generateHead(packageName string, typeName string, tagNames [
 			}
 		}
 	} else {
-		g.generateArrayToExcludesFunc(writer, false, baseType, "[]"+baseType)
-		writer("\n")
+		if *opts.Excludes {
+			g.generateArrayToExcludesFunc(writer, false, baseType, "[]"+baseType)
+			writer("\n")
+		}
 	}
 }
 
