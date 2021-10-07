@@ -152,9 +152,11 @@ func main() {
 		return
 	}
 
-	generateAll := true
-	optionFields := reflect.ValueOf(generateContentOptions)
-	field := optionFields.NumField()
+	var (
+		generateAll  = true
+		optionFields = reflect.ValueOf(generateContentOptions)
+		field        = optionFields.NumField()
+	)
 	for i := 0; i < field; i++ {
 		structField := optionFields.Field(i)
 		elem := structField.Elem()
@@ -171,6 +173,9 @@ func main() {
 			if elem.Kind() == reflect.Bool {
 				elem.SetBool(true)
 			}
+		}
+		if !*wrap {
+			*generateContentOptions.Excludes = false
 		}
 	}
 

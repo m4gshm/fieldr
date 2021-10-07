@@ -15,21 +15,6 @@ const (
 	entityTagValue_db_Surname = "surname"
 	entityTagValue_db_ts      = "ts"
 )
-
-func excludes(values []string, excludes ...string) []string {
-	excl := make(map[string]interface{}, len(excludes))
-	for _, e := range excludes {
-		excl[e] = nil
-	}
-	withoutExcludes := make([]string, 0, len(values)-len(excludes))
-	for _, _v := range values {
-		if _, ok := excl[_v]; !ok {
-			withoutExcludes = append(withoutExcludes, _v)
-		}
-	}
-	return withoutExcludes
-}
-
 const (
 	sql_Upsert         = "INSERT INTO " + tableName + " (id,name,surname) VALUES ($1,$2,$3) DO ON CONFLICT id UPDATE SET name=$2,surname=$3 RETURNING id"
 	sql_selectByID     = "SELECT id,name,surname FROM " + tableName + " WHERE id = $1"
