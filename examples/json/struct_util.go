@@ -19,20 +19,6 @@ const (
 	structTagValue_json_noExport = "no_export"
 )
 
-func Excludes(values []string, excludes ...string) []string {
-	excl := make(map[string]interface{}, len(excludes))
-	for _, e := range excludes {
-		excl[e] = nil
-	}
-	withoutExcludes := make([]string, 0, len(values)-len(excludes))
-	for _, _v := range values {
-		if _, ok := excl[_v]; !ok {
-			withoutExcludes = append(withoutExcludes, _v)
-		}
-	}
-	return withoutExcludes
-}
-
 var (
 	struct_Fields = []string{
 		StructField_ID,
