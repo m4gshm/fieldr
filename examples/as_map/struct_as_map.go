@@ -3,10 +3,9 @@
 package as_map
 
 type (
-	StructField     string
-	StructTag       string
-	StructTagValue  string
-	StructTagValues []StructTagValue
+	StructField    string
+	StructTag      string
+	StructTagValue string
 )
 
 const (
@@ -25,15 +24,6 @@ const (
 	structTagValue_toMap_noExport = StructTagValue("no_export")
 	StructTagValue_toMap_NoTag    = StructTagValue("NoTag") //empty tag
 
-)
-
-var (
-	struct_TagValues_toMap = StructTagValues{
-		StructTagValue_toMap_ID,
-		StructTagValue_toMap_Name,
-		StructTagValue_toMap_Surname,
-		StructTagValue_toMap_NoTag,
-	}
 )
 
 func (v *Struct) AsMap() map[StructField]interface{} {

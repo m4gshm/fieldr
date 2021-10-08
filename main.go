@@ -159,11 +159,14 @@ func main() {
 	)
 	for i := 0; i < field; i++ {
 		structField := optionFields.Field(i)
-		elem := structField.Elem()
-		noGenerate := isNoGenerate(elem)
-		generateAll = generateAll && noGenerate
-		if !generateAll {
-			break
+		sfk := structField.Kind()
+		if sfk == reflect.Ptr {
+			elem := structField.Elem()
+			noGenerate := isNoGenerate(elem)
+			generateAll = generateAll && noGenerate
+			if !generateAll {
+				break
+			}
 		}
 	}
 
@@ -171,17 +174,7 @@ func main() {
 		generateAll = len(*constants) == 0
 	}
 
-	if generateAll {
-		for i := 0; i < field; i++ {
-			elem := optionFields.Field(i).Elem()
-			if elem.Kind() == reflect.Bool {
-				elem.SetBool(true)
-			}
-		}
-		if !*wrap {
-			*generateContentOptions.Excludes = false
-		}
-	}
+	generateContentOptions.All = generateAll
 
 	g := generator.NewGenerator(name, *wrap, *hardcode, *ref, *export, !*allFields, *exportVars, *compact, *noEmptyTag, *constants, &generateContentOptions)
 

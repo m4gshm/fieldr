@@ -3,10 +3,9 @@
 package as_map
 
 type (
-	StructNoEmptyTagField     string
-	StructNoEmptyTagTag       string
-	StructNoEmptyTagTagValue  string
-	StructNoEmptyTagTagValues []StructNoEmptyTagTagValue
+	StructNoEmptyTagField    string
+	StructNoEmptyTagTag      string
+	StructNoEmptyTagTagValue string
 )
 
 const (
@@ -20,14 +19,6 @@ const (
 	StructNoEmptyTagTagValue_toMap_ID      = StructNoEmptyTagTagValue("id")
 	StructNoEmptyTagTagValue_toMap_Name    = StructNoEmptyTagTagValue("name")
 	StructNoEmptyTagTagValue_toMap_Surname = StructNoEmptyTagTagValue("surname")
-)
-
-var (
-	structNoEmptyTag_TagValues_toMap = StructNoEmptyTagTagValues{
-		StructNoEmptyTagTagValue_toMap_ID,
-		StructNoEmptyTagTagValue_toMap_Name,
-		StructNoEmptyTagTagValue_toMap_Surname,
-	}
 )
 
 func (v *StructNoEmptyTag) AsMap() map[StructNoEmptyTagField]interface{} {

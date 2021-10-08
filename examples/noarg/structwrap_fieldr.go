@@ -53,48 +53,6 @@ func (v structWrapTagValues) strings() []string {
 	return strings
 }
 
-func (v structWrapFields) excludes(excludes ...structWrapField) structWrapFields {
-	excl := make(map[structWrapField]interface{}, len(excludes))
-	for _, e := range excludes {
-		excl[e] = nil
-	}
-	withoutExcludes := make(structWrapFields, 0, len(v)-len(excludes))
-	for _, _v := range v {
-		if _, ok := excl[_v]; !ok {
-			withoutExcludes = append(withoutExcludes, _v)
-		}
-	}
-	return withoutExcludes
-}
-
-func (v structWrapTags) excludes(excludes ...structWrapTag) structWrapTags {
-	excl := make(map[structWrapTag]interface{}, len(excludes))
-	for _, e := range excludes {
-		excl[e] = nil
-	}
-	withoutExcludes := make(structWrapTags, 0, len(v)-len(excludes))
-	for _, _v := range v {
-		if _, ok := excl[_v]; !ok {
-			withoutExcludes = append(withoutExcludes, _v)
-		}
-	}
-	return withoutExcludes
-}
-
-func (v structWrapTagValues) excludes(excludes ...structWrapTagValue) structWrapTagValues {
-	excl := make(map[structWrapTagValue]interface{}, len(excludes))
-	for _, e := range excludes {
-		excl[e] = nil
-	}
-	withoutExcludes := make(structWrapTagValues, 0, len(v)-len(excludes))
-	for _, _v := range v {
-		if _, ok := excl[_v]; !ok {
-			withoutExcludes = append(withoutExcludes, _v)
-		}
-	}
-	return withoutExcludes
-}
-
 var (
 	structWrap_Fields = structWrapFields{"ID", "Name", "Surname", "NoTag", "IgnoredInTagMap"}
 

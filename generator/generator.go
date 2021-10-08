@@ -52,6 +52,8 @@ func NewGenerator(name string, wrapType bool, hardcodeValues bool, refs bool, ex
 }
 
 type GenerateContentOptions struct {
+	All bool
+
 	Fields           *bool
 	Tags             *bool
 	FieldTagsMap     *bool
@@ -149,14 +151,15 @@ func (g *Generator) Generate(packageName string, typeName string, tagNames []str
 	}
 
 	var (
-		genFields           = *opts.Fields
-		genFieldTagsMap     = *opts.FieldTagsMap
-		genTags             = *opts.Tags
-		getTagValuesMap     = *opts.TagValuesMap
-		getTagValues        = getTagsValues(opts, tagNames)
-		genTagFieldsMap     = *opts.TagFieldsMap
-		getFieldTagValueMap = *opts.FieldTagValueMap
-		genVars             = genFields || genFieldTagsMap || genTags || getTagValuesMap || len(getTagValues) > 0 ||
+		getTagValues        = *opts.TagValues
+		all                 = opts.All
+		genFields           = all || *opts.Fields
+		genFieldTagsMap     = all || *opts.FieldTagsMap
+		genTags             = all || *opts.Tags
+		getTagValuesMap     = all || *opts.TagValuesMap
+		genTagFieldsMap     = all || *opts.TagFieldsMap
+		getFieldTagValueMap = all || *opts.FieldTagValueMap
+		genVars             = all || genFields || genFieldTagsMap || genTags || getTagValuesMap || len(getTagValues) > 0 ||
 			genTagFieldsMap || getFieldTagValueMap
 	)
 
@@ -176,8 +179,12 @@ func (g *Generator) Generate(packageName string, typeName string, tagNames []str
 		g.generateFieldTagsMapVar(typeName, tagNames, fieldNames, fieldsTagValue)
 	}
 
-	if len(getTagValues) > 0 {
-		g.generateTagValuesVar(typeName, getTagValues, fieldNames, fieldsTagValue)
+	if all || len(getTagValues) > 0 {
+		values := getTagValues
+		if len(getTagValues) == 0 {
+			values = getTagsValues(tagNames)
+		}
+		g.generateTagValuesVar(typeName, values, fieldNames, fieldsTagValue)
 	}
 
 	if getTagValuesMap {
@@ -198,23 +205,23 @@ func (g *Generator) Generate(packageName string, typeName string, tagNames []str
 
 	returnRefs := g.ReturnRefs
 
-	if *opts.GetFieldValue {
+	if all || *opts.GetFieldValue {
 		g.generateGetFieldValueFunc(typeName, fieldNames, returnRefs)
 		g.writeBody("\n")
 	}
-	if *opts.GetFieldValueByTagValue {
+	if all || *opts.GetFieldValueByTagValue {
 		g.generateGetFieldValueByTagValueFunc(typeName, fieldNames, tagNames, fieldsTagValue, returnRefs)
 		g.writeBody("\n")
 	}
-	if *opts.GetFieldValuesByTag {
+	if all || *opts.GetFieldValuesByTag {
 		g.generateGetFieldValuesByTagFunc(typeName, fieldNames, tagNames, fieldsTagValue, returnRefs)
 		g.writeBody("\n")
 	}
-	if *opts.AsMap {
+	if all || *opts.AsMap {
 		g.generateAsMapFunc(typeName, fieldNames, returnRefs)
 		g.writeBody("\n")
 	}
-	if *opts.AsTagMap {
+	if all || *opts.AsTagMap {
 		g.generateAsTagMapFunc(typeName, fieldNames, tagNames, fieldsTagValue, returnRefs)
 		g.writeBody("\n")
 	}
@@ -224,16 +231,12 @@ func (g *Generator) Generate(packageName string, typeName string, tagNames []str
 	return nil
 }
 
-func getTagsValues(opts *GenerateContentOptions, names []struc.TagName) []struc.TagName {
-	optTagValues := *opts.TagValues
-	if len(optTagValues) > 0 {
-		result := make([]struc.TagName, len(optTagValues))
-		for i, v := range optTagValues {
-			result[i] = struc.TagName(v)
-		}
-		return result
+func getTagsValues(names []struc.TagName) []string {
+	result := make([]string, len(names))
+	for i, tag := range names {
+		result[i] = string(tag)
 	}
-	return names
+	return result
 }
 
 func (g *Generator) generateHead(packageName string, typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, opts *GenerateContentOptions) {
@@ -293,9 +296,9 @@ func (g *Generator) generateHead(packageName string, typeName string, tagNames [
 			writer(")\n")
 		}
 	}
-	fieldConstName := g.used.fieldConstName || *g.Opts.EnumFields
-	tagConstName := g.used.tagConstName || *g.Opts.EnumTags
-	tagValueConstName := g.used.tagValueConstName || *g.Opts.EnumTagValues
+	fieldConstName := g.used.fieldConstName || *g.Opts.EnumFields || g.Opts.All
+	tagConstName := g.used.tagConstName || *g.Opts.EnumTags || g.Opts.All
+	tagValueConstName := g.used.tagValueConstName || *g.Opts.EnumTagValues || g.Opts.All
 
 	genConst := fieldConstName || tagConstName || tagValueConstName
 	if genConst {
@@ -322,7 +325,7 @@ func (g *Generator) generateHead(packageName string, typeName string, tagNames [
 	}
 
 	if g.WrapType {
-		if *opts.Strings {
+		if opts.All || *opts.Strings {
 			if g.used.fieldArrayType {
 				g.generateArrayToStringsFunc(writer, arrayType(fieldType), baseType)
 				writer("\n")
@@ -540,7 +543,7 @@ func quoted(value interface{}) string {
 	return "\"" + fmt.Sprintf("%v", value) + "\""
 }
 
-func (g *Generator) generateTagValuesVar(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) {
+func (g *Generator) generateTagValuesVar(typeName string, tagNames []string, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) {
 
 	tagValueType := baseType
 	tagValueArrayType := "[]" + tagValueType

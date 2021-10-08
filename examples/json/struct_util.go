@@ -28,13 +28,6 @@ var (
 		StructField_NoTag,
 	}
 
-	struct_TagValues_json = []string{
-		StructTagValue_json_ID,
-		StructTagValue_json_Name,
-		StructTagValue_json_Surname,
-		StructTagValue_json_NoJson,
-	}
-
 	struct_FieldTagValue = map[string]map[string]string{
 		StructField_ID:      map[string]string{StructTag_json: StructTagValue_json_ID},
 		StructField_Name:    map[string]string{StructTag_json: StructTagValue_json_Name},
