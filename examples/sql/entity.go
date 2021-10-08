@@ -9,6 +9,6 @@ type Entity struct {
 	ts      time.Time `db:"ts"` //nolint
 }
 
-//go:generate fieldr -type Entity -src ../util/const_template.go -out entity_sql.go -const _upsert:sql_Upsert -const _selectByID:sql_selectByID -const _deleteByID:sql_deleteByID -const _updateByID -const _insert -const _pk
+//go:generate fieldr -type Entity -src ../util/const_template.go -out entity_sql.go -const sql_Upsert:_upsert -const sql_selectByID:_selectByID:tableName="tableName" -const sql_deleteByID:_deleteByID -const _updateByID -const _insert -const _pk
 
 const tableName = "table" //nolint

@@ -117,12 +117,16 @@ func (g *Generator) Src() ([]byte, error) {
 }
 
 func (g *Generator) GenerateFile(str *struc.Struct) error {
-	return g.Generate(str.PackageName, str.TypeName, str.TagNames, str.FieldNames, str.TagValueMap, str.Constants, str.ConstantNames, str.ConstantValues)
+	return g.Generate(str.PackageName, str.TypeName, str.TagNames, str.FieldNames, str.TagValueMap,
+		str.Constants, str.ConstantTemplates)
 }
 
 const baseType = "string"
 
-func (g *Generator) Generate(packageName string, typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fieldsTagValue map[struc.FieldName]map[struc.TagName]struc.TagValue, constants []string, constantNames map[string]string, constantValues map[string]string) error {
+func (g *Generator) Generate(packageName string, typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName,
+	fieldsTagValue map[struc.FieldName]map[struc.TagName]struc.TagValue,
+	constants []string, constantTemplates map[string]string,
+) error {
 
 	if g.NoEmptyTag {
 		for fieldName, _tagNames := range fieldsTagValue {
@@ -138,7 +142,7 @@ func (g *Generator) Generate(packageName string, typeName string, tagNames []str
 	opts := g.Opts
 
 	if len(constants) > 0 {
-		err := g.generateConstants(typeName, tagNames, fieldNames, fieldsTagValue, constants, constantNames, constantValues)
+		err := g.generateConstants(tagNames, fieldNames, fieldsTagValue, constants, constantTemplates)
 		if err != nil {
 			return err
 		}
@@ -1146,7 +1150,7 @@ type ConstTemplateData struct {
 	FieldTagValue map[string]map[string]string
 }
 
-func (g *Generator) generateConstants(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fieldsTagValue map[struc.FieldName]map[struc.TagName]struc.TagValue, constants []string, constantNames map[string]string, constantValues map[string]string) error {
+func (g *Generator) generateConstants(tagNames []struc.TagName, fieldNames []struc.FieldName, fieldsTagValue map[struc.FieldName]map[struc.TagName]struc.TagValue, constants []string, constantTemplates map[string]string) error {
 	fields := make([]string, len(fieldNames))
 	tags := make([]string, len(tagNames))
 	fieldTags := make(map[string][]string)
@@ -1211,23 +1215,18 @@ func (g *Generator) generateConstants(typeName string, tagNames []struc.TagName,
 	}
 
 	constBody := "const(\n"
-	for _, constant := range constants {
-		text, ok := constantValues[constant]
+	for _, constName := range constants {
+		text, ok := constantTemplates[constName]
 		if !ok {
 			continue
 		}
-
-		constName := constantNames[constant]
-		if len(constName) == 0 {
-			constName = goName(typeName+"_"+constant, g.Export)
-		}
-		constBody += constName + " = "
+		constBody += goName(constName, g.Export) + " = "
 
 		add := func(first int, second int) int {
 			return first + second
 		}
 
-		tmpl, err := template.New(constant).Funcs(template.FuncMap{"add": add}).Parse(text)
+		tmpl, err := template.New(constName).Funcs(template.FuncMap{"add": add}).Parse(text)
 		if err != nil {
 			return errors.Wrapf(err, "const: %s", constName)
 		}

@@ -16,27 +16,49 @@ type TagValue string
 type FieldName string
 
 type Struct struct {
-	TypeName       string
-	PackageName    string
-	TagValueMap    map[FieldName]map[TagName]TagValue
-	FieldNames     []FieldName
-	TagNames       []TagName
-	Constants      []string
-	ConstantValues map[string]string
-	ConstantNames  map[string]string
+	TypeName          string
+	PackageName       string
+	TagValueMap       map[FieldName]map[TagName]TagValue
+	FieldNames        []FieldName
+	TagNames          []TagName
+	Constants         []string
+	ConstantTemplates map[string]string
 }
 
-func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers map[TagName]TagValueParser, excludeTagValues map[TagName]map[TagValue]bool, constants []string) (*Struct, error) {
+func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers map[TagName]TagValueParser,
+	excludeTagValues map[TagName]map[TagValue]bool,
+	constants []string,
+) (*Struct, error) {
 	var str *Struct
 
-	constantNames := make(map[string]string, len(constants))
-	constantTemplates := make([]string, len(constants))
+	constantNameByTemplate := make(map[string][]string, len(constants))
+	constantNames := make([]string, len(constants))
+	constantSubstitutes := make(map[string]map[string]string, len(constants))
+
 	for i, c := range constants {
-		templateVar, generatingConstant := splitConstantName(c)
-		constantTemplates[i] = templateVar
-		constantNames[templateVar] = generatingConstant
+		templateVar, generatingConstant, substitutes := splitConstantName(c)
+
+		if len(templateVar) == 0 {
+			return nil, fmt.Errorf("invalid constant %s, not template var", generatingConstant)
+		}
+
+		if len(generatingConstant) == 0 {
+			generatingConstant = typeName + "_" + templateVar
+		}
+
+		constantNames[i] = generatingConstant
+		if len(generatingConstant) > 0 {
+			constantSubstitutes[generatingConstant] = substitutes
+		}
+		namesByTemplates, ok := constantNameByTemplate[templateVar]
+		if !ok {
+			namesByTemplates = make([]string, 0)
+		}
+		if len(generatingConstant) > 0 {
+			constantNameByTemplate[templateVar] = append(namesByTemplates, generatingConstant)
+		}
 	}
-	constantValues := make(map[string]string, len(constants))
+	constantTemplates := make(map[string]string, len(constants))
 
 	for _, file := range files {
 		ast.Inspect(file, func(node ast.Node) bool {
@@ -51,24 +73,21 @@ func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers 
 					if !isConst {
 						continue
 					}
-					constName, isTemplateConst := constantNames[templateConst]
+					constNames, isTemplateConst := constantNameByTemplate[templateConst]
 					if !isTemplateConst {
 						continue
 					}
-					for _, value := range nt.Values {
-						strValue, _, err := toStringValue(value)
-						if err != nil {
-							log.Fatalf("cons template error, const %v, error %v", templateConst, err)
-						}
-
-						constVal := strValue
-						if len(constName) == 0 {
-							constName, constVal = splitConstValue(strValue)
-							if len(constName) > 0 {
-								constantNames[templateConst] = constName
+					for _, constName := range constNames {
+						for _, value := range nt.Values {
+							substitutes := constantSubstitutes[constName]
+							strValue, _, err := toStringValue(value, substitutes)
+							if err != nil {
+								log.Fatalf("cons template error, const %v, error %v", templateConst, err)
 							}
+
+							constVal := strValue
+							constantTemplates[constName] = constVal
 						}
-						constantValues[templateConst] = constVal
 
 						break //only first
 					}
@@ -81,10 +100,10 @@ func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers 
 		})
 	}
 
-	if len(constants) != len(constantValues) {
+	if len(constants) != len(constantTemplates) {
 		notFound := make([]string, 0)
 		for _, constant := range constants {
-			_, ok := constantValues[constant]
+			_, ok := constantTemplates[constant]
 			if !ok {
 				notFound = append(notFound, constant)
 			}
@@ -93,42 +112,48 @@ func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers 
 	}
 
 	if str != nil {
-		str.Constants = constantTemplates
-		str.ConstantNames = constantNames
-		str.ConstantValues = constantValues
+		str.Constants = constantNames
+		str.ConstantTemplates = constantTemplates
 	}
 	return str, nil
 
 }
 
-func splitConstantName(constant string) (string, string) {
+func splitConstantName(constant string) (string, string, map[string]string) {
 	index := strings.Index(constant, ":")
 	if index > 0 {
-		templateConst := constant[:index]
-		generatingConstant := constant[index+1:]
-		return templateConst, generatingConstant
-	}
-	return constant, ""
-}
+		generatingConstant := constant[:index]
+		templatePart := constant[index+1:]
 
-func splitConstValue(constVal string) (string, string) {
-	for i, sym := range constVal {
-		r := sym
-		switch r {
-		case ' ', '{', '}':
-			//badName
-			return "", constVal
-		case ':':
-			//first symbol is quotes, must be ignore
-			constName := constVal[1:i]
-			constVal = constVal[0:1] + constVal[i+1:]
-			return constName, constVal
+		index = strings.Index(templatePart, ":")
+		if index > 0 {
+			substitutes := make(map[string]string)
+			templateConst := templatePart[:index]
+			substitutePart := templatePart[index+1:]
+			substitutesPairs := strings.Split(substitutePart, ",")
+			for _, substitutesPair := range substitutesPairs {
+				substitute := strings.Split(substitutesPair, "=")
+				key := ""
+				value := ""
+				if len(substitute) >= 1 {
+					key = substitute[0]
+
+				}
+				if len(substitute) >= 2 {
+					value = substitute[1]
+				}
+				if len(key) > 0 {
+					substitutes[key] = value
+				}
+			}
+			return templateConst, generatingConstant, substitutes
 		}
+		return templatePart, generatingConstant, nil
 	}
-	return "", constVal
+	return constant, "", nil
 }
 
-func toStringValue(value ast.Expr) (string, token.Token, error) {
+func toStringValue(value ast.Expr, substitutes map[string]string) (string, token.Token, error) {
 	var strValue string
 	var kind token.Token = -1
 	switch vt := value.(type) {
@@ -136,11 +161,11 @@ func toStringValue(value ast.Expr) (string, token.Token, error) {
 		strValue = vt.Value
 		kind = vt.Kind
 	case *ast.BinaryExpr:
-		x, xKind, err := toStringValue(vt.X)
+		x, xKind, err := toStringValue(vt.X, substitutes)
 		if err != nil {
 			return x, xKind, err
 		}
-		y, yKind, err := toStringValue(vt.Y)
+		y, yKind, err := toStringValue(vt.Y, substitutes)
 		if err != nil {
 			return y, yKind, err
 		}
@@ -174,6 +199,14 @@ func toStringValue(value ast.Expr) (string, token.Token, error) {
 	case *ast.Ident:
 		strValue = vt.Name
 		kind = token.IDENT
+		substitute, ok := substitutes[strValue]
+		if ok {
+			strValue = substitute
+			if len(substitute) > 0 && substitute[0] == '"' && substitute[len(substitute)-1] == '"' {
+				kind = token.STRING
+			}
+		}
+
 	default:
 		return "", kind, fmt.Errorf("unsupported constant value part %s, type %v", value, reflect.TypeOf(value))
 	}

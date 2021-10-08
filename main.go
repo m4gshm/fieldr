@@ -43,7 +43,7 @@ var (
 	allFields      = flag.Bool("allFields", false, "include all fields (not only exported) in generated content")
 	noEmptyTag     = flag.Bool("noEmptyTag", false, "exclude tags without value")
 	compact        = flag.Bool("compact", false, "generate compact (in one line) array expressions")
-	constants      = multiflag("const", []string{}, "templated constant for generating field's tag based constant")
+	constants      = multiflag("const", []string{}, "templated constant for generating field's tag based constant; format consName:constTemplateName:replaced_ident=replacer_ident")
 	packagePattern = flag.String("package", ".", "used package")
 	srcFiles       = multiflag("src", []string{}, "go source file")
 
@@ -165,6 +165,10 @@ func main() {
 		if !generateAll {
 			break
 		}
+	}
+
+	if generateAll {
+		generateAll = len(*constants) == 0
 	}
 
 	if generateAll {
