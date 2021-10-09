@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/fs"
@@ -34,6 +33,7 @@ var (
 	typ            = flag.String(_type, "", "type name; must be set")
 	buildTags      = multiflag("buildTag", []string{defBuildTag}, "build tag")
 	output         = flag.String("out", "", "output file name; default srcdir/<type>"+defaultSuffix)
+	input          = multiflag("in", []string{}, "go source file")
 	tag            = flag.String("tag", "", "tag used to constant naming")
 	wrap           = flag.Bool("wrap", false, "wrap tag const by own type")
 	hardcode       = flag.Bool("hardcode", false, "hardcode tag values intogenerated variables, methods")
@@ -47,7 +47,6 @@ var (
 	constLength    = flag.Int("constLen", 80, "max cons length in line")
 	constReplace   = flag.String("constReplace", "", "constant's part (ident) replacers; format - replaced_ident=replacer_ident,replaced_ident2=replacer_ident")
 	packagePattern = flag.String("package", ".", "used package")
-	srcFiles       = multiflag("src", []string{}, "go source file")
 
 	generateContentOptions = generator.GenerateContentOptions{
 		EnumFields:    flag.Bool("EnumFields", false, "force to generate field constants"),
@@ -137,7 +136,7 @@ func main() {
 
 	fileSet := token.NewFileSet()
 
-	for _, srcFile := range *srcFiles {
+	for _, srcFile := range *input {
 		file, err := parser.ParseFile(fileSet, srcFile, nil, 0)
 		if err != nil {
 			log.Fatal(err)
@@ -145,7 +144,7 @@ func main() {
 		files = append(files, file)
 
 	}
-	typeFile, err := findTypeFile(files, typeName)
+	typeFile, err := struc.FindStructTags(files, typeName, struc.TagName(*tag), TagParsers, ExcludeValues, *constants, *constReplace)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -260,8 +259,4 @@ func extractPackage(buildTags []string, patterns ...string) *packages.Package {
 	}
 
 	return pack
-}
-
-func findTypeFile(files []*ast.File, typeName string) (*struc.Struct, error) {
-	return struc.FindStructTags(files, typeName, struc.TagName(*tag), TagParsers, ExcludeValues, *constants, *constReplace)
 }
