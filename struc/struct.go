@@ -18,25 +18,33 @@ type FieldName string
 type Struct struct {
 	TypeName          string
 	PackageName       string
-	TagValueMap       map[FieldName]map[TagName]TagValue
+	FieldsTagValue    map[FieldName]map[TagName]TagValue
 	FieldNames        []FieldName
 	TagNames          []TagName
 	Constants         []string
 	ConstantTemplates map[string]string
 }
 
-func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers map[TagName]TagValueParser,
-	excludeTagValues map[TagName]map[TagValue]bool,
-	constants []string,
-) (*Struct, error) {
+func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers map[TagName]TagValueParser, excludeTagValues map[TagName]map[TagValue]bool, constants []string, constantReplacers string) (*Struct, error) {
 	var str *Struct
 
 	constantNameByTemplate := make(map[string][]string, len(constants))
 	constantNames := make([]string, len(constants))
 	constantSubstitutes := make(map[string]map[string]string, len(constants))
 
+	replacers := extractReplacers(constantReplacers)
+
 	for i, c := range constants {
 		templateVar, generatingConstant, substitutes := splitConstantName(c)
+
+		if substitutes == nil {
+			substitutes = map[string]string{}
+		}
+		for k, v := range replacers {
+			if _, ok := substitutes[k]; !ok {
+				substitutes[k] = v
+			}
+		}
 
 		if len(templateVar) == 0 {
 			return nil, fmt.Errorf("invalid constant %s, not template var", generatingConstant)
@@ -127,30 +135,39 @@ func splitConstantName(constant string) (string, string, map[string]string) {
 
 		index = strings.Index(templatePart, ":")
 		if index > 0 {
-			substitutes := make(map[string]string)
 			templateConst := templatePart[:index]
 			substitutePart := templatePart[index+1:]
-			substitutesPairs := strings.Split(substitutePart, ",")
-			for _, substitutesPair := range substitutesPairs {
-				substitute := strings.Split(substitutesPair, "=")
-				key := ""
-				value := ""
-				if len(substitute) >= 1 {
-					key = substitute[0]
-
-				}
-				if len(substitute) >= 2 {
-					value = substitute[1]
-				}
-				if len(key) > 0 {
-					substitutes[key] = value
-				}
-			}
-			return templateConst, generatingConstant, substitutes
+			return templateConst, generatingConstant, extractReplacers(substitutePart)
 		}
 		return templatePart, generatingConstant, nil
 	}
 	return constant, "", nil
+}
+
+func extractReplacers(substitutePart string) map[string]string {
+	substitutes := make(map[string]string)
+	substitutesPairs := strings.Split(substitutePart, ",")
+	for _, substitutesPair := range substitutesPairs {
+		key, value := extractReplacer(substitutesPair)
+		if len(key) > 0 {
+			substitutes[key] = value
+		}
+	}
+	return substitutes
+}
+
+func extractReplacer(replacerPair string) (string, string) {
+	substitute := strings.Split(replacerPair, "=")
+	replaced := ""
+	replacer := ""
+	if len(substitute) >= 1 {
+		replaced = substitute[0]
+
+	}
+	if len(substitute) >= 2 {
+		replacer = substitute[1]
+	}
+	return replaced, replacer
 }
 
 func toStringValue(value ast.Expr, substitutes map[string]string) (string, token.Token, error) {
@@ -281,11 +298,11 @@ func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, tagParsers map[TagN
 
 	if len(tags) > 0 {
 		*str = &Struct{
-			TypeName:    typeName,
-			PackageName: file.Name.Name,
-			TagValueMap: fields,
-			FieldNames:  fieldNames,
-			TagNames:    tagNames,
+			TypeName:       typeName,
+			PackageName:    file.Name.Name,
+			FieldsTagValue: fields,
+			FieldNames:     fieldNames,
+			TagNames:       tagNames,
 		}
 	}
 

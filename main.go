@@ -43,8 +43,9 @@ var (
 	allFields      = flag.Bool("allFields", false, "include all fields (not only exported) in generated content")
 	noEmptyTag     = flag.Bool("noEmptyTag", false, "exclude tags without value")
 	compact        = flag.Bool("compact", false, "generate compact (in one line) array expressions")
-	constants      = multiflag("const", []string{}, "templated constant for generating field's tag based constant; format consName:constTemplateName:replaced_ident=replacer_ident")
+	constants      = multiflag("const", []string{}, "templated constant for generating field's tag based constant; format - consName:constTemplateName:replaced_ident=replacer_ident,replaced_ident2=replacer_ident")
 	constLength    = flag.Int("constLen", 80, "max cons length in line")
+	constReplace   = flag.String("constReplace", "", "constant's part (ident) replacers; format - replaced_ident=replacer_ident,replaced_ident2=replacer_ident")
 	packagePattern = flag.String("package", ".", "used package")
 	srcFiles       = multiflag("src", []string{}, "go source file")
 
@@ -144,7 +145,7 @@ func main() {
 		files = append(files, file)
 
 	}
-	typeFile, err := findTypeFile(files, typeName, *tag, *constants)
+	typeFile, err := findTypeFile(files, typeName)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -177,7 +178,9 @@ func main() {
 
 	generateContentOptions.All = generateAll
 
-	g := generator.NewGenerator(name, *wrap, *hardcode, *ref, *export, !*allFields, *exportVars, *compact, *noEmptyTag, *constants, *constLength, &generateContentOptions)
+	g := generator.NewGenerator(name, *wrap, *hardcode, *ref, *export, !*allFields, *exportVars, *compact, *noEmptyTag,
+		*constants, *constLength, *constReplace, &generateContentOptions,
+	)
 
 	err = g.GenerateFile(typeFile)
 	if err != nil {
@@ -259,6 +262,6 @@ func extractPackage(buildTags []string, patterns ...string) *packages.Package {
 	return pack
 }
 
-func findTypeFile(files []*ast.File, typeName string, tag string, constants []string) (*struc.Struct, error) {
-	return struc.FindStructTags(files, typeName, struc.TagName(tag), TagParsers, ExcludeValues, constants)
+func findTypeFile(files []*ast.File, typeName string) (*struc.Struct, error) {
+	return struc.FindStructTags(files, typeName, struc.TagName(*tag), TagParsers, ExcludeValues, *constants, *constReplace)
 }

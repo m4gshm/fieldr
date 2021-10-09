@@ -38,7 +38,8 @@ type Generator struct {
 	ConstLength       int
 }
 
-func NewGenerator(name string, wrapType bool, hardcodeValues bool, refs bool, export bool, onlyExported bool, exportVars bool, compact bool, noEmptyTag bool, constants []string, constLength int, options *GenerateContentOptions) Generator {
+func NewGenerator(name string, wrapType bool, hardcodeValues bool, refs bool, export bool, onlyExported bool,
+	exportVars bool, compact bool, noEmptyTag bool, constants []string, constLength int, constReplacer string, options *GenerateContentOptions) Generator {
 	return Generator{
 		Name:              name,
 		WrapType:          wrapType,
@@ -123,22 +124,13 @@ func (g *Generator) Src() ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-func (g *Generator) GenerateFile(str *struc.Struct) error {
-	return g.Generate(str.PackageName, str.TypeName, str.TagNames, str.FieldNames, str.TagValueMap,
-		str.Constants, str.ConstantTemplates)
-}
-
 const baseType = "string"
 
-func (g *Generator) Generate(packageName string, typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName,
-	fieldsTagValue map[struc.FieldName]map[struc.TagName]struc.TagValue,
-	constants []string, constantTemplates map[string]string,
-) error {
-
+func (g *Generator) GenerateFile(str *struc.Struct) error {
 	if g.NoEmptyTag {
-		for fieldName, _tagNames := range fieldsTagValue {
+		for fieldName, _tagNames := range str.FieldsTagValue {
 			for tagName, tagValue := range _tagNames {
-				tagValueConstName := g.getTagValueConstName(typeName, tagName, fieldName, tagValue)
+				tagValueConstName := g.getTagValueConstName(str.TypeName, tagName, fieldName, tagValue)
 				if isEmpty(tagValue) {
 					g.excludedTagValues[tagValueConstName] = true
 				}
@@ -148,8 +140,8 @@ func (g *Generator) Generate(packageName string, typeName string, tagNames []str
 
 	opts := g.Opts
 
-	if len(constants) > 0 {
-		err := g.generateConstants(tagNames, fieldNames, fieldsTagValue, constants, constantTemplates)
+	if len(str.Constants) > 0 {
+		err := g.generateConstants(str)
 		if err != nil {
 			return err
 		}
@@ -173,35 +165,35 @@ func (g *Generator) Generate(packageName string, typeName string, tagNames []str
 	}
 
 	if genFields {
-		g.generateFieldsVar(typeName, fieldNames)
+		g.generateFieldsVar(str.TypeName, str.FieldNames)
 	}
 
 	if genTags {
-		g.generateTagsVar(typeName, tagNames)
+		g.generateTagsVar(str.TypeName, str.TagNames)
 	}
 
 	if genFieldTagsMap {
-		g.generateFieldTagsMapVar(typeName, tagNames, fieldNames, fieldsTagValue)
+		g.generateFieldTagsMapVar(str.TypeName, str.TagNames, str.FieldNames, str.FieldsTagValue)
 	}
 
 	if all || len(getTagValues) > 0 {
 		values := getTagValues
 		if len(getTagValues) == 0 {
-			values = getTagsValues(tagNames)
+			values = getTagsValues(str.TagNames)
 		}
-		g.generateTagValuesVar(typeName, values, fieldNames, fieldsTagValue)
+		g.generateTagValuesVar(str.TypeName, values, str.FieldNames, str.FieldsTagValue)
 	}
 
 	if getTagValuesMap {
-		g.generateTagValuesMapVar(typeName, tagNames, fieldNames, fieldsTagValue)
+		g.generateTagValuesMapVar(str.TypeName, str.TagNames, str.FieldNames, str.FieldsTagValue)
 	}
 
 	if genTagFieldsMap {
-		g.generateTagFieldsMapVar(typeName, tagNames, fieldNames, fieldsTagValue)
+		g.generateTagFieldsMapVar(str.TypeName, str.TagNames, str.FieldNames, str.FieldsTagValue)
 	}
 
 	if getFieldTagValueMap {
-		g.generateFieldTagValueMapVar(fieldNames, tagNames, typeName, fieldsTagValue)
+		g.generateFieldTagValueMapVar(str.FieldNames, str.TagNames, str.TypeName, str.FieldsTagValue)
 	}
 
 	if genVars {
@@ -211,27 +203,27 @@ func (g *Generator) Generate(packageName string, typeName string, tagNames []str
 	returnRefs := g.ReturnRefs
 
 	if all || *opts.GetFieldValue {
-		g.generateGetFieldValueFunc(typeName, fieldNames, returnRefs)
+		g.generateGetFieldValueFunc(str.TypeName, str.FieldNames, returnRefs)
 		g.writeBody("\n")
 	}
 	if all || *opts.GetFieldValueByTagValue {
-		g.generateGetFieldValueByTagValueFunc(typeName, fieldNames, tagNames, fieldsTagValue, returnRefs)
+		g.generateGetFieldValueByTagValueFunc(str.TypeName, str.FieldNames, str.TagNames, str.FieldsTagValue, returnRefs)
 		g.writeBody("\n")
 	}
 	if all || *opts.GetFieldValuesByTag {
-		g.generateGetFieldValuesByTagFunc(typeName, fieldNames, tagNames, fieldsTagValue, returnRefs)
+		g.generateGetFieldValuesByTagFunc(str.TypeName, str.FieldNames, str.TagNames, str.FieldsTagValue, returnRefs)
 		g.writeBody("\n")
 	}
 	if all || *opts.AsMap {
-		g.generateAsMapFunc(typeName, fieldNames, returnRefs)
+		g.generateAsMapFunc(str.TypeName, str.FieldNames, returnRefs)
 		g.writeBody("\n")
 	}
 	if all || *opts.AsTagMap {
-		g.generateAsTagMapFunc(typeName, fieldNames, tagNames, fieldsTagValue, returnRefs)
+		g.generateAsTagMapFunc(str.TypeName, str.FieldNames, str.TagNames, str.FieldsTagValue, returnRefs)
 		g.writeBody("\n")
 	}
 
-	g.generateHead(packageName, typeName, tagNames, fieldNames, fieldsTagValue, opts)
+	g.generateHead(str.PackageName, str.TypeName, str.TagNames, str.FieldNames, str.FieldsTagValue, opts)
 
 	return nil
 }
@@ -1158,24 +1150,24 @@ type ConstTemplateData struct {
 	FieldTagValue map[string]map[string]string
 }
 
-func (g *Generator) generateConstants(tagNames []struc.TagName, fieldNames []struc.FieldName, fieldsTagValue map[struc.FieldName]map[struc.TagName]struc.TagValue, constants []string, constantTemplates map[string]string) error {
-	fields := make([]string, len(fieldNames))
-	tags := make([]string, len(tagNames))
+func (g *Generator) generateConstants(str *struc.Struct) error {
+	fields := make([]string, len(str.FieldNames))
+	tags := make([]string, len(str.TagNames))
 	fieldTags := make(map[string][]string)
 	tagFields := make(map[string][]string)
 	tagValues := make(map[string][]string)
 	ftv := make(map[string]map[string]string)
 
-	for i, tagName := range tagNames {
+	for i, tagName := range str.TagNames {
 		s := string(tagName)
 		tags[i] = s
 		f := make([]string, 0)
 		vls := make([]string, 0)
-		for _, fieldName := range fieldNames {
+		for _, fieldName := range str.FieldNames {
 			if g.isFieldExcluded(fieldName) {
 				continue
 			}
-			v, ok := fieldsTagValue[fieldName][tagName]
+			v, ok := str.FieldsTagValue[fieldName][tagName]
 			if ok {
 				f = append(f, string(fieldName))
 				vls = append(vls, string(v))
@@ -1185,15 +1177,15 @@ func (g *Generator) generateConstants(tagNames []struc.TagName, fieldNames []str
 		tagValues[s] = vls
 	}
 
-	for i, fieldName := range fieldNames {
+	for i, fieldName := range str.FieldNames {
 		fld := string(fieldName)
 		fields[i] = fld
 		if g.isFieldExcluded(fieldName) {
 			continue
 		}
 		t := make([]string, 0)
-		for _, tagName := range tagNames {
-			v, ok := fieldsTagValue[fieldName][tagName]
+		for _, tagName := range str.TagNames {
+			v, ok := str.FieldsTagValue[fieldName][tagName]
 			if ok {
 				sv := string(v)
 				if g.excludedTagValues[sv] {
@@ -1223,8 +1215,8 @@ func (g *Generator) generateConstants(tagNames []struc.TagName, fieldNames []str
 	}
 
 	constBody := "const(\n"
-	for _, constName := range constants {
-		text, ok := constantTemplates[constName]
+	for _, constName := range str.Constants {
+		text, ok := str.ConstantTemplates[constName]
 		if !ok {
 			continue
 		}
