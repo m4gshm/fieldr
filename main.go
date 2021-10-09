@@ -44,6 +44,7 @@ var (
 	noEmptyTag     = flag.Bool("noEmptyTag", false, "exclude tags without value")
 	compact        = flag.Bool("compact", false, "generate compact (in one line) array expressions")
 	constants      = multiflag("const", []string{}, "templated constant for generating field's tag based constant; format consName:constTemplateName:replaced_ident=replacer_ident")
+	constLength    = flag.Int("constLen", 80, "max cons length in line")
 	packagePattern = flag.String("package", ".", "used package")
 	srcFiles       = multiflag("src", []string{}, "go source file")
 
@@ -176,7 +177,7 @@ func main() {
 
 	generateContentOptions.All = generateAll
 
-	g := generator.NewGenerator(name, *wrap, *hardcode, *ref, *export, !*allFields, *exportVars, *compact, *noEmptyTag, *constants, &generateContentOptions)
+	g := generator.NewGenerator(name, *wrap, *hardcode, *ref, *export, !*allFields, *exportVars, *compact, *noEmptyTag, *constants, *constLength, &generateContentOptions)
 
 	err = g.GenerateFile(typeFile)
 	if err != nil {

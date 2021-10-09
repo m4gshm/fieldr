@@ -3,7 +3,10 @@ package generator
 import (
 	"bytes"
 	"fmt"
+	"go/ast"
 	"go/format"
+	"go/parser"
+	"go/token"
 	"os"
 	"strings"
 	"text/template"
@@ -32,9 +35,10 @@ type Generator struct {
 	used              Used
 	excludedTagValues map[string]bool
 	Constants         []string
+	ConstLength       int
 }
 
-func NewGenerator(name string, wrapType bool, hardcodeValues bool, refs bool, export bool, onlyExported bool, exportVars bool, compact bool, noEmptyTag bool, constants []string, options *GenerateContentOptions) Generator {
+func NewGenerator(name string, wrapType bool, hardcodeValues bool, refs bool, export bool, onlyExported bool, exportVars bool, compact bool, noEmptyTag bool, constants []string, constLength int, options *GenerateContentOptions) Generator {
 	return Generator{
 		Name:              name,
 		WrapType:          wrapType,
@@ -46,6 +50,7 @@ func NewGenerator(name string, wrapType bool, hardcodeValues bool, refs bool, ex
 		Compact:           compact,
 		NoEmptyTag:        noEmptyTag,
 		Constants:         constants,
+		ConstLength:       constLength,
 		Opts:              options,
 		excludedTagValues: make(map[string]bool),
 	}
@@ -1241,12 +1246,127 @@ func (g *Generator) generateConstants(tagNames []struc.TagName, fieldNames []str
 		}
 
 		generatedValue := buf.String()
+		generatedValue, err = splitLines(generatedValue, g.ConstLength)
+		if err != nil {
+			return err
+		}
+
 		constBody += generatedValue + "\n"
 
 	}
 	constBody += ")\n"
 	g.writeBody(constBody)
 	return nil
+}
+
+func splitLines(generatedValue string, stepSize int) (string, error) {
+	quotes := "\""
+	if len(generatedValue) > stepSize {
+		expr, err := parser.ParseExpr(generatedValue)
+		if err != nil {
+			return "", err
+		}
+		buf := bytes.Buffer{}
+
+		tokenPos := make(map[int]token.Token)
+		stringStartEnd := make(map[int]int)
+		computeTokenPositions(expr, tokenPos, stringStartEnd)
+
+		val := generatedValue
+
+		pos := 0
+		lenVal := len(val)
+		for lenVal-pos > stepSize {
+			prev := pos
+			pos = stepSize + pos
+			var (
+				start        int
+				end          int
+				inStringPart bool
+			)
+			for start, end = range stringStartEnd {
+				inStringPart = pos >= start && pos <= end
+				if inStringPart {
+					break
+				}
+			}
+
+			if inStringPart {
+				front := pos
+				back := pos - 1
+				for {
+					split := -1
+					if front == len(val) {
+						split = len(val)
+					} else if front < len(val) && val[front] == ' ' {
+						split = front + 1
+					} else if back >= 0 && val[back] == ' ' {
+						split = back + 1
+					}
+
+					if split > -1 && split <= len(val) {
+						s := val[prev:split]
+						buf.WriteString(s)
+						if split != len(val) {
+							buf.WriteString(quotes)
+							buf.WriteString(" + \n")
+							buf.WriteString(quotes)
+						}
+						pos = split
+						break
+					} else {
+						front++
+						back--
+					}
+				}
+			} else {
+				front := pos
+				back := pos - 1
+				for {
+					split := -1
+					_, frontOk := tokenPos[front]
+					_, backOk := tokenPos[back]
+					if frontOk {
+						split = front + 1
+					} else if backOk {
+						split = back + 1
+					}
+
+					if split > -1 && split <= len(val) {
+						s := val[prev:split]
+						buf.WriteString(s)
+						if split != len(val) {
+							buf.WriteString("\n")
+						}
+						pos = split
+						break
+					} else {
+						front++
+						back--
+					}
+				}
+			}
+		}
+		if pos < lenVal {
+			s := val[pos:]
+			buf.WriteString(s)
+		}
+		generatedValue = buf.String()
+	}
+	return generatedValue, nil
+}
+
+func computeTokenPositions(expr ast.Expr, tokenPos map[int]token.Token, startEnd map[int]int) {
+	switch et := expr.(type) {
+	case *ast.BinaryExpr:
+		pos := int(et.OpPos) - 1
+		tokenPos[pos] = et.Op
+		computeTokenPositions(et.X, tokenPos, startEnd)
+		computeTokenPositions(et.Y, tokenPos, startEnd)
+	case *ast.BasicLit:
+		pos := int(et.ValuePos) - 1
+		startEnd[pos] = pos + len(et.Value)
+	}
 }
 
 func getFieldConstName(typeName string, fieldName struc.FieldName, export bool) string {
