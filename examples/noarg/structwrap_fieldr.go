@@ -123,6 +123,9 @@ func (v *StructWrap) getFieldValuesByTag(tag structWrapTag) []interface{} {
 	return nil
 }
 
+func (v *StructWrap) getFieldValuesByTagToMap() []interface{} {
+	return []interface{}{v.ID, v.Name, v.Surname, v.NoTag}
+}
 func (v *StructWrap) asMap() map[structWrapField]interface{} {
 	return map[structWrapField]interface{}{
 		"ID":              v.ID,

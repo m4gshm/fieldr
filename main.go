@@ -49,23 +49,23 @@ var (
 	packagePattern = flag.String("package", ".", "used package")
 
 	generateContentOptions = generator.GenerateContentOptions{
-		EnumFields:    flag.Bool("EnumFields", false, "force to generate field constants"),
-		EnumTags:      flag.Bool("EnumTags", false, "force to generate tag constants"),
-		EnumTagValues: flag.Bool("EnumTagValues", false, "force to generate tag value constants"),
-		Fields:        flag.Bool("Fields", false, "generate Fields list var"),
-		Tags:          flag.Bool("Tags", false, "generate Tags list var"),
-		FieldTagsMap:  flag.Bool("FieldTagsMap", false, "generate FieldTags map var"),
-		TagValuesMap:  flag.Bool("TagValuesMap", false, "generate TagValues map var"),
-		TagValues:     multiflag("TagValues", nil, "generate TagValues var per tag"),
-		TagFieldsMap:  flag.Bool("TagFieldsMap", false, "generate TagFields map var"),
-
+		EnumFields:       flag.Bool("EnumFields", false, "force to generate field constants"),
+		EnumTags:         flag.Bool("EnumTags", false, "force to generate tag constants"),
+		EnumTagValues:    flag.Bool("EnumTagValues", false, "force to generate tag value constants"),
+		Fields:           flag.Bool("Fields", false, "generate Fields list var"),
+		Tags:             flag.Bool("Tags", false, "generate Tags list var"),
+		FieldTagsMap:     flag.Bool("FieldTagsMap", false, "generate FieldTags map var"),
+		TagValuesMap:     flag.Bool("TagValuesMap", false, "generate TagValues map var"),
+		TagValues:        multiflag("TagValues", []string{}, "generate TagValues var per tag"),
+		TagFieldsMap:     flag.Bool("TagFieldsMap", false, "generate TagFields map var"),
 		FieldTagValueMap: flag.Bool("FieldTagValueMap", false, "generate FieldTagValue map var"),
 
-		GetFieldValue:           flag.Bool("GetFieldValue", false, "generate GetFieldValue func"),
-		GetFieldValueByTagValue: flag.Bool("GetFieldValueByTagValue", false, "generate GetFieldValueByTagValue func"),
-		GetFieldValuesByTag:     flag.Bool("GetFieldValuesByTag", false, "generate GetFieldValuesByTag func"),
-		AsMap:                   flag.Bool("AsMap", false, "generate AsMap func"),
-		AsTagMap:                flag.Bool("AsTagMap", false, "generate AsTagMap func"),
+		GetFieldValue:              flag.Bool("GetFieldValue", false, "generate GetFieldValue func"),
+		GetFieldValueByTagValue:    flag.Bool("GetFieldValueByTagValue", false, "generate GetFieldValueByTagValue func"),
+		GetFieldValuesByTagGeneric: flag.Bool("GetFieldValuesByTag_", false, "generate GetFieldValuesByTag func with tagName argument"),
+		GetFieldValuesByTag:        multiflag("GetFieldValuesByTag", []string{}, "generate GetFieldValuesByTag<TAG_NAME> func, omit tag name to generate generic function"),
+		AsMap:                      flag.Bool("AsMap", false, "generate AsMap func"),
+		AsTagMap:                   flag.Bool("AsTagMap", false, "generate AsTagMap func"),
 
 		Strings:  flag.Bool("Strings", false, "generate Strings func for list types (field, tag, tag values)"),
 		Excludes: flag.Bool("Excludes", false, "generate Excludes func for list types (field, tag, tag values)"),
@@ -91,10 +91,7 @@ func (f *Multiflag) Set(s string) error {
 func (f *Multiflag) Get() interface{} { return f.values }
 
 func multiflag(name string, defValues []string, usage string) *[]string {
-	values := Multiflag{}
-	if defValues != nil {
-		values.values = defValues
-	}
+	values := Multiflag{values: defValues}
 	flag.Var(&values, name, usage)
 	return &values.values
 }

@@ -68,11 +68,12 @@ type GenerateContentOptions struct {
 	TagFieldsMap     *bool
 	FieldTagValueMap *bool
 
-	GetFieldValue           *bool
-	GetFieldValueByTagValue *bool
-	GetFieldValuesByTag     *bool
-	AsMap                   *bool
-	AsTagMap                *bool
+	GetFieldValue              *bool
+	GetFieldValueByTagValue    *bool
+	GetFieldValuesByTag        *[]string
+	GetFieldValuesByTagGeneric *bool
+	AsMap                      *bool
+	AsTagMap                   *bool
 
 	Strings  *bool
 	Excludes *bool
@@ -210,10 +211,32 @@ func (g *Generator) GenerateFile(str *struc.Struct) error {
 		g.generateGetFieldValueByTagValueFunc(str.TypeName, str.FieldNames, str.TagNames, str.FieldsTagValue, returnRefs)
 		g.writeBody("\n")
 	}
-	if all || *opts.GetFieldValuesByTag {
-		g.generateGetFieldValuesByTagFunc(str.TypeName, str.FieldNames, str.TagNames, str.FieldsTagValue, returnRefs)
+
+	if all || (*opts.GetFieldValuesByTagGeneric) {
+		g.generateGetFieldValuesByTagFuncGeneric(str.TypeName, str.FieldNames, str.TagNames, str.FieldsTagValue, returnRefs)
 		g.writeBody("\n")
 	}
+
+	if all || len(*opts.GetFieldValuesByTag) > 0 {
+
+		var usedTags []struc.TagName
+		if len(*opts.GetFieldValuesByTag) > 0 {
+			usedTagNames := make(map[string]bool)
+			for _, tagName := range *opts.GetFieldValuesByTag {
+				usedTagNames[tagName] = true
+			}
+
+			usedTags = make([]struc.TagName, 0, len(usedTagNames))
+			for k := range usedTagNames {
+				usedTags = append(usedTags, struc.TagName(k))
+			}
+		} else {
+			usedTags = str.TagNames
+		}
+
+		g.generateGetFieldValuesByTagFunctions(str.TypeName, str.FieldNames, usedTags, str.FieldsTagValue, returnRefs)
+	}
+
 	if all || *opts.AsMap {
 		g.generateAsMapFunc(str.TypeName, str.FieldNames, returnRefs)
 		g.writeBody("\n")
@@ -407,6 +430,16 @@ func goName(name string, export bool) string {
 	} else {
 		first = unicode.ToLower(first)
 	}
+	result := string(first) + name[1:]
+	return result
+}
+
+func camel(name string) string {
+	if len(name) == 0 {
+		return name
+	}
+	first := rune(name[0])
+	first = unicode.ToUpper(first)
 	result := string(first) + name[1:]
 	return result
 }
@@ -916,7 +949,7 @@ func (g *Generator) generateGetFieldValueByTagValueFunc(typeName string, fieldNa
 	g.writeBody(funcBody)
 }
 
-func (g *Generator) generateGetFieldValuesByTagFunc(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, returnRefs bool) {
+func (g *Generator) generateGetFieldValuesByTagFuncGeneric(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, returnRefs bool) {
 
 	var tagType = baseType
 	if g.WrapType {
@@ -933,33 +966,12 @@ func (g *Generator) generateGetFieldValuesByTagFunc(typeName string, fieldNames 
 	funcBody := "func (" + receiverVar + " *" + typeName + ") " + funcName + "(" + valVar + " " + tagType + ") " + resultType + " " +
 		"{\n" + "switch " + valVar + " {\n"
 	for _, tagName := range tagNames {
+		fieldExpr := g.fieldValuesArrayByTag(receiverRef, resultType, tagName, fieldNames, fields)
+
 		caseExpr := g.getTagConstName(typeName, tagName)
-		fieldExpr := ""
+		funcBody += "case " + caseExpr + ":\n" +
+			"return " + fieldExpr + "\n"
 
-		compact := g.Compact || g.generatedAmount(fieldNames) <= oneLineSize
-		if !compact {
-			fieldExpr += "\n"
-		}
-
-		for _, fieldName := range fieldNames {
-			if g.isFieldExcluded(fieldName) {
-				continue
-			}
-			_, ok := fields[fieldName][tagName]
-			if ok {
-				if compact && len(fieldExpr) > 0 {
-					fieldExpr += ", "
-				}
-				fieldExpr += receiverRef + "." + string(fieldName)
-				if !compact {
-					fieldExpr += ",\n"
-				}
-			}
-		}
-		if len(fieldExpr) > 0 {
-			funcBody += "case " + caseExpr + ":\n" +
-				"return " + resultType + "{" + fieldExpr + "}\n"
-		}
 	}
 
 	funcBody += "}\n" +
@@ -967,6 +979,54 @@ func (g *Generator) generateGetFieldValuesByTagFunc(typeName string, fieldNames 
 		"\n}\n"
 
 	g.writeBody(funcBody)
+}
+
+func (g *Generator) generateGetFieldValuesByTagFunctions(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, returnRefs bool) {
+
+	receiverVar := "v"
+	receiverRef := asRefIfNeed(receiverVar, returnRefs)
+
+	resultType := "[]interface{}"
+
+	for _, tagName := range tagNames {
+		funcName := goName("GetFieldValuesByTag"+camel(string(tagName)), g.Export)
+		funcBody := "func (" + receiverVar + " *" + typeName + ") " + funcName + "() " + resultType + " " +
+			"{\n"
+
+		fieldExpr := g.fieldValuesArrayByTag(receiverRef, resultType, tagName, fieldNames, fields)
+
+		funcBody += "return " + fieldExpr + "\n"
+		funcBody += "}\n"
+
+		g.writeBody(funcBody)
+	}
+}
+
+func (g *Generator) fieldValuesArrayByTag(receiverRef string, resultType string, tagName struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) string {
+	fieldExpr := ""
+
+	compact := g.Compact || g.generatedAmount(fieldNames) <= oneLineSize
+	if !compact {
+		fieldExpr += "\n"
+	}
+
+	for _, fieldName := range fieldNames {
+		if g.isFieldExcluded(fieldName) {
+			continue
+		}
+		_, ok := fields[fieldName][tagName]
+		if ok {
+			if compact && len(fieldExpr) > 0 {
+				fieldExpr += ", "
+			}
+			fieldExpr += receiverRef + "." + string(fieldName)
+			if !compact {
+				fieldExpr += ",\n"
+			}
+		}
+	}
+	fieldExpr = resultType + "{" + fieldExpr + "}"
+	return fieldExpr
 }
 
 func (g *Generator) generatedAmount(fieldNames []struc.FieldName) int {

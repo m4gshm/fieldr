@@ -116,6 +116,14 @@ func (v *Struct) getFieldValuesByTag(tag string) []interface{} {
 	return nil
 }
 
+func (v *Struct) getFieldValuesByTagToMap() []interface{} {
+	return []interface{}{
+		v.ID,
+		v.Name,
+		v.Surname,
+		v.NoTag,
+	}
+}
 func (v *Struct) asMap() map[string]interface{} {
 	return map[string]interface{}{
 		structField_ID:              v.ID,
