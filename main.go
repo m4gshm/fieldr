@@ -31,7 +31,8 @@ var (
 
 var (
 	typ            = flag.String(_type, "", "type name; must be set")
-	buildTags      = multiflag("buildTag", []string{defBuildTag}, "build tag")
+	inputBuildTags = multiflag("inTag", []string{defBuildTag}, "input build tag")
+	outBuildTags   = flag.String("outTag", "", "add build tag to generated file")
 	output         = flag.String("out", "", "output file name; default srcdir/<type>"+defaultSuffix)
 	input          = multiflag("in", []string{}, "go source file")
 	tag            = flag.String("tag", "", "tag used to constant naming")
@@ -123,7 +124,7 @@ func main() {
 		}
 	}
 
-	pkg := extractPackage(*buildTags, *packagePattern)
+	pkg := extractPackage(*inputBuildTags, *packagePattern)
 	packageName := pkg.Name
 	files := pkg.Syntax
 	if len(files) == 0 {
@@ -174,9 +175,23 @@ func main() {
 
 	generateContentOptions.All = generateAll
 
-	g := generator.NewGenerator(name, *wrap, *hardcode, *ref, *export, !*allFields, *exportVars, *compact, *noEmptyTag,
-		*constants, *constLength, *constReplace, &generateContentOptions,
-	)
+	onlyExported := !*allFields
+	//g := generator.NewGenerator(name, *wrap, *hardcode, *ref, *export, onlyExported, *exportVars, *compact, *noEmptyTag, *constants, *constLength, &generateContentOptions)
+	g := generator.Generator{
+		Name:           name,
+		WrapType:       *wrap,
+		HardcodeValues: *hardcode,
+		ReturnRefs:     *ref,
+		Export:         *export,
+		OnlyExported:   onlyExported,
+		ExportVars:     *exportVars,
+		Compact:        *compact,
+		NoEmptyTag:     *noEmptyTag,
+		Constants:      *constants,
+		ConstLength:    *constLength,
+		Opts:           &generateContentOptions,
+		OutBuildTags:   *outBuildTags,
+	}
 
 	err = g.GenerateFile(typeFile)
 	if err != nil {
