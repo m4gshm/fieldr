@@ -17,7 +17,6 @@ const (
 	structTagValue_toMap_Surname  = "surname"
 	structTagValue_toMap_noExport = "no_export"
 	structTagValue_toMap_NoTag    = "NoTag" //empty tag
-
 )
 
 var (
@@ -124,6 +123,7 @@ func (v *Struct) getFieldValuesByTagToMap() []interface{} {
 		v.NoTag,
 	}
 }
+
 func (v *Struct) asMap() map[string]interface{} {
 	return map[string]interface{}{
 		structField_ID:              v.ID,

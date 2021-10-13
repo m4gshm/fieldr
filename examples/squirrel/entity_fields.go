@@ -17,14 +17,6 @@ const (
 	entityTagValue_db_ts      = entityTagValue("TS")
 )
 
-func (v entityTagValues) strings() []string {
-	strings := make([]string, len(v))
-	for i, val := range v {
-		strings[i] = string(val)
-	}
-	return strings
-}
-
 var (
 	entity_TagValues_db = entityTagValues{entityTagValue_db_ID, entityTagValue_db_Name, entityTagValue_db_Surname}
 )
@@ -39,4 +31,12 @@ func (v *Entity) getFieldValuesByTag(tag entityTag) []interface{} {
 
 func (v *Entity) getFieldValuesByTagDb() []interface{} {
 	return []interface{}{v.ID, v.Name, v.Surname}
+}
+
+func (v entityTagValues) strings() []string {
+	strings := make([]string, len(v))
+	for i, val := range v {
+		strings[i] = string(val)
+	}
+	return strings
 }

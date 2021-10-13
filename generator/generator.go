@@ -29,7 +29,6 @@ type Generator struct {
 	NoEmptyTag        bool
 	Compact           bool
 	Opts              *GenerateContentOptions
-	head              bytes.Buffer
 	body              bytes.Buffer
 	Name              string
 	used              Used
@@ -37,23 +36,19 @@ type Generator struct {
 	Constants         []string
 	ConstLength       int
 	OutBuildTags      string
-}
 
-func NewGenerator(name string, wrapType bool, hardcodeValues bool, refs bool, export bool, onlyExported bool, exportVars bool, compact bool, noEmptyTag bool, constants []string, constLength int, options *GenerateContentOptions) Generator {
-	return Generator{
-		Name:           name,
-		WrapType:       wrapType,
-		HardcodeValues: hardcodeValues,
-		ReturnRefs:     refs,
-		Export:         export,
-		OnlyExported:   onlyExported,
-		ExportVars:     exportVars,
-		Compact:        compact,
-		NoEmptyTag:     noEmptyTag,
-		Constants:      constants,
-		ConstLength:    constLength,
-		Opts:           options,
-	}
+	constNames         []string
+	constValues        map[string]string
+	constComments      map[string]string
+	varNames           []string
+	varValues          map[string]string
+	typeNames          []string
+	typeValues         map[string]string
+	funcNames          []string
+	funcValues         map[string]string
+	receiverNames      []string
+	receiverFuncs      map[string][]string
+	receiverFuncValues map[string]map[string]string
 }
 
 type GenerateContentOptions struct {
@@ -113,11 +108,7 @@ func (g *Generator) FormatSrc() ([]byte, error) {
 func (g *Generator) Src() ([]byte, error) {
 	out := bytes.Buffer{}
 
-	_, err := out.Write(g.head.Bytes())
-	if err != nil {
-		return nil, err
-	}
-	_, err = out.Write(g.body.Bytes())
+	_, err := out.Write(g.body.Bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -141,11 +132,21 @@ func (g *Generator) GenerateFile(str *struc.Struct) error {
 
 	opts := g.Opts
 
-	if len(str.Constants) > 0 {
-		err := g.generateConstants(str)
-		if err != nil {
-			return err
-		}
+	g.constNames = make([]string, 0)
+	g.constValues = make(map[string]string)
+	g.constComments = make(map[string]string)
+	g.varNames = make([]string, 0)
+	g.varValues = make(map[string]string)
+	g.typeNames = make([]string, 0)
+	g.typeValues = make(map[string]string)
+	g.funcNames = make([]string, 0)
+	g.funcValues = make(map[string]string)
+	g.receiverNames = make([]string, 0)
+	g.receiverFuncs = make(map[string][]string)
+	g.receiverFuncValues = make(map[string]map[string]string)
+
+	if err := g.generateConstants(str); err != nil {
+		return err
 	}
 
 	var (
@@ -157,64 +158,87 @@ func (g *Generator) GenerateFile(str *struc.Struct) error {
 		getTagValuesMap     = all || *opts.TagValuesMap
 		genTagFieldsMap     = all || *opts.TagFieldsMap
 		getFieldTagValueMap = all || *opts.FieldTagValueMap
-		genVars             = all || genFields || genFieldTagsMap || genTags || getTagValuesMap || len(getTagValues) > 0 ||
-			genTagFieldsMap || getFieldTagValueMap
 	)
 
-	if genVars {
-		g.writeBody("var(\n")
-	}
-
 	if genFields {
-		g.generateFieldsVar(str.TypeName, str.FieldNames)
+		g.addVarDelim()
+		if err := g.addVar(g.generateFieldsVar(str.TypeName, str.FieldNames)); err != nil {
+			return err
+		}
 	}
 
 	if genTags {
-		g.generateTagsVar(str.TypeName, str.TagNames)
+		g.addVarDelim()
+		if err := g.addVar(g.generateTagsVar(str.TypeName, str.TagNames)); err != nil {
+			return err
+		}
 	}
 
 	if genFieldTagsMap {
-		g.generateFieldTagsMapVar(str.TypeName, str.TagNames, str.FieldNames, str.FieldsTagValue)
+		g.addVarDelim()
+		if err := g.addVar(
+			g.generateFieldTagsMapVar(str.TypeName, str.TagNames, str.FieldNames, str.FieldsTagValue)); err != nil {
+			return err
+		}
 	}
 
 	if all || len(getTagValues) > 0 {
+		g.addVarDelim()
 		values := getTagValues
 		if len(getTagValues) == 0 {
 			values = getTagsValues(str.TagNames)
 		}
-		g.generateTagValuesVar(str.TypeName, values, str.FieldNames, str.FieldsTagValue)
+		vars, bodies, err := g.generateTagValuesVar(str.TypeName, values, str.FieldNames, str.FieldsTagValue)
+		if err != nil {
+			return err
+		}
+		for _, varName := range vars {
+			if err = g.addVar(varName, bodies[varName]); err != nil {
+				return err
+			}
+		}
 	}
 
 	if getTagValuesMap {
-		g.generateTagValuesMapVar(str.TypeName, str.TagNames, str.FieldNames, str.FieldsTagValue)
+		g.addVarDelim()
+		if err := g.addVar(g.generateTagValuesMapVar(str.TypeName, str.TagNames, str.FieldNames, str.FieldsTagValue)); err != nil {
+			return err
+		}
 	}
 
 	if genTagFieldsMap {
-		g.generateTagFieldsMapVar(str.TypeName, str.TagNames, str.FieldNames, str.FieldsTagValue)
+		g.addVarDelim()
+		if err := g.addVar(g.generateTagFieldsMapVar(str.TypeName, str.TagNames, str.FieldNames, str.FieldsTagValue)); err != nil {
+			return err
+		}
 	}
 
 	if getFieldTagValueMap {
-		g.generateFieldTagValueMapVar(str.FieldNames, str.TagNames, str.TypeName, str.FieldsTagValue)
-	}
-
-	if genVars {
-		g.writeBody(")\n")
+		g.addVarDelim()
+		if err := g.addVar(g.generateFieldTagValueMapVar(str.FieldNames, str.TagNames, str.TypeName, str.FieldsTagValue)); err != nil {
+			return err
+		}
 	}
 
 	returnRefs := g.ReturnRefs
 
 	if all || *opts.GetFieldValue {
-		g.generateGetFieldValueFunc(str.TypeName, str.FieldNames, returnRefs)
-		g.writeBody("\n")
+		if err := g.addReceiverFunc(g.generateGetFieldValueFunc(str.TypeName, str.FieldNames, returnRefs)); err != nil {
+			return err
+		}
 	}
 	if all || *opts.GetFieldValueByTagValue {
-		g.generateGetFieldValueByTagValueFunc(str.TypeName, str.FieldNames, str.TagNames, str.FieldsTagValue, returnRefs)
-		g.writeBody("\n")
+		if err := g.addReceiverFunc(g.generateGetFieldValueByTagValueFunc(str.TypeName, str.FieldNames, str.TagNames,
+			str.FieldsTagValue, returnRefs)); err != nil {
+			return err
+		}
 	}
 
 	if all || (*opts.GetFieldValuesByTagGeneric) {
-		g.generateGetFieldValuesByTagFuncGeneric(str.TypeName, str.FieldNames, str.TagNames, str.FieldsTagValue, returnRefs)
-		g.writeBody("\n")
+		if err := g.addReceiverFunc(g.generateGetFieldValuesByTagFuncGeneric(str.TypeName, str.FieldNames, str.TagNames,
+			str.FieldsTagValue, returnRefs)); err != nil {
+			return err
+		}
 	}
 
 	if all || len(*opts.GetFieldValuesByTag) > 0 {
@@ -234,21 +258,114 @@ func (g *Generator) GenerateFile(str *struc.Struct) error {
 			usedTags = str.TagNames
 		}
 
-		g.generateGetFieldValuesByTagFunctions(str.TypeName, str.FieldNames, usedTags, str.FieldsTagValue, returnRefs)
+		funcNames, funcBodies, err := g.generateGetFieldValuesByTagFunctions(str.TypeName, str.FieldNames, usedTags, str.FieldsTagValue, returnRefs)
+		if err != nil {
+			return err
+		}
+
+		for _, funcName := range funcNames {
+			funcBody := funcBodies[funcName]
+			if err = g.addReceiverFunc(str.TypeName, funcName, funcBody); err != nil {
+				return err
+			}
+		}
 	}
 
 	if all || *opts.AsMap {
-		g.generateAsMapFunc(str.TypeName, str.FieldNames, returnRefs)
-		g.writeBody("\n")
+		if err := g.addReceiverFunc(g.generateAsMapFunc(str.TypeName, str.FieldNames, returnRefs)); err != nil {
+			return err
+		}
 	}
 	if all || *opts.AsTagMap {
-		g.generateAsTagMapFunc(str.TypeName, str.FieldNames, str.TagNames, str.FieldsTagValue, returnRefs)
-		g.writeBody("\n")
+		if err := g.addReceiverFunc(g.generateAsTagMapFunc(str.TypeName, str.FieldNames, str.TagNames, str.FieldsTagValue, returnRefs)); err != nil {
+			return err
+		}
 	}
 
-	g.generateHead(str.PackageName, str.TypeName, str.TagNames, str.FieldNames, str.FieldsTagValue, opts)
+	if err := g.generateHead(str.PackageName, str.TypeName, str.TagNames, str.FieldNames, str.FieldsTagValue, opts); err != nil {
+		return err
+	}
+
+	g.writeBody("%s %s'; DO NOT EDIT.\n\n", g.generatedMarker(), strings.Join(os.Args[1:], " "))
+	g.writeBody(g.OutBuildTags)
+	g.writeBody("package %s\n", str.PackageName)
+
+	g.writeTypes()
+	g.writeConstants()
+	g.writeVars()
+	g.writeReceiverFunctions()
+	g.writeFunctions()
 
 	return nil
+}
+
+func (g *Generator) writeConstants() {
+	names := g.constNames
+	values := g.constValues
+	comments := g.constComments
+	if len(names) > 0 {
+		g.writeBody("const(\n")
+	}
+	for _, name := range names {
+		if len(name) == 0 {
+			g.writeBody("\n")
+			continue
+		}
+		value := values[name]
+		g.writeBody("%v=%v", name, value)
+		if comment, ok := comments[name]; ok {
+			g.writeBody(comment)
+		}
+		g.writeBody("\n")
+	}
+	if len(names) > 0 {
+		g.writeBody(")\n")
+	}
+}
+
+func (g *Generator) writeVars() {
+	names := g.varNames
+	values := g.varValues
+	if len(names) > 0 {
+		g.writeBody("var(\n")
+	}
+	for _, name := range names {
+		if len(name) == 0 {
+			g.writeBody("\n")
+			continue
+		}
+		value := values[name]
+		g.writeBody("%v=%v", name, value)
+		g.writeBody("\n")
+	}
+	if len(names) > 0 {
+		g.writeBody(")\n")
+	}
+}
+
+func (g *Generator) writeFunctions() {
+	names := g.funcNames
+	values := g.funcValues
+
+	for _, name := range names {
+		value := values[name]
+		g.writeBody(value)
+		g.writeBody("\n")
+	}
+}
+
+func (g *Generator) writeReceiverFunctions() {
+	receiverNames := g.receiverNames
+	values := g.receiverFuncValues
+
+	for _, receiverName := range receiverNames {
+		funcNames := g.receiverFuncs[receiverName]
+		for _, funcName := range funcNames {
+			value := values[receiverName][funcName]
+			g.writeBody(value)
+			g.writeBody("\n")
+		}
+	}
 }
 
 func getTagsValues(names []struc.TagName) []string {
@@ -259,12 +376,7 @@ func getTagsValues(names []struc.TagName) []string {
 	return result
 }
 
-func (g *Generator) generateHead(packageName string, typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, opts *GenerateContentOptions) {
-	writer := newWriter(&g.head)
-
-	writer("// Code generated by '%s %s'; DO NOT EDIT.\n\n", g.Name, strings.Join(os.Args[1:], " "))
-	writer(g.OutBuildTags)
-	writer("package %s\n", packageName)
+func (g *Generator) generateHead(packageName string, typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, opts *GenerateContentOptions) error {
 
 	fieldType := baseType
 	tagType := baseType
@@ -285,112 +397,130 @@ func (g *Generator) generateHead(packageName string, typeName string, tagNames [
 	}
 
 	if g.WrapType {
-		usedTypes := usedFieldType || usedTagType || usedTagValueType
-
-		if usedTypes {
-			writer("type(\n")
-		}
-
 		if usedFieldType {
-			writer("%v %v\n", fieldType, baseType)
+			g.addType(fieldType, baseType)
 			if g.used.fieldArrayType {
-				writer("%v %v\n", arrayType(fieldType), "[]"+fieldType)
+				g.addType(arrayType(fieldType), "[]"+fieldType)
 			}
 		}
 
 		if usedTagType {
-			writer("%v %v\n", tagType, baseType)
+			g.addType(tagType, baseType)
 			if g.used.tagArrayType {
-				writer("%v %v\n", arrayType(tagType), "[]"+tagType)
+				g.addType(arrayType(tagType), "[]"+tagType)
 			}
 		}
 
 		if usedTagValueType {
 			tagValueType := tagValType
-			writer("%v %v\n", tagValueType, baseType)
+			g.addType(tagValueType, baseType)
 			if g.used.tagValueArrayType {
-				writer("%v %v\n", arrayType(tagValueType), "[]"+tagValueType)
+				g.addType(arrayType(tagValueType), "[]"+tagValueType)
 			}
 		}
-
-		if usedTypes {
-			writer(")\n")
-		}
 	}
+
 	fieldConstName := g.used.fieldConstName || *g.Opts.EnumFields || g.Opts.All
 	tagConstName := g.used.tagConstName || *g.Opts.EnumTags || g.Opts.All
 	tagValueConstName := g.used.tagValueConstName || *g.Opts.EnumTagValues || g.Opts.All
 
-	genConst := fieldConstName || tagConstName || tagValueConstName
-	if genConst {
-		writer("const(\n")
-	}
-
 	if fieldConstName {
-		g.generateFieldConstants(writer, typeName, fieldNames, fieldType)
-		writer("\n")
+		if err := g.generateFieldConstants(typeName, fieldType, fieldNames); err != nil {
+			return err
+		}
 	}
 
 	if tagConstName {
-		g.generateTagConstants(writer, typeName, tagNames, tagType)
-		writer("\n")
+		if err := g.generateTagConstants(typeName, tagType, tagNames); err != nil {
+			return err
+		}
 	}
 
 	if tagValueConstName {
-		g.generateTagFieldConstants(writer, typeName, tagNames, fieldNames, fields, tagValType)
-		writer("\n")
-	}
-
-	if genConst {
-		writer(")\n")
+		if err := g.generateTagFieldConstants(typeName, tagNames, fieldNames, fields, tagValType); err != nil {
+			return err
+		}
 	}
 
 	if g.WrapType {
 		if opts.All || *opts.Strings {
 			if g.used.fieldArrayType {
-				g.generateArrayToStringsFunc(writer, arrayType(fieldType), baseType)
-				writer("\n")
+				if err := g.addReceiverFunc(g.generateArrayToStringsFunc(arrayType(fieldType), baseType)); err != nil {
+					return err
+				}
 			}
 
 			if g.used.tagArrayType {
-				g.generateArrayToStringsFunc(writer, arrayType(tagType), baseType)
-				writer("\n")
+				if err := g.addReceiverFunc(g.generateArrayToStringsFunc(arrayType(tagType), baseType)); err != nil {
+					return err
+				}
 			}
 
 			if g.used.tagValueArrayType {
-				g.generateArrayToStringsFunc(writer, arrayType(tagValType), baseType)
-				writer("\n")
+				if err := g.addReceiverFunc(g.generateArrayToStringsFunc(arrayType(tagValType), baseType)); err != nil {
+					return err
+				}
 			}
 		}
 
 		if *opts.Excludes {
 			if g.used.fieldArrayType {
-				g.generateArrayToExcludesFunc(writer, true, fieldType, arrayType(fieldType))
-				writer("\n")
+				funcName, funcBody := g.generateArrayToExcludesFunc(true, fieldType, arrayType(fieldType))
+				if err := g.addReceiverFunc(fieldType, funcName, funcBody); err != nil {
+					return err
+				}
 			}
 
 			if g.used.tagArrayType {
-				g.generateArrayToExcludesFunc(writer, true, tagType, arrayType(tagType))
-				writer("\n")
+				funcName, funcBody := g.generateArrayToExcludesFunc(true, tagType, arrayType(tagType))
+				if err := g.addReceiverFunc(tagType, funcName, funcBody); err != nil {
+					return err
+				}
 			}
 
 			if g.used.tagValueArrayType {
-				g.generateArrayToExcludesFunc(writer, true, tagValType, arrayType(tagValType))
-				writer("\n")
+				funcName, funcBody := g.generateArrayToExcludesFunc(true, tagValType, arrayType(tagValType))
+				if err := g.addReceiverFunc(tagValType, funcName, funcBody); err != nil {
+					return err
+				}
 			}
 		}
 	} else {
 		if *opts.Excludes {
-			g.generateArrayToExcludesFunc(writer, false, baseType, "[]"+baseType)
-			writer("\n")
+			funcName, funcBody := g.generateArrayToExcludesFunc(false, baseType, "[]"+baseType)
+			if err := g.addFunc(funcName, funcBody); err != nil {
+				return err
+			}
 		}
+	}
+	return nil
+}
+
+func (g *Generator) writeTypes() {
+	names := g.typeNames
+	values := g.typeValues
+
+	if len(names) > 0 {
+		g.writeBody("type(\n")
+	}
+
+	for _, name := range names {
+		value := values[name]
+		g.writeBody("%v %v\n", name, value)
+	}
+
+	if len(names) > 0 {
+		g.writeBody(")\n")
 	}
 }
 
-func newWriter(buffer *bytes.Buffer) func(format string, args ...interface{}) {
-	return func(format string, args ...interface{}) {
-		fmt.Fprintf(buffer, format, args...)
-	}
+func (g *Generator) addType(typeName string, typeValue string) {
+	g.typeNames = append(g.typeNames, typeName)
+	g.typeValues[typeName] = typeValue
+}
+
+func (g *Generator) generatedMarker() string {
+	return fmt.Sprintf("// Code generated by '%s", g.Name)
 }
 
 func (g *Generator) getFieldType(typeName string) string {
@@ -445,7 +575,7 @@ func camel(name string) string {
 	return result
 }
 
-func (g *Generator) generateFieldTagValueMapVar(fieldNames []struc.FieldName, tagNames []struc.TagName, typeName string, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) {
+func (g *Generator) generateFieldTagValueMapVar(fieldNames []struc.FieldName, tagNames []struc.TagName, typeName string, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) (string, string) {
 	//export := g.Export
 
 	var varValue string
@@ -498,11 +628,10 @@ func (g *Generator) generateFieldTagValueMapVar(fieldNames []struc.FieldName, ta
 	varValue += "}"
 
 	varName := goName(typeName+"_FieldTagValue", g.ExportVars)
-
-	g.writeBody("%v=%v\n\n", varName, varValue)
+	return varName, varValue
 }
 
-func (g *Generator) generateFieldTagsMapVar(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) {
+func (g *Generator) generateFieldTagsMapVar(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) (string, string) {
 	fieldType := baseType
 	tagArrayType := "[]" + baseType
 
@@ -554,8 +683,7 @@ func (g *Generator) generateFieldTagsMapVar(typeName string, tagNames []struc.Ta
 	varValue += "}"
 
 	varName := goName(typeName+"_FieldTags", g.ExportVars)
-
-	g.writeBody("%v=%v\n\n", varName, varValue)
+	return varName, varValue
 }
 
 func (g *Generator) generategAmount(tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, fieldName struc.FieldName) int {
@@ -574,8 +702,10 @@ func quoted(value interface{}) string {
 	return "\"" + fmt.Sprintf("%v", value) + "\""
 }
 
-func (g *Generator) generateTagValuesVar(typeName string, tagNames []string, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) {
+func (g *Generator) generateTagValuesVar(typeName string, tagNames []string, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) ([]string, map[string]string, error) {
 
+	vars := make([]string, 0)
+	varValues := make(map[string]string)
 	tagValueType := baseType
 	tagValueArrayType := "[]" + tagValueType
 	if g.WrapType {
@@ -586,12 +716,18 @@ func (g *Generator) generateTagValuesVar(typeName string, tagNames []string, fie
 	for _, tagName := range tagNames {
 		varName := goName(typeName+"_TagValues_"+string(tagName), g.ExportVars)
 		valueBody := g.generateTagValueBody(typeName, tagValueArrayType, fieldNames, fields, struc.TagName(tagName))
-		g.writeBody("%v=%v\n\n", varName, valueBody)
+		vars = append(vars, varName)
+		if _, ok := varValues[varName]; !ok {
+			varValues[varName] = valueBody
+		} else {
+			return nil, nil, errors.Errorf("duplicated var %s", varName)
+		}
 	}
 
+	return vars, varValues, nil
 }
 
-func (g *Generator) generateTagValuesMapVar(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) {
+func (g *Generator) generateTagValuesMapVar(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) (string, string) {
 	tagType := baseType
 	tagValueType := baseType
 	tagValueArrayType := "[]" + tagValueType
@@ -612,7 +748,7 @@ func (g *Generator) generateTagValuesMapVar(typeName string, tagNames []struc.Ta
 
 	varName := goName(typeName+"_TagValues", g.ExportVars)
 
-	g.writeBody("%v=%v\n\n", varName, varValue)
+	return varName, varValue
 }
 
 func (g *Generator) generateTagValueBody(typeName string, tagValueArrayType string, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, tagName struc.TagName) string {
@@ -663,7 +799,7 @@ func (g *Generator) getTagValueArrayType(tagValueType string) string {
 	return arrayType(tagValueType)
 }
 
-func (g *Generator) generateTagFieldsMapVar(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) {
+func (g *Generator) generateTagFieldsMapVar(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) (string, string) {
 	tagType := baseType
 	fieldArrayType := "[]" + baseType
 
@@ -712,18 +848,15 @@ func (g *Generator) generateTagFieldsMapVar(typeName string, tagNames []struc.Ta
 
 	varName := goName(typeName+"_TagFields", g.ExportVars)
 
-	g.writeBody("%v=%v\n\n", varName, varValue)
+	return varName, varValue
 }
 
-func (g *Generator) generateTagFieldConstants(writer func(format string, args ...interface{}), typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, tagValueType string) {
-	for i, _tagName := range tagNames {
-		if i > 0 {
-			writer("\n")
-		}
+func (g *Generator) generateTagFieldConstants(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, tagValueType string) error {
+	g.addConstDelim()
+	for _, _tagName := range tagNames {
 		for _, _fieldName := range fieldNames {
 			_tagValue, ok := fields[_fieldName][_tagName]
 			if ok {
-
 				isEmptyTag := isEmpty(_tagValue)
 
 				if isEmptyTag {
@@ -735,48 +868,116 @@ func (g *Generator) generateTagFieldConstants(writer func(format string, args ..
 					continue
 				}
 
-				if g.WrapType {
-					writer("%v=%v(\"%v\")", tagValueConstName, tagValueType, _tagValue)
-				} else {
-					writer("%v=\"%v\"", tagValueConstName, _tagValue)
+				constVal := g.getConstValue(tagValueType, string(_tagValue))
+				if err := g.addConst(tagValueConstName, constVal); err != nil {
+					return err
 				}
 
 				if isEmptyTag {
-					writer(" //empty tag")
+					g.constComments[tagValueConstName] = " //empty tag"
 				}
-				writer("\n")
 			}
 		}
 	}
+	return nil
 }
 
 func isEmpty(tagValue struc.TagValue) bool {
 	return len(tagValue) == 0
 }
 
-func (g *Generator) generateFieldConstants(writer func(format string, args ...interface{}), typeName string, fieldNames []struc.FieldName, fieldType string) {
+func (g *Generator) generateFieldConstants(typeName string, fieldType string, fieldNames []struc.FieldName) error {
+	g.addConstDelim()
 	for _, fieldName := range fieldNames {
 		constName := getFieldConstName(typeName, fieldName, g.Export)
-		if g.WrapType {
-			writer("%v=%v(\"%v\")\n", constName, fieldType, fieldName)
-		} else {
-			writer("%v=\"%v\"\n", constName, fieldName)
+		constVal := g.getConstValue(fieldType, string(fieldName))
+		if err := g.addConst(constName, constVal); err != nil {
+			return err
 		}
 	}
+	return nil
 }
 
-func (g *Generator) generateTagConstants(writer func(format string, args ...interface{}), typeName string, tagNames []struc.TagName, tagType string) {
+func (g *Generator) generateTagConstants(typeName string, tagType string, tagNames []struc.TagName) error {
+	g.addConstDelim()
 	for _, name := range tagNames {
 		constName := getTagConstName(typeName, name, g.Export)
-		if g.WrapType {
-			writer("%v=%v(\"%v\")\n", constName, g.getTagType(typeName), name)
-		} else {
-			writer("%v=\"%v\"\n", constName, name)
+		constVal := g.getConstValue(tagType, string(name))
+		if err := g.addConst(constName, constVal); err != nil {
+			return err
 		}
+	}
+	return nil
+
+}
+
+func (g *Generator) addConstDelim() {
+	if len(g.constNames) > 0 {
+		g.constNames = append(g.constNames, "")
 	}
 }
 
-func (g *Generator) generateFieldsVar(typeName string, fieldNames []struc.FieldName) {
+func (g *Generator) addConst(constName, constValue string) error {
+	if _, ok := g.constValues[constName]; ok {
+		return errors.Errorf("duplicated constant %v", constName)
+	}
+	g.constNames = append(g.constNames, constName)
+	g.constValues[constName] = constValue
+	return nil
+}
+
+func (g *Generator) getConstValue(typ string, value string) (constValue string) {
+	if g.WrapType {
+		return fmt.Sprintf("%v(\"%v\")", typ, value)
+	}
+	return fmt.Sprintf("\"%v\"", value)
+}
+
+func (g *Generator) addVarDelim() {
+	if len(g.varNames) > 0 {
+		g.varNames = append(g.varNames, "")
+	}
+}
+
+func (g *Generator) addVar(varName, varValue string) error {
+	if _, ok := g.varValues[varName]; ok {
+		return errors.Errorf("duplicated var %v", varName)
+	}
+	g.varNames = append(g.varNames, varName)
+	g.varValues[varName] = varValue
+	return nil
+}
+
+func (g *Generator) addFunc(funcName, funcValue string) error {
+	if _, ok := g.funcValues[funcName]; ok {
+		return errors.Errorf("duplicated func %v", funcName)
+	}
+	g.funcNames = append(g.funcNames, funcName)
+	g.funcValues[funcName] = funcValue
+	return nil
+}
+
+func (g *Generator) addReceiverFunc(receiverName, funcName, funcValue string) error {
+	funcs, ok := g.receiverFuncs[receiverName]
+	if !ok {
+		g.receiverNames = append(g.receiverNames, receiverName)
+
+		funcs = make([]string, 0)
+		g.receiverFuncs[receiverName] = funcs
+		g.receiverFuncValues[receiverName] = make(map[string]string)
+	}
+
+	if _, ok = g.receiverFuncValues[receiverName][funcName]; ok {
+		return errors.Errorf("duplicated receiver's func %v.%v", receiverName, funcName)
+	}
+
+	g.receiverFuncs[receiverName] = append(funcs, funcName)
+	g.receiverFuncValues[receiverName][funcName] = funcValue
+
+	return nil
+}
+
+func (g *Generator) generateFieldsVar(typeName string, fieldNames []struc.FieldName) (string, string) {
 
 	var arrayVar string
 	if g.WrapType {
@@ -811,7 +1012,7 @@ func (g *Generator) generateFieldsVar(typeName string, fieldNames []struc.FieldN
 
 	varNameTemplate := typeName + "_Fields"
 	varName := goName(varNameTemplate, g.ExportVars)
-	g.writeBody("%v=%v\n\n", varName, arrayVar)
+	return varName, arrayVar
 }
 
 func (g *Generator) getFieldArrayType(typeName string) string {
@@ -823,7 +1024,7 @@ func (g *Generator) isFieldExcluded(fieldName struc.FieldName) bool {
 	return g.OnlyExported && isPrivate(fieldName)
 }
 
-func (g *Generator) generateTagsVar(typeName string, tagNames []struc.TagName) {
+func (g *Generator) generateTagsVar(typeName string, tagNames []struc.TagName) (string, string) {
 
 	tagArrayType := "[]" + baseType
 
@@ -852,7 +1053,7 @@ func (g *Generator) generateTagsVar(typeName string, tagNames []struc.TagName) {
 	}
 	arrayVar += "}"
 	varName := goName(typeName+"_Tags", g.ExportVars)
-	g.writeBody("%v=%v\n\n", varName, arrayVar)
+	return varName, arrayVar
 }
 
 func (g *Generator) getTagArrayType(typeName string) string {
@@ -860,7 +1061,7 @@ func (g *Generator) getTagArrayType(typeName string) string {
 	return arrayType(g.getTagType(typeName))
 }
 
-func (g *Generator) generateGetFieldValueFunc(typeName string, fieldNames []struc.FieldName, returnRefs bool) {
+func (g *Generator) generateGetFieldValueFunc(typeName string, fieldNames []struc.FieldName, returnRefs bool) (string, string, string) {
 
 	var fieldType string
 	if g.WrapType {
@@ -890,10 +1091,10 @@ func (g *Generator) generateGetFieldValueFunc(typeName string, fieldNames []stru
 		"return nil" +
 		"\n}\n"
 
-	g.writeBody(funcBody)
+	return typeName, funcName, funcBody
 }
 
-func (g *Generator) generateGetFieldValueByTagValueFunc(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, returnRefs bool) {
+func (g *Generator) generateGetFieldValueByTagValueFunc(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, returnRefs bool) (string, string, string) {
 
 	var valType string
 	if g.WrapType {
@@ -947,10 +1148,10 @@ func (g *Generator) generateGetFieldValueByTagValueFunc(typeName string, fieldNa
 		"return nil" +
 		"\n}\n"
 
-	g.writeBody(funcBody)
+	return typeName, funcName, funcBody
 }
 
-func (g *Generator) generateGetFieldValuesByTagFuncGeneric(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, returnRefs bool) {
+func (g *Generator) generateGetFieldValuesByTagFuncGeneric(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, returnRefs bool) (string, string, string) {
 
 	var tagType = baseType
 	if g.WrapType {
@@ -979,17 +1180,19 @@ func (g *Generator) generateGetFieldValuesByTagFuncGeneric(typeName string, fiel
 		"return nil" +
 		"\n}\n"
 
-	g.writeBody(funcBody)
+	return typeName, funcName, funcBody
 }
 
-func (g *Generator) generateGetFieldValuesByTagFunctions(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, returnRefs bool) {
+func (g *Generator) generateGetFieldValuesByTagFunctions(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, returnRefs bool) ([]string, map[string]string, error) {
 
 	receiverVar := "v"
 	receiverRef := asRefIfNeed(receiverVar, returnRefs)
 
 	resultType := "[]interface{}"
 
-	for _, tagName := range tagNames {
+	funcNames := make([]string, len(tagNames))
+	funcBodies := make(map[string]string, len(tagNames))
+	for i, tagName := range tagNames {
 		funcName := goName("GetFieldValuesByTag"+camel(string(tagName)), g.Export)
 		funcBody := "func (" + receiverVar + " *" + typeName + ") " + funcName + "() " + resultType + " " +
 			"{\n"
@@ -999,8 +1202,13 @@ func (g *Generator) generateGetFieldValuesByTagFunctions(typeName string, fieldN
 		funcBody += "return " + fieldExpr + "\n"
 		funcBody += "}\n"
 
-		g.writeBody(funcBody)
+		funcNames[i] = funcName
+		if _, ok := funcBodies[funcName]; ok {
+			return nil, nil, errors.Errorf("duplicated function %s", funcName)
+		}
+		funcBodies[funcName] = funcBody
 	}
+	return funcNames, funcBodies, nil
 }
 
 func (g *Generator) fieldValuesArrayByTag(receiverRef string, resultType string, tagName struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) string {
@@ -1049,7 +1257,7 @@ func asRefIfNeed(receiverVar string, returnRefs bool) string {
 	return receiverRef
 }
 
-func (g *Generator) generateArrayToExcludesFunc(writer func(format string, args ...interface{}), receiver bool, typeName, arrayTypeName string) {
+func (g *Generator) generateArrayToExcludesFunc(receiver bool, typeName, arrayTypeName string) (string, string) {
 	funcName := goName("Excludes", g.Export)
 	receiverVar := "v"
 	funcDecl := "func (" + receiverVar + " " + arrayTypeName + ") " + funcName + "(excludes ..." + typeName + ") " + arrayTypeName + " {\n"
@@ -1058,7 +1266,7 @@ func (g *Generator) generateArrayToExcludesFunc(writer func(format string, args 
 		funcDecl = "func " + funcName + " (" + receiverVar + " " + arrayTypeName + ", excludes ..." + typeName + ") " + arrayTypeName + " {\n"
 	}
 
-	writer(funcDecl +
+	funcBody := funcDecl +
 		"	excl := make(map[" + typeName + "]interface{}, len(excludes))\n" +
 		"	for _, e := range excludes {\n" +
 		"		excl[e] = nil\n" +
@@ -1070,23 +1278,26 @@ func (g *Generator) generateArrayToExcludesFunc(writer func(format string, args 
 		"		}\n" +
 		"	}\n" +
 		"	return withoutExcludes\n" +
-		"}\n")
+		"}\n"
+
+	return funcName, funcBody
 }
 
-func (g *Generator) generateArrayToStringsFunc(writer func(format string, args ...interface{}), arrayTypeName string, resultType string) {
+func (g *Generator) generateArrayToStringsFunc(arrayTypeName string, resultType string) (string, string, string) {
 	funcName := goName("Strings", g.Export)
 	receiverVar := "v"
-	writer("" +
+	funcBody := "" +
 		"func (" + receiverVar + " " + arrayTypeName + ") " + funcName + "() []" + resultType + " {\n" +
 		"	strings := make([]" + resultType + ", len(v))\n" +
 		"	for i, val := range " + receiverVar + " {\n" +
 		"		strings[i] = string(val)\n" +
 		"		}\n" +
 		"		return strings\n" +
-		"	}\n")
+		"	}\n"
+	return arrayTypeName, funcName, funcBody
 }
 
-func (g *Generator) generateAsMapFunc(typeName string, fieldNames []struc.FieldName, returnRefs bool) {
+func (g *Generator) generateAsMapFunc(typeName string, fieldNames []struc.FieldName, returnRefs bool) (string, string, string) {
 	export := g.Export
 
 	receiverVar := "v"
@@ -1113,10 +1324,10 @@ func (g *Generator) generateAsMapFunc(typeName string, fieldNames []struc.FieldN
 		"	}\n" +
 		"}\n"
 
-	g.writeBody(funcBody)
+	return typeName, funcName, funcBody
 }
 
-func (g *Generator) generateAsTagMapFunc(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, returnRefs bool) {
+func (g *Generator) generateAsTagMapFunc(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, returnRefs bool) (string, string, string) {
 	receiverVar := "v"
 	receiverRef := asRefIfNeed(receiverVar, returnRefs)
 
@@ -1165,7 +1376,7 @@ func (g *Generator) generateAsTagMapFunc(typeName string, fieldNames []struc.Fie
 		"return nil" +
 		"}\n"
 
-	g.writeBody(funcBody)
+	return typeName, funcName, funcBody
 }
 
 func (g *Generator) getTagConstName(typeName string, tag struc.TagName) string {
@@ -1212,6 +1423,9 @@ type ConstTemplateData struct {
 }
 
 func (g *Generator) generateConstants(str *struc.Struct) error {
+	if len(str.Constants) == 0 {
+		return nil
+	}
 	fields := make([]string, len(str.FieldNames))
 	tags := make([]string, len(str.TagNames))
 	fieldTags := make(map[string][]string)
@@ -1275,41 +1489,36 @@ func (g *Generator) generateConstants(str *struc.Struct) error {
 		FieldTagValue: ftv,
 	}
 
-	constBody := "const(\n"
 	for _, constName := range str.Constants {
 		text, ok := str.ConstantTemplates[constName]
 		if !ok {
 			continue
 		}
-		constBody += goName(constName, g.Export) + " = "
-
-		add := func(first int, second int) int {
-			return first + second
-		}
-
-		tmpl, err := template.New(constName).Funcs(template.FuncMap{"add": add}).Parse(text)
-		if err != nil {
-			return errors.Wrapf(err, "const: %s", constName)
-		}
-
-		buf := bytes.Buffer{}
-		err = tmpl.Execute(&buf, data)
-		if err != nil {
+		constName = goName(constName, g.Export)
+		if constVal, err := g.generateConst(constName, text, data); err != nil {
+			return err
+		} else if err = g.addConst(constName, constVal); err != nil {
 			return err
 		}
-
-		generatedValue := buf.String()
-		generatedValue, err = splitLines(generatedValue, g.ConstLength)
-		if err != nil {
-			return err
-		}
-
-		constBody += generatedValue + "\n"
-
 	}
-	constBody += ")\n"
-	g.writeBody(constBody)
 	return nil
+}
+
+func (g *Generator) generateConst(constName string, constTemplate string, data ConstTemplateData) (string, error) {
+	add := func(first int, second int) int {
+		return first + second
+	}
+	tmpl, err := template.New(constName).Funcs(template.FuncMap{"add": add}).Parse(constTemplate)
+	if err != nil {
+		return "", errors.Wrapf(err, "const: %s", constName)
+	}
+
+	buf := bytes.Buffer{}
+	if err = tmpl.Execute(&buf, data); err != nil {
+		return "", err
+	}
+
+	return splitLines(buf.String(), g.ConstLength)
 }
 
 func splitLines(generatedValue string, stepSize int) (string, error) {

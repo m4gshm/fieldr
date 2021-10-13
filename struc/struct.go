@@ -18,6 +18,8 @@ type FieldName string
 type Struct struct {
 	TypeName          string
 	PackageName       string
+	file              *ast.File
+	fileInfo          *token.File
 	FieldsTagValue    map[FieldName]map[TagName]TagValue
 	FieldNames        []FieldName
 	TagNames          []TagName
@@ -25,7 +27,7 @@ type Struct struct {
 	ConstantTemplates map[string]string
 }
 
-func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers map[TagName]TagValueParser, excludeTagValues map[TagName]map[TagValue]bool, constants []string, constantReplacers string) (*Struct, error) {
+func FindStructTags(files []*ast.File, fileSet *token.FileSet, typeName string, tag TagName, tagParsers map[TagName]TagValueParser, excludeTagValues map[TagName]map[TagValue]bool, constants []string, constantReplacers string) (*Struct, error) {
 	var str *Struct
 
 	constantNameByTemplate := make(map[string][]string, len(constants))
@@ -72,7 +74,7 @@ func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers 
 		ast.Inspect(file, func(node ast.Node) bool {
 			switch nt := node.(type) {
 			case *ast.TypeSpec:
-				return handleTypeSpec(nt, typeName, tagParsers, excludeTagValues, tag, &str, file)
+				return handleTypeSpec(nt, typeName, tagParsers, excludeTagValues, tag, &str, file, fileSet)
 			case *ast.ValueSpec:
 				for _, name := range nt.Names {
 					templateConst := name.Name
@@ -230,13 +232,17 @@ func toStringValue(value ast.Expr, substitutes map[string]string) (string, token
 	return strValue, kind, nil
 }
 
-func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, tagParsers map[TagName]TagValueParser, excludeTagValues map[TagName]map[TagValue]bool, tag TagName, str **Struct, file *ast.File) bool {
+func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, tagParsers map[TagName]TagValueParser,
+	excludeTagValues map[TagName]map[TagValue]bool, tag TagName, str **Struct, astFile *ast.File, fileSet *token.FileSet) bool {
 	rawType := typeSpec.Type
 	n := typeSpec.Name.Name
 
 	if typeName != "" && n != typeName {
 		return true
 	}
+
+	fileInfo := fileSet.File(typeSpec.Pos())
+	fmt.Print(fileInfo)
 
 	structType, ok := rawType.(*ast.StructType)
 	if !ok {
@@ -298,8 +304,10 @@ func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, tagParsers map[TagN
 
 	if len(tags) > 0 {
 		*str = &Struct{
+			file:           astFile,
+			fileInfo:       fileInfo,
 			TypeName:       typeName,
-			PackageName:    file.Name.Name,
+			PackageName:    astFile.Name.Name,
 			FieldsTagValue: fields,
 			FieldNames:     fieldNames,
 			TagNames:       tagNames,

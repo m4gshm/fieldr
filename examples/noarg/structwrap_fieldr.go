@@ -26,32 +26,7 @@ const (
 	structWrapTagValue_toMap_Surname  = structWrapTagValue("surname")
 	structWrapTagValue_toMap_noExport = structWrapTagValue("no_export")
 	structWrapTagValue_toMap_NoTag    = structWrapTagValue("NoTag") //empty tag
-
 )
-
-func (v structWrapFields) strings() []string {
-	strings := make([]string, len(v))
-	for i, val := range v {
-		strings[i] = string(val)
-	}
-	return strings
-}
-
-func (v structWrapTags) strings() []string {
-	strings := make([]string, len(v))
-	for i, val := range v {
-		strings[i] = string(val)
-	}
-	return strings
-}
-
-func (v structWrapTagValues) strings() []string {
-	strings := make([]string, len(v))
-	for i, val := range v {
-		strings[i] = string(val)
-	}
-	return strings
-}
 
 var (
 	structWrap_Fields = structWrapFields{"ID", "Name", "Surname", "NoTag", "IgnoredInTagMap"}
@@ -126,6 +101,7 @@ func (v *StructWrap) getFieldValuesByTag(tag structWrapTag) []interface{} {
 func (v *StructWrap) getFieldValuesByTagToMap() []interface{} {
 	return []interface{}{v.ID, v.Name, v.Surname, v.NoTag}
 }
+
 func (v *StructWrap) asMap() map[structWrapField]interface{} {
 	return map[structWrapField]interface{}{
 		"ID":              v.ID,
@@ -147,4 +123,28 @@ func (v *StructWrap) asTagMap(tag structWrapTag) map[structWrapTagValue]interfac
 		}
 	}
 	return nil
+}
+
+func (v structWrapFields) strings() []string {
+	strings := make([]string, len(v))
+	for i, val := range v {
+		strings[i] = string(val)
+	}
+	return strings
+}
+
+func (v structWrapTags) strings() []string {
+	strings := make([]string, len(v))
+	for i, val := range v {
+		strings[i] = string(val)
+	}
+	return strings
+}
+
+func (v structWrapTagValues) strings() []string {
+	strings := make([]string, len(v))
+	for i, val := range v {
+		strings[i] = string(val)
+	}
+	return strings
 }

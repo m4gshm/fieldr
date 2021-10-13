@@ -9,6 +9,8 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
+	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -124,7 +126,8 @@ func main() {
 		}
 	}
 
-	pkg := extractPackage(*inputBuildTags, *packagePattern)
+	fileSet := token.NewFileSet()
+	pkg := extractPackage(fileSet, *inputBuildTags, *packagePattern)
 	packageName := pkg.Name
 	files := pkg.Syntax
 	if len(files) == 0 {
@@ -132,23 +135,40 @@ func main() {
 		return
 	}
 
-	fileSet := token.NewFileSet()
-
 	for _, srcFile := range *input {
+		isAbs := path.IsAbs(srcFile)
+		if !isAbs {
+			var err error
+			srcFile, err = filepath.Abs(srcFile)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
 		file, err := parser.ParseFile(fileSet, srcFile, nil, 0)
 		if err != nil {
 			log.Fatal(err)
 		}
 		files = append(files, file)
-
 	}
-	typeFile, err := struc.FindStructTags(files, typeName, struc.TagName(*tag), TagParsers, ExcludeValues, *constants, *constReplace)
+
+	typeFile, err := struc.FindStructTags(files, fileSet, typeName, struc.TagName(*tag), TagParsers, ExcludeValues, *constants, *constReplace)
 	if err != nil {
 		log.Fatal(err)
 	}
 	if typeFile == nil {
 		log.Printf("type not found, %s", typeName)
 		return
+	}
+
+	outputName := *output
+	if outputName == "" {
+		baseName := typeName + defaultSuffix
+		outputName = strings.ToLower(baseName)
+	}
+
+	outputName, err = filepath.Abs(outputName)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	var (
@@ -176,7 +196,6 @@ func main() {
 	generateContentOptions.All = generateAll
 
 	onlyExported := !*allFields
-	//g := generator.NewGenerator(name, *wrap, *hardcode, *ref, *export, onlyExported, *exportVars, *compact, *noEmptyTag, *constants, *constLength, &generateContentOptions)
 	g := generator.Generator{
 		Name:           name,
 		WrapType:       *wrap,
@@ -199,11 +218,6 @@ func main() {
 	}
 	src, fmtErr := g.FormatSrc()
 
-	outputName := *output
-	if outputName == "" {
-		baseName := typeName + defaultSuffix
-		outputName = strings.ToLower(baseName)
-	}
 	const userWriteOtherRead = fs.FileMode(0644)
 	if writeErr := ioutil.WriteFile(outputName, src, userWriteOtherRead); writeErr != nil {
 		log.Fatalf("writing output: %s", writeErr)
@@ -250,8 +264,9 @@ func isDir(name string) bool {
 	return dir
 }
 
-func extractPackage(buildTags []string, patterns ...string) *packages.Package {
+func extractPackage(fileSet *token.FileSet, buildTags []string, patterns ...string) *packages.Package {
 	packages, err := packages.Load(&packages.Config{
+		Fset:       fileSet,
 		Mode:       packages.NeedSyntax,
 		Tests:      false,
 		BuildFlags: []string{fmt.Sprintf("-tags=%s", strings.Join(buildTags, " "))},

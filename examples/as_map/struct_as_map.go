@@ -23,7 +23,6 @@ const (
 	StructTagValue_toMap_Surname  = StructTagValue("surname")
 	structTagValue_toMap_noExport = StructTagValue("no_export")
 	StructTagValue_toMap_NoTag    = StructTagValue("NoTag") //empty tag
-
 )
 
 func (v *Struct) AsMap() map[StructField]interface{} {
