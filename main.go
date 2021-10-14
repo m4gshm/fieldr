@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/fs"
@@ -151,7 +152,7 @@ func main() {
 		files = append(files, file)
 	}
 
-	typeFile, err := struc.FindStructTags(files, fileSet, typeName, struc.TagName(*tag), TagParsers, ExcludeValues, *constants, *constReplace)
+	typeFile, err := struc.FindStructTags(files, typeName, struc.TagName(*tag), TagParsers, ExcludeValues, *constants, *constReplace)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -212,7 +213,18 @@ func main() {
 		OutBuildTags:   *outBuildTags,
 	}
 
-	err = g.GenerateFile(typeFile)
+	var outFileInfo *token.File
+	var outFile *ast.File
+	for _, file := range files {
+		info := fileSet.File(file.Pos())
+		if info.Name() == outputName {
+			outFileInfo = info
+			outFile = file
+			break
+		}
+	}
+
+	err = g.GenerateFile(typeFile, outFile, outFileInfo)
 	if err != nil {
 		log.Fatalf("generate file error: %s", err)
 	}

@@ -18,8 +18,6 @@ type FieldName string
 type Struct struct {
 	TypeName          string
 	PackageName       string
-	file              *ast.File
-	fileInfo          *token.File
 	FieldsTagValue    map[FieldName]map[TagName]TagValue
 	FieldNames        []FieldName
 	TagNames          []TagName
@@ -27,15 +25,16 @@ type Struct struct {
 	ConstantTemplates map[string]string
 }
 
-func FindStructTags(files []*ast.File, fileSet *token.FileSet, typeName string, tag TagName, tagParsers map[TagName]TagValueParser, excludeTagValues map[TagName]map[TagValue]bool, constants []string, constantReplacers string) (*Struct, error) {
-	var str *Struct
+func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers map[TagName]TagValueParser, excludeTagValues map[TagName]map[TagValue]bool, constants []string, constantReplacers string) (*Struct, error) {
+	var (
+		str = new(Struct)
 
-	constantNameByTemplate := make(map[string][]string, len(constants))
-	constantNames := make([]string, len(constants))
-	constantSubstitutes := make(map[string]map[string]string, len(constants))
+		constantNameByTemplate = make(map[string][]string, len(constants))
+		constantNames          = make([]string, len(constants))
+		constantSubstitutes    = make(map[string]map[string]string, len(constants))
 
-	replacers := extractReplacers(constantReplacers)
-
+		replacers = extractReplacers(constantReplacers)
+	)
 	for i, c := range constants {
 		templateVar, generatingConstant, substitutes := splitConstantName(c)
 
@@ -74,7 +73,7 @@ func FindStructTags(files []*ast.File, fileSet *token.FileSet, typeName string, 
 		ast.Inspect(file, func(node ast.Node) bool {
 			switch nt := node.(type) {
 			case *ast.TypeSpec:
-				return handleTypeSpec(nt, typeName, tagParsers, excludeTagValues, tag, &str, file, fileSet)
+				return handleTypeSpec(nt, typeName, tagParsers, excludeTagValues, tag, str, file.Name.Name)
 			case *ast.ValueSpec:
 				for _, name := range nt.Names {
 					templateConst := name.Name
@@ -232,17 +231,13 @@ func toStringValue(value ast.Expr, substitutes map[string]string) (string, token
 	return strValue, kind, nil
 }
 
-func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, tagParsers map[TagName]TagValueParser,
-	excludeTagValues map[TagName]map[TagValue]bool, tag TagName, str **Struct, astFile *ast.File, fileSet *token.FileSet) bool {
+func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, tagParsers map[TagName]TagValueParser, excludeTagValues map[TagName]map[TagValue]bool, tag TagName, str *Struct, packageName string) bool {
 	rawType := typeSpec.Type
 	n := typeSpec.Name.Name
 
 	if typeName != "" && n != typeName {
 		return true
 	}
-
-	fileInfo := fileSet.File(typeSpec.Pos())
-	fmt.Print(fileInfo)
 
 	structType, ok := rawType.(*ast.StructType)
 	if !ok {
@@ -303,11 +298,9 @@ func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, tagParsers map[TagN
 	}
 
 	if len(tags) > 0 {
-		*str = &Struct{
-			file:           astFile,
-			fileInfo:       fileInfo,
+		*str = Struct{
 			TypeName:       typeName,
-			PackageName:    astFile.Name.Name,
+			PackageName:    packageName,
 			FieldsTagValue: fields,
 			FieldNames:     fieldNames,
 			TagNames:       tagNames,
