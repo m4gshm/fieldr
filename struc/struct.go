@@ -11,11 +11,16 @@ import (
 	"strings"
 )
 
+var (
+	TagParsers    = TagValueParsers{}
+	ExcludeValues = map[TagName]map[TagValue]bool{}
+)
+
 type TagName string
 type TagValue string
 type FieldName string
 
-type Struct struct {
+type StructModel struct {
 	TypeName          string
 	PackageName       string
 	FieldsTagValue    map[FieldName]map[TagName]TagValue
@@ -25,23 +30,24 @@ type Struct struct {
 	ConstantTemplates map[string]string
 }
 
-func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers map[TagName]TagValueParser, excludeTagValues map[TagName]map[TagValue]bool, constants []string, constantReplacers string) (*Struct, error) {
+func FindStructTags(files []*ast.File, typeName string, tag TagName, constants []string, constantReplacers map[string]string) (*StructModel, error) {
 	var (
-		str = new(Struct)
+		str = new(StructModel)
 
 		constantNameByTemplate = make(map[string][]string, len(constants))
 		constantNames          = make([]string, len(constants))
 		constantSubstitutes    = make(map[string]map[string]string, len(constants))
-
-		replacers = extractReplacers(constantReplacers)
 	)
-	for i, c := range constants {
-		templateVar, generatingConstant, substitutes := splitConstantName(c)
 
+	for i, c := range constants {
+		templateVar, generatingConstant, substitutes, err := splitConstantName(c)
+		if err != nil {
+			return nil, err
+		}
 		if substitutes == nil {
 			substitutes = map[string]string{}
 		}
-		for k, v := range replacers {
+		for k, v := range constantReplacers {
 			if _, ok := substitutes[k]; !ok {
 				substitutes[k] = v
 			}
@@ -73,7 +79,7 @@ func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers 
 		ast.Inspect(file, func(node ast.Node) bool {
 			switch nt := node.(type) {
 			case *ast.TypeSpec:
-				return handleTypeSpec(nt, typeName, tagParsers, excludeTagValues, tag, str, file.Name.Name)
+				return handleTypeSpec(nt, typeName, tag, str, file.Name.Name)
 			case *ast.ValueSpec:
 				for _, name := range nt.Names {
 					templateConst := name.Name
@@ -128,7 +134,7 @@ func FindStructTags(files []*ast.File, typeName string, tag TagName, tagParsers 
 
 }
 
-func splitConstantName(constant string) (string, string, map[string]string) {
+func splitConstantName(constant string) (string, string, map[string]string, error) {
 	index := strings.Index(constant, ":")
 	if index > 0 {
 		generatingConstant := constant[:index]
@@ -138,23 +144,32 @@ func splitConstantName(constant string) (string, string, map[string]string) {
 		if index > 0 {
 			templateConst := templatePart[:index]
 			substitutePart := templatePart[index+1:]
-			return templateConst, generatingConstant, extractReplacers(substitutePart)
+			replacers, err := ExtractReplacers(substitutePart)
+			if err != nil {
+				return "", "", nil, err
+			}
+			return templateConst, generatingConstant, replacers, nil
 		}
-		return templatePart, generatingConstant, nil
+		return templatePart, generatingConstant, nil, nil
 	}
-	return constant, "", nil
+	return constant, "", nil, nil
 }
 
-func extractReplacers(substitutePart string) map[string]string {
+func ExtractReplacers(substituteParts ...string) (map[string]string, error) {
 	substitutes := make(map[string]string)
-	substitutesPairs := strings.Split(substitutePart, ",")
-	for _, substitutesPair := range substitutesPairs {
-		key, value := extractReplacer(substitutesPair)
-		if len(key) > 0 {
-			substitutes[key] = value
+	for _, substitutePart := range substituteParts {
+		substitutesPairs := strings.Split(substitutePart, ",")
+		for _, substitutesPair := range substitutesPairs {
+			key, value := extractReplacer(substitutesPair)
+			if len(key) > 0 {
+				if _, ok := substitutes[key]; ok {
+					return nil, fmt.Errorf("duplicated replacer %v", key)
+				}
+				substitutes[key] = value
+			}
 		}
 	}
-	return substitutes
+	return substitutes, nil
 }
 
 func extractReplacer(replacerPair string) (string, string) {
@@ -231,7 +246,7 @@ func toStringValue(value ast.Expr, substitutes map[string]string) (string, token
 	return strValue, kind, nil
 }
 
-func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, tagParsers map[TagName]TagValueParser, excludeTagValues map[TagName]map[TagValue]bool, tag TagName, str *Struct, packageName string) bool {
+func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, tag TagName, str *StructModel, packageName string) bool {
 	rawType := typeSpec.Type
 	n := typeSpec.Name.Name
 
@@ -263,7 +278,7 @@ func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, tagParsers map[TagN
 				tagsValues = ""
 			}
 
-			fieldTagValues, fieldTagNames := ParseTags(tagsValues, tagParsers, excludeTagValues)
+			fieldTagValues, fieldTagNames := ParseTags(tagsValues)
 
 			if tag != "" {
 				_tagValue, tagValueOk := fieldTagValues[tag]
@@ -298,7 +313,7 @@ func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, tagParsers map[TagN
 	}
 
 	if len(tags) > 0 {
-		*str = Struct{
+		*str = StructModel{
 			TypeName:       typeName,
 			PackageName:    packageName,
 			FieldsTagValue: fields,
@@ -320,7 +335,7 @@ func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, tagParsers map[TagN
 //	}, nil
 //}
 
-func ParseTags(tags string, parsers map[TagName]TagValueParser, excludeTagValues map[TagName]map[TagValue]bool) (map[TagName]TagValue, []TagName) {
+func ParseTags(tags string) (map[TagName]TagValue, []TagName) {
 	tagNames := make([]TagName, 0)
 	tagValues := make(map[TagName]TagValue)
 
@@ -358,17 +373,15 @@ func ParseTags(tags string, parsers map[TagName]TagValueParser, excludeTagValues
 
 			tagContent := tags[pos:endValuePos]
 
-			parser, ok := parsers[_tagName]
 			var parsedValue TagValue
-			if ok {
+			if parser, ok := TagParsers[_tagName]; ok {
 				parsedValue = parser(tagContent)
 			} else {
 				parsedValue = TagValue(tagContent)
 			}
 
 			var excluded bool
-			excludedValues, ok := excludeTagValues[_tagName]
-			if ok {
+			if excludedValues, ok := ExcludeValues[_tagName]; ok {
 				excluded, ok = excludedValues[parsedValue]
 				excluded = excluded && ok
 			}
@@ -380,7 +393,6 @@ func ParseTags(tags string, parsers map[TagName]TagValueParser, excludeTagValues
 
 			prevTagPos = endValuePos
 			pos = prevTagPos
-
 		}
 	}
 	return tagValues, tagNames

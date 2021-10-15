@@ -12,112 +12,29 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"reflect"
 	"strings"
 
 	"github.com/m4gshm/fieldr/generator"
+	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/struc"
 
 	"golang.org/x/tools/go/packages"
 )
 
-const name = "fieldr"
-const _type = "type"
-const defaultSuffix = "_" + name + ".go"
-
-const defBuildTag = "fieldr_const_template"
-
-var (
-	TagParsers    = struc.TagValueParsers{}
-	ExcludeValues = map[struc.TagName]map[struc.TagValue]bool{}
-)
-
-var (
-	typ            = flag.String(_type, "", "type name; must be set")
-	inputBuildTags = multiflag("inTag", []string{defBuildTag}, "input build tag")
-	outBuildTags   = flag.String("outTag", "", "add build tag to generated file")
-	output         = flag.String("out", "", "output file name; default srcdir/<type>"+defaultSuffix)
-	input          = multiflag("in", []string{}, "go source file")
-	tag            = flag.String("tag", "", "tag used to constant naming")
-	wrap           = flag.Bool("wrap", false, "wrap tag const by own type")
-	hardcode       = flag.Bool("hardcode", false, "hardcode tag values intogenerated variables, methods")
-	ref            = flag.Bool("ref", false, "return field as refs in generated methods")
-	export         = flag.Bool("export", false, "export generated types, constant, methods")
-	exportVars     = flag.Bool("exportVars", false, "export generated variables only")
-	allFields      = flag.Bool("allFields", false, "include all fields (not only exported) in generated content")
-	noEmptyTag     = flag.Bool("noEmptyTag", false, "exclude tags without value")
-	compact        = flag.Bool("compact", false, "generate compact (in one line) array expressions")
-	constants      = multiflag("const", []string{}, "templated constant for generating field's tag based constant; format - consName:constTemplateName:replaced_ident=replacer_ident,replaced_ident2=replacer_ident")
-	constLength    = flag.Int("constLen", 80, "max cons length in line")
-	constReplace   = flag.String("constReplace", "", "constant's part (ident) replacers; format - replaced_ident=replacer_ident,replaced_ident2=replacer_ident")
-	packagePattern = flag.String("package", ".", "used package")
-
-	generateContentOptions = generator.GenerateContentOptions{
-		EnumFields:       flag.Bool("EnumFields", false, "force to generate field constants"),
-		EnumTags:         flag.Bool("EnumTags", false, "force to generate tag constants"),
-		EnumTagValues:    flag.Bool("EnumTagValues", false, "force to generate tag value constants"),
-		Fields:           flag.Bool("Fields", false, "generate Fields list var"),
-		Tags:             flag.Bool("Tags", false, "generate Tags list var"),
-		FieldTagsMap:     flag.Bool("FieldTagsMap", false, "generate FieldTags map var"),
-		TagValuesMap:     flag.Bool("TagValuesMap", false, "generate TagValues map var"),
-		TagValues:        multiflag("TagValues", []string{}, "generate TagValues var per tag"),
-		TagFieldsMap:     flag.Bool("TagFieldsMap", false, "generate TagFields map var"),
-		FieldTagValueMap: flag.Bool("FieldTagValueMap", false, "generate FieldTagValue map var"),
-
-		GetFieldValue:              flag.Bool("GetFieldValue", false, "generate GetFieldValue func"),
-		GetFieldValueByTagValue:    flag.Bool("GetFieldValueByTagValue", false, "generate GetFieldValueByTagValue func"),
-		GetFieldValuesByTagGeneric: flag.Bool("GetFieldValuesByTag_", false, "generate GetFieldValuesByTag func with tagName argument"),
-		GetFieldValuesByTag:        multiflag("GetFieldValuesByTag", []string{}, "generate GetFieldValuesByTag<TAG_NAME> func, omit tag name to generate generic function"),
-		AsMap:                      flag.Bool("AsMap", false, "generate AsMap func"),
-		AsTagMap:                   flag.Bool("AsTagMap", false, "generate AsTagMap func"),
-
-		Strings:  flag.Bool("Strings", false, "generate Strings func for list types (field, tag, tag values)"),
-		Excludes: flag.Bool("Excludes", false, "generate Excludes func for list types (field, tag, tag values)"),
-	}
-)
-
-type Multiflag struct {
-	values []string
-}
-
-func (f *Multiflag) String() string {
-	return strings.Join(f.values, ",")
-}
-
-func (f *Multiflag) Set(s string) error {
-	if f.values == nil {
-		f.values = []string{}
-	}
-	f.values = append(f.values, s)
-	return nil
-}
-
-func (f *Multiflag) Get() interface{} { return f.values }
-
-func multiflag(name string, defValues []string, usage string) *[]string {
-	values := Multiflag{values: defValues}
-	flag.Var(&values, name, usage)
-	return &values.values
-}
-
 func usage() {
-	fmt.Fprintf(os.Stderr, "Usage of "+name+":\n")
-	fmt.Fprintf(os.Stderr, "\t"+name+" [flags] -type T [directory]\n")
+	fmt.Fprintf(os.Stderr, "Usage of "+params.Name+":\n")
+	fmt.Fprintf(os.Stderr, "\t"+params.Name+" [flags] -type T [directory]\n")
 	fmt.Fprintf(os.Stderr, "Flags:\n")
 	flag.PrintDefaults()
 }
 
 func main() {
-	log.SetPrefix(name + ": ")
+	log.SetPrefix(params.Name + ": ")
+
+	config := params.NewConfig(flag.CommandLine)
+
 	flag.Usage = usage
 	flag.Parse()
-
-	typeName := *typ
-	if len(typeName) == 0 {
-		log.Print("no type arg")
-		flag.Usage()
-		os.Exit(2)
-	}
 
 	args := flag.Args()
 	outputDir := outDir(args)
@@ -128,7 +45,7 @@ func main() {
 	}
 
 	fileSet := token.NewFileSet()
-	pkg := extractPackage(fileSet, *inputBuildTags, *packagePattern)
+	pkg := extractPackage(fileSet, *config.InputBuildTags, *config.PackagePattern)
 	packageName := pkg.Name
 	files := pkg.Syntax
 	if len(files) == 0 {
@@ -136,81 +53,65 @@ func main() {
 		return
 	}
 
-	for _, srcFile := range *input {
-		isAbs := path.IsAbs(srcFile)
-		if !isAbs {
-			var err error
-			srcFile, err = filepath.Abs(srcFile)
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-		file, err := parser.ParseFile(fileSet, srcFile, nil, 0)
-		if err != nil {
-			log.Fatal(err)
-		}
-		files = append(files, file)
-	}
-
-	typeFile, err := struc.FindStructTags(files, typeName, struc.TagName(*tag), TagParsers, ExcludeValues, *constants, *constReplace)
+	inputs := *config.Input
+	files, err := loadSrcFiles(inputs, fileSet, files)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if typeFile == nil {
+	constantReplacers, err := struc.ExtractReplacers(*config.Generator.ConstReplace...)
+	if err != nil {
+		log.Fatal(err)
+	}
+	sharedConfig, err := NewFilesCommentsConfig(files, constantReplacers)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if sharedConfig != nil {
+		newInputs, _ := newSet(*sharedConfig.Input, inputs...)
+		if len(newInputs) > 0 {
+			//new inputs detected
+			newFiles, err := loadSrcFiles(newInputs, fileSet, make([]*ast.File, 0))
+			if err != nil {
+				log.Fatal(err)
+			} else if additionalConfig, err := NewFilesCommentsConfig(newFiles, constantReplacers); err != nil {
+				log.Fatal(err)
+			} else if additionalConfig != nil {
+				if sharedConfig, err = sharedConfig.MergeWith(additionalConfig, constantReplacers); err != nil {
+					log.Fatal(err)
+				}
+			}
+			files = append(files, newFiles...)
+		}
+	}
+	if config, err = config.MergeWith(sharedConfig, constantReplacers); err != nil {
+		log.Fatal(err)
+	}
+
+	typeName := *config.Typ
+	if len(typeName) == 0 {
+		log.Print("no type arg")
+		flag.Usage()
+		os.Exit(2)
+	}
+
+	tagName := struc.TagName(*config.Tag)
+	constants := *config.Content.Constants
+	structModel, err := struc.FindStructTags(files, typeName, tagName, constants, constantReplacers)
+	if err != nil {
+		log.Fatal(err)
+	} else if structModel == nil {
 		log.Printf("type not found, %s", typeName)
 		return
 	}
 
-	outputName := *output
+	outputName := *config.Output
 	if outputName == "" {
-		baseName := typeName + defaultSuffix
+		baseName := typeName + params.DefaultFileSuffix
 		outputName = strings.ToLower(baseName)
 	}
 
-	outputName, err = filepath.Abs(outputName)
-	if err != nil {
+	if outputName, err = filepath.Abs(outputName); err != nil {
 		log.Fatal(err)
-	}
-
-	var (
-		generateAll  = true
-		optionFields = reflect.ValueOf(generateContentOptions)
-		field        = optionFields.NumField()
-	)
-	for i := 0; i < field; i++ {
-		structField := optionFields.Field(i)
-		sfk := structField.Kind()
-		if sfk == reflect.Ptr {
-			elem := structField.Elem()
-			noGenerate := isNoGenerate(elem)
-			generateAll = generateAll && noGenerate
-			if !generateAll {
-				break
-			}
-		}
-	}
-
-	if generateAll {
-		generateAll = len(*constants) == 0
-	}
-
-	generateContentOptions.All = generateAll
-
-	onlyExported := !*allFields
-	g := generator.Generator{
-		Name:           name,
-		WrapType:       *wrap,
-		HardcodeValues: *hardcode,
-		ReturnRefs:     *ref,
-		Export:         *export,
-		OnlyExported:   onlyExported,
-		ExportVars:     *exportVars,
-		Compact:        *compact,
-		NoEmptyTag:     *noEmptyTag,
-		Constants:      *constants,
-		ConstLength:    *constLength,
-		Opts:           &generateContentOptions,
-		OutBuildTags:   *outBuildTags,
 	}
 
 	var outFileInfo *token.File
@@ -224,7 +125,13 @@ func main() {
 		}
 	}
 
-	err = g.GenerateFile(typeFile, outFile, outFileInfo)
+	g := &generator.Generator{
+		Name:    params.Name,
+		Conf:    config.Generator,
+		Content: config.Content,
+	}
+
+	err = g.GenerateFile(structModel, outFile, outFileInfo)
 	if err != nil {
 		log.Fatalf("generate file error: %s", err)
 	}
@@ -236,28 +143,94 @@ func main() {
 	} else if fmtErr != nil {
 		log.Fatalf("go src code formatting error: %s", fmtErr)
 	}
-
 }
 
-func isNoGenerate(elem reflect.Value) bool {
-	var notGenerate bool
-	kind := elem.Kind()
-	switch kind {
-	case reflect.Bool:
-		notGenerate = !elem.Bool()
-	case reflect.String:
-		s := elem.String()
-		notGenerate = len(s) == 0
-	case reflect.Slice:
-		notGenerate = true
-		l := elem.Len()
-		for i := 0; i < l; i++ {
-			value := elem.Index(i)
-			ng := isNoGenerate(value)
-			notGenerate = notGenerate && ng
+func NewFilesCommentsConfig(files []*ast.File, constantReplacers map[string]string) (config *params.Config, err error) {
+	for _, file := range files {
+		if config, err = NewFileCommentConfig(file, config, constantReplacers); err != nil {
+			return nil, err
 		}
 	}
-	return notGenerate
+	return config, err
+}
+
+func NewFileCommentConfig(file *ast.File, sharedConfig *params.Config, constantReplacers map[string]string) (*params.Config, error) {
+	for _, commentGroup := range file.Comments {
+		for _, comment := range commentGroup.List {
+			commentConfig, err := NewConfigComment(comment.Text)
+			if err != nil {
+				return nil, err
+			} else if sharedConfig == nil {
+				sharedConfig = commentConfig
+				continue
+			} else if sharedConfig, err = sharedConfig.MergeWith(commentConfig, constantReplacers); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return sharedConfig, nil
+}
+
+func NewConfigComment(text string) (*params.Config, error) {
+	prefix := "//" + params.CommentConfigPrefix
+	if len(text) > 0 && strings.HasPrefix(text, prefix) {
+		configComment := text[len(prefix)+1:]
+		if len(configComment) > 0 {
+			flagSet := flag.NewFlagSet(params.CommentConfigPrefix, flag.ExitOnError)
+			commentConfig := params.NewConfig(flagSet)
+			var err error
+			if err = flagSet.Parse(strings.Split(configComment, " ")); err != nil {
+				return nil, fmt.Errorf("parsing cofig comment %v; %w", text, err)
+			}
+
+			return commentConfig, nil
+		}
+	}
+	return nil, nil
+}
+
+func loadSrcFiles(inputs []string, fileSet *token.FileSet, files []*ast.File) ([]*ast.File, error) {
+	for _, srcFile := range inputs {
+		file, err := loadFile(srcFile, fileSet)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, file)
+	}
+	return files, nil
+}
+
+func loadFile(srcFile string, fileSet *token.FileSet) (*ast.File, error) {
+	isAbs := path.IsAbs(srcFile)
+	if !isAbs {
+		absFile, err := filepath.Abs(srcFile)
+		if err != nil {
+			return nil, err
+		}
+		srcFile = absFile
+	}
+	return parser.ParseFile(fileSet, srcFile, nil, parser.ParseComments)
+}
+
+var emptySet = map[string]int{}
+var emptySlice []string
+
+func newSet(values []string, excludes ...string) ([]string, map[string]int) {
+	if len(values) == 0 {
+		return emptySlice, emptySet
+	}
+	uniques := make([]string, 0)
+	_, exclSet := newSet(excludes)
+	set := make(map[string]int)
+	for i, value := range values {
+		if _, ok := exclSet[value]; !ok {
+			if _, ok = set[value]; !ok {
+				set[value] = i
+				uniques = append(uniques, value)
+			}
+		}
+	}
+	return uniques, set
 }
 
 func outDir(args []string) string {

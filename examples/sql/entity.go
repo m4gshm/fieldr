@@ -1,6 +1,11 @@
 package sql
 
-//go:generate fieldr -in ../util/const_template.go -out entity.go -type Entity -GetFieldValuesByTag db -const sql_Upsert:_upsert -const sql_selectByID:_selectByID:tableName="tableName" -const sql_deleteByID:_deleteByID -const _updateByID -const _insert -const _pk -constLen 60 -constReplace tableName=TableName
+//go:fieldr -in ../util/const_template.go -out entity.go -type Entity
+//go:fieldr -constLen 60 -constReplace tableName=TableName
+
+//go:generate fieldr -GetFieldValuesByTag db
+//go:generate fieldr -const sql_Upsert:_upsert -const sql_selectByID:_selectByID:tableName="tableName"
+//go:generate fieldr -const sql_deleteByID:_deleteByID -const _updateByID -const _insert -const _pk
 
 import "time"
 
