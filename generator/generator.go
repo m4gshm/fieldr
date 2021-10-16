@@ -411,6 +411,18 @@ func (g *Generator) GenerateFile(structModel *struc.StructModel, file *ast.File,
 			case *ast.GenDecl:
 				for _, spec := range dt.Specs {
 					switch st := spec.(type) {
+					case *ast.TypeSpec:
+						if _, ok := st.Type.(*ast.Ident); !ok {
+							continue
+						}
+
+						start := int(st.Type.Pos()) - base
+						end := int(st.Type.End()) - base
+						name := st.Name.Name
+						if newValue, found := g.typeValues[name]; found {
+							chunkVals[start] = map[int]string{end: newValue}
+							delete(g.typeValues, name)
+						}
 					case *ast.ValueSpec:
 						names := st.Names
 						values := st.Values

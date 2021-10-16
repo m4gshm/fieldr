@@ -234,8 +234,8 @@ func newSet(values []string, excludes ...string) ([]string, map[string]int) {
 }
 
 func outDir(args []string) string {
-	if len(args) > 0 && isDir(args[0]) {
-		return args[0]
+	if len(args) > 0 && isDir(args[len(args)-1]) {
+		return args[len(args)-1]
 	}
 	return ""
 }
