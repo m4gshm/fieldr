@@ -15,9 +15,9 @@ import (
 	"strings"
 
 	"github.com/m4gshm/fieldr/generator"
+	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/struc"
-
 	"golang.org/x/tools/go/packages"
 )
 
@@ -45,7 +45,7 @@ func main() {
 	}
 
 	fileSet := token.NewFileSet()
-	pkg := extractPackage(fileSet, *config.InputBuildTags, *config.PackagePattern)
+	pkg := extractPackage(fileSet, *config.BuildTags, *config.PackagePattern)
 	packageName := pkg.Name
 	files := pkg.Syntax
 	if len(files) == 0 {
@@ -54,7 +54,8 @@ func main() {
 	}
 
 	inputs := *config.Input
-	files, err := loadSrcFiles(inputs, fileSet, files)
+	var err error
+	files, err = loadSrcFiles(inputs, fileSet, files)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -87,22 +88,41 @@ func main() {
 		log.Fatal(err)
 	}
 
-	typeName := *config.Typ
+	logger.Debugw("using", "config", config)
+
+	typeName := *config.Type
 	if len(typeName) == 0 {
 		log.Print("no type arg")
 		flag.Usage()
 		os.Exit(2)
 	}
 
-	tagName := struc.TagName(*config.Tag)
+	var (
+		includedTagArg  = *config.Generator.IncludeFieldTags
+		includedTagsSet = make(map[struc.TagName]interface{})
+		includedTags    = make([]struc.TagName, 0)
+	)
+	if len(includedTagArg) > 0 {
+		includedTagNames := strings.Split(includedTagArg, ",")
+		for _, includedTag := range includedTagNames {
+			name := struc.TagName(includedTag)
+			includedTagsSet[name] = nil
+			includedTags = append(includedTags, name)
+		}
+	}
 	constants := *config.Content.Constants
-	structModel, err := struc.FindStructTags(files, typeName, tagName, constants, constantReplacers)
+	structModel, err := struc.FindStructTags(files, typeName, includedTagsSet, constants, constantReplacers)
 	if err != nil {
 		log.Fatal(err)
-	} else if structModel == nil {
+	} else if structModel == nil || (len(structModel.TypeName) == 0 && len(typeName) != 0) {
 		log.Printf("type not found, %s", typeName)
 		return
+	} else if len(structModel.FieldNames) == 0 {
+		log.Printf("no fields in %s", typeName)
+		return
 	}
+
+	logger.Debugw("base generating data", "model", structModel)
 
 	outputName := *config.Output
 	if outputName == "" {
@@ -114,11 +134,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var outFileInfo *token.File
 	var outFile *ast.File
+	var outFileInfo *token.File
 	for _, file := range files {
-		info := fileSet.File(file.Pos())
-		if info.Name() == outputName {
+		if info := fileSet.File(file.Pos()); info.Name() == outputName {
 			outFileInfo = info
 			outFile = file
 			break
@@ -126,13 +145,13 @@ func main() {
 	}
 
 	g := &generator.Generator{
-		Name:    params.Name,
-		Conf:    config.Generator,
-		Content: config.Content,
+		IncludedTags: includedTags,
+		Name:         params.Name,
+		Conf:         config.Generator,
+		Content:      config.Content,
 	}
 
-	err = g.GenerateFile(structModel, outFile, outFileInfo)
-	if err != nil {
+	if err = g.GenerateFile(structModel, outFile, outFileInfo); err != nil {
 		log.Fatalf("generate file error: %s", err)
 	}
 	src, fmtErr := g.FormatSrc()

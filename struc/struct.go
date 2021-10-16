@@ -30,7 +30,7 @@ type StructModel struct {
 	ConstantTemplates map[string]string
 }
 
-func FindStructTags(files []*ast.File, typeName string, tag TagName, constants []string, constantReplacers map[string]string) (*StructModel, error) {
+func FindStructTags(files []*ast.File, typeName string, includedTags map[TagName]interface{}, constants []string, constantReplacers map[string]string) (*StructModel, error) {
 	var (
 		str = new(StructModel)
 
@@ -79,7 +79,7 @@ func FindStructTags(files []*ast.File, typeName string, tag TagName, constants [
 		ast.Inspect(file, func(node ast.Node) bool {
 			switch nt := node.(type) {
 			case *ast.TypeSpec:
-				return handleTypeSpec(nt, typeName, tag, str, file.Name.Name)
+				return handleTypeSpec(nt, typeName, includedTags, str, file.Name.Name)
 			case *ast.ValueSpec:
 				for _, name := range nt.Names {
 					templateConst := name.Name
@@ -131,7 +131,6 @@ func FindStructTags(files []*ast.File, typeName string, tag TagName, constants [
 		str.ConstantTemplates = constantTemplates
 	}
 	return str, nil
-
 }
 
 func splitConstantName(constant string) (string, string, map[string]string, error) {
@@ -246,7 +245,7 @@ func toStringValue(value ast.Expr, substitutes map[string]string) (string, token
 	return strValue, kind, nil
 }
 
-func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, tag TagName, str *StructModel, packageName string) bool {
+func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, includedTags map[TagName]interface{}, str *StructModel, packageName string) bool {
 	rawType := typeSpec.Type
 	n := typeSpec.Name.Name
 
@@ -278,25 +277,28 @@ func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, tag TagName, str *S
 				tagsValues = ""
 			}
 
-			fieldTagValues, fieldTagNames := ParseTags(tagsValues)
+			tagValues, fieldTagNames := ParseTags(tagsValues)
 
-			if tag != "" {
-				_tagValue, tagValueOk := fieldTagValues[tag]
-				if tagValueOk {
-					fieldTagValues = map[TagName]TagValue{tag: _tagValue}
-					fieldTagNames = []TagName{tag}
-				} else {
-					fieldTagNames = make([]TagName, 0)
+			if len(includedTags) > 0 {
+				filteredFieldTagValues := make(map[TagName]TagValue)
+				filteredFieldTagNames := make([]TagName, 0)
+				for includedTag := range includedTags {
+					if _tagValue, tagValueOk := tagValues[includedTag]; tagValueOk {
+						filteredFieldTagValues[includedTag] = _tagValue
+						filteredFieldTagNames = append(filteredFieldTagNames, includedTag)
+					}
 				}
+				tagValues = filteredFieldTagValues
+				fieldTagNames = filteredFieldTagNames
 			}
 
 			fldName := FieldName(_fieldName.Name)
 
-			fields[fldName] = make(map[TagName]TagValue)
+			fieldTagValues := make(map[TagName]TagValue)
 			fieldNames = append(fieldNames, fldName)
 
 			for _, fieldTagName := range fieldTagNames {
-				fieldTagValue := fieldTagValues[fieldTagName]
+				fieldTagValue := tagValues[fieldTagName]
 
 				tagFields, tagFieldsOk := tags[fieldTagName]
 				if !tagFieldsOk {
@@ -307,19 +309,21 @@ func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, tag TagName, str *S
 
 				tagFields[fldName] = fieldTagValue
 
-				fields[fldName][fieldTagName] = fieldTagValue
+				fieldTagValues[fieldTagName] = fieldTagValue
+			}
+
+			if len(fieldTagValues) > 0 {
+				fields[fldName] = fieldTagValues
 			}
 		}
 	}
 
-	if len(tags) > 0 {
-		*str = StructModel{
-			TypeName:       typeName,
-			PackageName:    packageName,
-			FieldsTagValue: fields,
-			FieldNames:     fieldNames,
-			TagNames:       tagNames,
-		}
+	*str = StructModel{
+		TypeName:       typeName,
+		PackageName:    packageName,
+		FieldsTagValue: fields,
+		FieldNames:     fieldNames,
+		TagNames:       tagNames,
 	}
 
 	return false

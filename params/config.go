@@ -4,22 +4,21 @@ import (
 	"flag"
 
 	"github.com/m4gshm/fieldr/generator"
+	"github.com/m4gshm/fieldr/logger"
 )
 
 const (
 	Name                = "fieldr"
 	DefaultFileSuffix   = "_" + Name + ".go"
-	DefBuildTag         = "fieldr_const_template"
 	CommentConfigPrefix = "go:" + Name
 )
 
 func NewConfig(flagSet *flag.FlagSet) *Config {
 	return &Config{
-		Typ:            flagSet.String("type", "", "type name; must be set"),
-		InputBuildTags: MultiVal(flagSet, "inTag", []string{DefBuildTag}, "input build tag"),
+		Type:           flagSet.String("type", "", "type name; must be set"),
+		BuildTags:      MultiVal(flagSet, "buildTag", []string{"fieldr", "fieldr_const_template"}, "include build tag"),
 		Output:         flagSet.String("out", "", "output file name; default srcdir/<type>"+DefaultFileSuffix),
 		Input:          InFlag(flagSet),
-		Tag:            flagSet.String("tag", "", "tag used to constant naming"),
 		PackagePattern: flagSet.String("package", ".", "used package"),
 		Generator:      NewGeneratorConfig(flagSet),
 		Content:        NewGeneratorContentConfig(flagSet),
@@ -32,17 +31,19 @@ func InFlag(flagSet *flag.FlagSet) *[]string {
 
 func NewGeneratorConfig(flagSet *flag.FlagSet) *generator.Config {
 	return &generator.Config{
-		Nolint:         flagSet.Bool("nolint", false, "add //nolint comment"),
-		OutBuildTags:   flagSet.String("outTag", "", "add build tag to generated file"),
-		WrapType:       flagSet.Bool("wrap", false, "wrap tag const by own type"),
-		HardcodeValues: flagSet.Bool("hardcode", false, "hardcode tag values intogenerated variables, methods"),
-		ReturnRefs:     flagSet.Bool("ref", false, "return field as refs in generated methods"),
-		Export:         flagSet.Bool("export", false, "export generated types, constant, methods"),
-		ExportVars:     flagSet.Bool("exportVars", false, "export generated variables only"),
-		AllFields:      flagSet.Bool("allFields", false, "include all fields (not only exported) in generated content"),
-		NoEmptyTag:     flagSet.Bool("noEmptyTag", false, "exclude tags without value"),
-		Compact:        flagSet.Bool("compact", false, "generate compact (in one line) array expressions"),
-		ConstLength:    flagSet.Int("constLen", generator.DefaultConstLength, "max cons length in line"),
+		IncludeFieldTags: flagSet.String("filedTags", "", "comma-separated list of used field tags"),
+		Nolint:           flagSet.Bool("nolint", false, "add //nolint comment"),
+		OutBuildTags:     flagSet.String("outBuildTag", "", "add build tag to generated file"),
+		WrapType:         flagSet.Bool("wrap", false, "wrap tag const by own type"),
+		HardcodeValues:   flagSet.Bool("hardcode", false, "hardcode tag values into generated variables, methods"),
+		ReturnRefs:       flagSet.Bool("ref", false, "return field as refs in generated methods"),
+		Export:           flagSet.Bool("export", false, "export generated types, constant, methods"),
+		NoReceiver:       flagSet.Bool("noReceiver", false, "generate no receiver-based methods for structure type"),
+		ExportVars:       flagSet.Bool("exportVars", false, "export generated variables only"),
+		AllFields:        flagSet.Bool("allFields", false, "include all fields (not only exported) in generated content"),
+		NoEmptyTag:       flagSet.Bool("noEmptyTag", false, "exclude tags without value"),
+		Compact:          flagSet.Bool("compact", false, "generate compact (in one line) array expressions"),
+		ConstLength:      flagSet.Int("constLen", generator.DefaultConstLength, "max cons length in line"),
 		ConstReplace: MultiVal(flagSet, "constReplace", []string{}, "constant's part (ident) replacers; "+
 			"format - replaced_ident=replacer_ident,replaced_ident2=replacer_ident"),
 	}
@@ -76,11 +77,10 @@ func NewGeneratorContentConfig(flagSet *flag.FlagSet) *generator.ContentConfig {
 }
 
 type Config struct {
-	Typ            *string
-	InputBuildTags *[]string
+	Type           *string
+	BuildTags      *[]string
 	Output         *string
 	Input          *[]string
-	Tag            *string
 	PackagePattern *string
 
 	Generator *generator.Config
@@ -88,15 +88,17 @@ type Config struct {
 }
 
 func (c *Config) MergeWith(src *Config, constantReplacers map[string]string) (config *Config, err error) {
+	logger.Debugw("config merging", "dest", c, "src", src)
+
 	if src == nil {
 		return c, nil
 	}
-	if len(*c.Typ) == 0 {
-		c.Typ = src.Typ
+	if len(*c.Type) == 0 {
+		c.Type = src.Type
 	}
-	inputBuildTags := *c.InputBuildTags
+	inputBuildTags := *c.BuildTags
 	if len(inputBuildTags) == 0 {
-		c.InputBuildTags = src.InputBuildTags
+		c.BuildTags = src.BuildTags
 	}
 	if len(*c.Output) == 0 {
 		c.Output = src.Output
@@ -108,13 +110,10 @@ func (c *Config) MergeWith(src *Config, constantReplacers map[string]string) (co
 		c.Input = &input
 	}
 
-	if len(*c.Tag) == 0 {
-		c.Tag = src.Tag
-	}
-
 	c.Generator, err = c.Generator.MergeWith(src.Generator, constantReplacers)
 	if err != nil {
 		return nil, err
 	}
+	logger.Debugw("config merged", "dest", c)
 	return c, nil
 }
