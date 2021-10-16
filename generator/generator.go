@@ -9,7 +9,6 @@ import (
 	"go/token"
 	"io/ioutil"
 	"log"
-	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -51,6 +50,7 @@ type Generator struct {
 const DefaultConstLength = 80
 
 type Config struct {
+	Nolint         *bool
 	Export         *bool
 	ExportVars     *bool
 	AllFields      *bool
@@ -120,10 +120,6 @@ func (g *ContentConfig) IsAll() bool {
 			}
 		}
 	}
-
-	//if generateAll {
-	//	generateAll = len(*c.GeneratingContentConfig.Constants) == 0
-	//}
 	return generateAll
 }
 
@@ -150,6 +146,7 @@ func isNoGenerate(elem reflect.Value) bool {
 
 func (c *Config) MergeWith(src *Config, constantReplacers map[string]string) (*Config, error) {
 
+	copyTrue(src.Nolint, c.Nolint)
 	copyTrue(src.Export, c.Export)
 	copyTrue(src.ExportVars, c.ExportVars)
 	copyTrue(src.AllFields, c.AllFields)
@@ -219,7 +216,7 @@ func (g *Generator) Src() ([]byte, error) {
 
 const baseType = "string"
 
-func (g *Generator) GenerateFile(structModel *struc.StructModel, file *ast.File, info *token.File) error {
+func (g *Generator) GenerateFile(structModel *struc.StructModel, file *ast.File, fielInfo *token.File) error {
 	g.excludedTagValues = make(map[string]bool)
 	if *g.Conf.NoEmptyTag {
 		for fieldName, _tagNames := range structModel.FieldsTagValue {
@@ -378,7 +375,7 @@ func (g *Generator) GenerateFile(structModel *struc.StructModel, file *ast.File,
 		rewrite = false
 		for _, comment := range file.Comments {
 			pos := comment.Pos()
-			base := info.Base()
+			base := fielInfo.Base()
 			firstComment := int(pos) == base
 			if firstComment {
 				text := comment.Text()
@@ -403,7 +400,7 @@ func (g *Generator) GenerateFile(structModel *struc.StructModel, file *ast.File,
 
 		//injects
 
-		base := info.Base()
+		base := fielInfo.Base()
 		chunkVals := make(map[int]map[int]string)
 
 		for _, decl := range file.Decls {
@@ -481,7 +478,7 @@ func (g *Generator) GenerateFile(structModel *struc.StructModel, file *ast.File,
 
 		chunkPos := getSortedChunks(chunkVals)
 
-		name := info.Name()
+		name := fielInfo.Name()
 		fileBytes, err := ioutil.ReadFile(name)
 		if err != nil {
 			return err
@@ -542,7 +539,7 @@ func getSortedChunks(chunkVals map[int]map[int]string) []int {
 }
 
 func (g *Generator) writeHead(str *struc.StructModel) {
-	g.writeBody("// %s %s'; DO NOT EDIT.\n\n", g.generatedMarker(), strings.Join(os.Args[1:], " "))
+	g.writeBody("// %s'; DO NOT EDIT.\n\n", g.generatedMarker())
 	g.writeBody(*g.Conf.OutBuildTags)
 	g.writeBody("package %s\n", str.PackageName)
 }
@@ -1324,7 +1321,7 @@ func (g *Generator) generateGetFieldValueFunc(typeName string, fieldNames []stru
 
 	funcName := goName("GetFieldValue", *g.Conf.Export)
 	funcBody := "func (" + receiverVar + " *" + typeName + ") " + funcName + "(" + valVar + " " + fieldType + ") interface{} " +
-		"{\n" + "switch " + valVar + " {\n"
+		"{" + g.noLint() + "\n" + "switch " + valVar + " {\n"
 
 	for _, fieldName := range fieldNames {
 		if g.isFieldExcluded(fieldName) {
@@ -1357,7 +1354,7 @@ func (g *Generator) generateGetFieldValueByTagValueFunc(typeName string, fieldNa
 
 	funcName := goName("GetFieldValueByTagValue", *g.Conf.Export)
 	funcBody := "func (" + receiverVar + " *" + typeName + ") " + funcName + "(" + valVar + " " + valType + ") interface{} " +
-		"{\n" + "switch " + valVar + " {\n"
+		"{" + g.noLint() + "\n" + "switch " + valVar + " {\n"
 
 	for _, fieldName := range fieldNames {
 		if g.isFieldExcluded(fieldName) {
@@ -1414,7 +1411,7 @@ func (g *Generator) generateGetFieldValuesByTagFuncGeneric(typeName string, fiel
 
 	funcName := goName("GetFieldValuesByTag", *g.Conf.Export)
 	funcBody := "func (" + receiverVar + " *" + typeName + ") " + funcName + "(" + valVar + " " + tagType + ") " + resultType + " " +
-		"{\n" + "switch " + valVar + " {\n"
+		"{" + g.noLint() + "\n" + "switch " + valVar + " {\n"
 	for _, tagName := range tagNames {
 		fieldExpr := g.fieldValuesArrayByTag(receiverRef, resultType, tagName, fieldNames, fields)
 
@@ -1443,7 +1440,7 @@ func (g *Generator) generateGetFieldValuesByTagFunctions(typeName string, fieldN
 	for i, tagName := range tagNames {
 		funcName := goName("GetFieldValuesByTag"+camel(string(tagName)), *g.Conf.Export)
 		funcBody := "func (" + receiverVar + " *" + typeName + ") " + funcName + "() " + resultType + " " +
-			"{\n"
+			"{" + g.noLint() + "\n"
 
 		fieldExpr := g.fieldValuesArrayByTag(receiverRef, resultType, tagName, fieldNames, fields)
 
@@ -1508,10 +1505,10 @@ func (g *Generator) asRefIfNeed(receiverVar string) string {
 func (g *Generator) generateArrayToExcludesFunc(receiver bool, typeName, arrayTypeName string) (string, string) {
 	funcName := goName("Excludes", *g.Conf.Export)
 	receiverVar := "v"
-	funcDecl := "func (" + receiverVar + " " + arrayTypeName + ") " + funcName + "(excludes ..." + typeName + ") " + arrayTypeName + " {\n"
+	funcDecl := "func (" + receiverVar + " " + arrayTypeName + ") " + funcName + "(excludes ..." + typeName + ") " + arrayTypeName + " {" + g.noLint() + "\n"
 	if !receiver {
 		receiverVar = "values"
-		funcDecl = "func " + funcName + " (" + receiverVar + " " + arrayTypeName + ", excludes ..." + typeName + ") " + arrayTypeName + " {\n"
+		funcDecl = "func " + funcName + " (" + receiverVar + " " + arrayTypeName + ", excludes ..." + typeName + ") " + arrayTypeName + " {" + g.noLint() + "\n"
 	}
 
 	funcBody := funcDecl +
@@ -1535,7 +1532,7 @@ func (g *Generator) generateArrayToStringsFunc(arrayTypeName string, resultType 
 	funcName := goName("Strings", *g.Conf.Export)
 	receiverVar := "v"
 	funcBody := "" +
-		"func (" + receiverVar + " " + arrayTypeName + ") " + funcName + "() []" + resultType + " {\n" +
+		"func (" + receiverVar + " " + arrayTypeName + ") " + funcName + "() []" + resultType + " {" + g.noLint() + "\n" +
 		"	strings := make([]" + resultType + ", len(v))\n" +
 		"	for i, val := range " + receiverVar + " {\n" +
 		"		strings[i] = string(val)\n" +
@@ -1558,7 +1555,7 @@ func (g *Generator) generateAsMapFunc(typeName string, fieldNames []struc.FieldN
 
 	funcName := goName("AsMap", export)
 	funcBody := "" +
-		"func (" + receiverVar + " *" + typeName + ") " + funcName + "() map[" + keyType + "]interface{} {\n" +
+		"func (" + receiverVar + " *" + typeName + ") " + funcName + "() map[" + keyType + "]interface{} {" + g.noLint() + "\n" +
 		"	return map[" + keyType + "]interface{}{\n"
 
 	for _, fieldName := range fieldNames {
@@ -1595,7 +1592,7 @@ func (g *Generator) generateAsTagMapFunc(typeName string, fieldNames []struc.Fie
 	funcName := goName("AsTagMap", *g.Conf.Export)
 
 	funcBody := "" +
-		"func (" + receiverVar + " *" + typeName + ") " + funcName + "(" + varName + " " + tagType + ") " + mapType + " {\n" +
+		"func (" + receiverVar + " *" + typeName + ") " + funcName + "(" + varName + " " + tagType + ") " + mapType + " {" + g.noLint() + "\n" +
 		"switch " + varName + " {\n" +
 		""
 
@@ -1766,7 +1763,7 @@ func (g *Generator) generateConst(constName string, constTemplate string, data C
 		return "", err
 	}
 
-	return splitLines(buf.String(), *g.Conf.ConstLength)
+	return g.splitLines(buf.String())
 }
 
 func (g *Generator) filterInjected() {
@@ -1788,6 +1785,13 @@ func (g *Generator) filterInjected() {
 	}
 }
 
+func (g *Generator) noLint() string {
+	if *g.Conf.Nolint {
+		return "//nolint"
+	}
+	return ""
+}
+
 func filterNotExisted(names []string, values map[string]string) []string {
 	newTypeNames := make([]string, 0)
 	var prev *string
@@ -1804,7 +1808,8 @@ func filterNotExisted(names []string, values map[string]string) []string {
 	return newTypeNames
 }
 
-func splitLines(generatedValue string, stepSize int) (string, error) {
+func (g *Generator) splitLines(generatedValue string) (string, error) {
+	stepSize := *g.Conf.ConstLength
 	quotes := "\""
 	if len(generatedValue) > stepSize {
 		expr, err := parser.ParseExpr(generatedValue)
@@ -1819,6 +1824,7 @@ func splitLines(generatedValue string, stepSize int) (string, error) {
 
 		val := generatedValue
 
+		line := 1
 		pos := 0
 		lenVal := len(val)
 		for lenVal-pos > stepSize {
@@ -1854,8 +1860,13 @@ func splitLines(generatedValue string, stepSize int) (string, error) {
 						buf.WriteString(s)
 						if split != len(val) {
 							buf.WriteString(quotes)
-							buf.WriteString(" + \n")
+							buf.WriteString(" + ")
+							if line == 1 {
+								buf.WriteString(g.noLint())
+							}
+							buf.WriteString("\n")
 							buf.WriteString(quotes)
+							line++
 						}
 						pos = split
 						break
@@ -1881,7 +1892,11 @@ func splitLines(generatedValue string, stepSize int) (string, error) {
 						s := val[prev:split]
 						buf.WriteString(s)
 						if split != len(val) {
+							if line == 1 {
+								buf.WriteString(g.noLint())
+							}
 							buf.WriteString("\n")
+							line++
 						}
 						pos = split
 						break

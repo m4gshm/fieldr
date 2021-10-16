@@ -3,8 +3,9 @@ package sql
 //go:fieldr -in ../util/const_template.go -out entity.go -type Entity
 //go:fieldr -constLen 60 -constReplace tableName=TableName
 
-//go:generate fieldr -GetFieldValuesByTag db
-//go:generate fieldr -const sql_Upsert:_upsert -const sql_selectByID:_selectByID:tableName="tableName"
+//go:generate fieldr -GetFieldValuesByTag db -nolint
+//go:generate fieldr -const sql_Upsert:_upsert -nolint
+//go:generate fieldr -const sql_selectByID:_selectByID:tableName="tableName"
 //go:generate fieldr -const sql_deleteByID:_deleteByID -const _updateByID -const _insert -const _pk
 
 import "time"
@@ -17,8 +18,8 @@ type Entity struct {
 }
 
 const (
-	TableName  = "table" //nolint
-	sql_Upsert = "INSERT INTO " + TableName + " (id,name,surname) VALUES ($1,$2,$3) " +
+	TableName  = "table"                                                                //nolint
+	sql_Upsert = "INSERT INTO " + TableName + " (id,name,surname) VALUES ($1,$2,$3) " + //nolint
 		"DO ON CONFLICT id UPDATE SET name=$2,surname=$3 RETURNING id" //nolint
 	sql_selectByID     = "SELECT id,name,surname FROM tableName WHERE id = $1"               //nolint
 	sql_deleteByID     = "DELETE FROM " + TableName + " WHERE id = $1"                       //nolint
@@ -27,6 +28,6 @@ const (
 	entity__pk         = "id"                                                                //nolint
 )
 
-func (v *Entity) getFieldValuesByTagDb() []interface{} {
+func (v *Entity) getFieldValuesByTagDb() []interface{} { //nolint
 	return []interface{}{v.ID, v.Name, v.Surname}
 }

@@ -32,6 +32,7 @@ func InFlag(flagSet *flag.FlagSet) *[]string {
 
 func NewGeneratorConfig(flagSet *flag.FlagSet) *generator.Config {
 	return &generator.Config{
+		Nolint:         flagSet.Bool("nolint", false, "add //nolint comment"),
 		OutBuildTags:   flagSet.String("outTag", "", "add build tag to generated file"),
 		WrapType:       flagSet.Bool("wrap", false, "wrap tag const by own type"),
 		HardcodeValues: flagSet.Bool("hardcode", false, "hardcode tag values intogenerated variables, methods"),
