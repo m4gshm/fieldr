@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -53,12 +54,20 @@ func main() {
 		return
 	}
 
+	filePackages := make(map[*ast.File]*packages.Package)
+	for _, file := range files {
+		filePackages[file] = pkg
+	}
+
 	inputs := *config.Input
-	var err error
-	files, err = loadSrcFiles(inputs, fileSet, files)
+	var (
+		err error
+	)
+	files, err = loadSrcFiles(inputs, fileSet, files, filePackages)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	constantReplacers, err := struc.ExtractReplacers(*config.Generator.ConstReplace...)
 	if err != nil {
 		log.Fatal(err)
@@ -71,7 +80,7 @@ func main() {
 		newInputs, _ := newSet(*sharedConfig.Input, inputs...)
 		if len(newInputs) > 0 {
 			//new inputs detected
-			newFiles, err := loadSrcFiles(newInputs, fileSet, make([]*ast.File, 0))
+			newFiles, err := loadSrcFiles(newInputs, fileSet, make([]*ast.File, 0), filePackages)
 			if err != nil {
 				log.Fatal(err)
 			} else if additionalConfig, err := NewFilesCommentsConfig(newFiles, constantReplacers); err != nil {
@@ -111,7 +120,7 @@ func main() {
 		}
 	}
 	constants := *config.Content.Constants
-	structModel, err := struc.FindStructTags(files, typeName, includedTagsSet, constants, constantReplacers)
+	structModel, err := struc.FindStructTags(filePackages, files, fileSet, typeName, includedTagsSet, constants, constantReplacers)
 	if err != nil {
 		log.Fatal(err)
 	} else if structModel == nil || (len(structModel.TypeName) == 0 && len(typeName) != 0) {
@@ -151,7 +160,42 @@ func main() {
 		Content:      config.Content,
 	}
 
-	if err = g.GenerateFile(structModel, outFile, outFileInfo); err != nil {
+	var outPkg *packages.Package
+	if outFile != nil {
+		outPkg = filePackages[outFile]
+	} else {
+		var stat os.FileInfo
+		stat, err = os.Stat(outputName)
+		noExists := errors.Is(err, os.ErrNotExist)
+		if noExists {
+			dir := filepath.Dir(outputName)
+			outPkg, err = dirPackage(dir)
+			if err != nil {
+				log.Fatal(err)
+			} else if outPkg == nil {
+				log.Fatalf("canot detenrime output package, path '%v'", dir)
+			}
+		} else if err != nil {
+			log.Fatal(err)
+		} else {
+			if stat.IsDir() {
+				log.Fatal("output file is directory")
+			}
+			outFileSet := token.NewFileSet()
+			outFile, outPkg, err = loadFile(outputName, outFileSet)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if outFile != nil {
+				pos := outFile.Pos()
+				outFileInfo = outFileSet.File(pos)
+				if outFileInfo == nil {
+					log.Fatalf("error of reading metadata of output file %v", outputName)
+				}
+			}
+		}
+	}
+	if err = g.GenerateFile(structModel, outFile, outFileInfo, outPkg); err != nil {
 		log.Fatalf("generate file error: %s", err)
 	}
 	src, fmtErr := g.FormatSrc()
@@ -208,27 +252,50 @@ func NewConfigComment(text string) (*params.Config, error) {
 	return nil, nil
 }
 
-func loadSrcFiles(inputs []string, fileSet *token.FileSet, files []*ast.File) ([]*ast.File, error) {
+func loadSrcFiles(inputs []string, fileSet *token.FileSet, files []*ast.File, filePackages map[*ast.File]*packages.Package) ([]*ast.File, error) {
 	for _, srcFile := range inputs {
-		file, err := loadFile(srcFile, fileSet)
+		file, pkg, err := loadFile(srcFile, fileSet)
 		if err != nil {
 			return nil, err
 		}
-		files = append(files, file)
+		if _, ok := filePackages[file]; !ok {
+			files = append(files, file)
+			filePackages[file] = pkg
+		}
 	}
 	return files, nil
 }
 
-func loadFile(srcFile string, fileSet *token.FileSet) (*ast.File, error) {
+func loadFile(srcFile string, fileSet *token.FileSet) (*ast.File, *packages.Package, error) {
 	isAbs := path.IsAbs(srcFile)
 	if !isAbs {
 		absFile, err := filepath.Abs(srcFile)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		srcFile = absFile
 	}
-	return parser.ParseFile(fileSet, srcFile, nil, parser.ParseComments)
+	file, err := parser.ParseFile(fileSet, srcFile, nil, parser.ParseComments)
+	if err != nil {
+		return nil, nil, err
+	}
+	dir := path.Dir(srcFile)
+	pkg, err := dirPackage(dir)
+	if err != nil {
+		return nil, nil, err
+	}
+	return file, pkg, err
+}
+
+func dirPackage(dir string) (*packages.Package, error) {
+	pack, err := packages.Load(&packages.Config{Mode: packages.NeedModule | packages.NeedName}, dir)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range pack {
+		return p, nil
+	}
+	return nil, nil
 }
 
 var emptySet = map[string]int{}
@@ -271,8 +338,7 @@ func isDir(name string) bool {
 func extractPackage(fileSet *token.FileSet, buildTags []string, patterns ...string) *packages.Package {
 	packages, err := packages.Load(&packages.Config{
 		Fset:       fileSet,
-		Mode:       packages.NeedSyntax,
-		Tests:      false,
+		Mode:       packages.NeedSyntax | packages.NeedModule | packages.NeedName,
 		BuildFlags: []string{fmt.Sprintf("-tags=%s", strings.Join(buildTags, " "))},
 	}, patterns...)
 	if err != nil {

@@ -11,13 +11,17 @@ import (
 	"log"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"text/template"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/struc"
 	"github.com/pkg/errors"
+
+	"golang.org/x/tools/go/packages"
 )
 
 const oneLineSize = 3
@@ -67,6 +71,7 @@ type Config struct {
 	ConstReplace     *[]string
 	OutBuildTags     *string
 	IncludeFieldTags *string
+	OutPackage       *string
 }
 
 type ContentConfig struct {
@@ -223,12 +228,48 @@ func (g *Generator) Src() ([]byte, error) {
 
 const baseType = "string"
 
-func (g *Generator) GenerateFile(structModel *struc.StructModel, file *ast.File, fileInfo *token.File) error {
+func (g *Generator) GenerateFile(model *struc.StructModel, outFile *ast.File, outFileInfo *token.File, outPackage *packages.Package) error {
+	outPackagePath := outPackage.PkgPath
+	var outPackageName string
+	ref := g.Conf.OutPackage
+	if ref != nil && len(*ref) > 0 {
+		outPackageName = *ref
+	} else {
+		name := outPackage.Name
+		if len(name) > 0 {
+			outPackageName = name
+		} else {
+			outPackageName = pkgPathToName(outPackagePath)
+		}
+		logger.Debugw("output package %v, path %v", outPackageName, outPackagePath)
+	}
+
+	needImport := model.PackagePath != outPackagePath
+
+	pkgAlias := ""
+	if needImport {
+		pkgAlias = model.PackageName
+	}
+
+	isRewrite := g.isRewrite(outFile, outFileInfo)
+	if !isRewrite {
+		alias, found, err := g.findImportPackageAlias(model, outFile, needImport)
+		if err != nil {
+			return err
+		}
+		if found {
+			needImport = false
+			if len(alias) > 0 {
+				pkgAlias = alias
+			}
+		}
+	}
+
 	g.excludedTagValues = make(map[string]bool)
 	if *g.Conf.NoEmptyTag {
-		for fieldName, _tagNames := range structModel.FieldsTagValue {
+		for fieldName, _tagNames := range model.FieldsTagValue {
 			for tagName, tagValue := range _tagNames {
-				tagValueConstName := g.getTagValueConstName(structModel.TypeName, tagName, fieldName, tagValue)
+				tagValueConstName := g.getTagValueConstName(model.TypeName, tagName, fieldName, tagValue)
 				if isEmpty(tagValue) {
 					g.excludedTagValues[tagValueConstName] = true
 				}
@@ -249,7 +290,7 @@ func (g *Generator) GenerateFile(structModel *struc.StructModel, file *ast.File,
 	g.receiverFuncs = make(map[string][]string)
 	g.receiverFuncValues = make(map[string]map[string]string)
 
-	if err := g.generateConstants(structModel); err != nil {
+	if err := g.generateConstants(model); err != nil {
 		return err
 	}
 
@@ -257,14 +298,14 @@ func (g *Generator) GenerateFile(structModel *struc.StructModel, file *ast.File,
 
 	if all || *g.Content.Fields {
 		g.addVarDelim()
-		if err := g.addVar(g.generateFieldsVar(structModel.TypeName, structModel.FieldNames)); err != nil {
+		if err := g.addVar(g.generateFieldsVar(model.TypeName, model.FieldNames)); err != nil {
 			return err
 		}
 	}
 
 	if all || *g.Content.Tags {
 		g.addVarDelim()
-		if err := g.addVar(g.generateTagsVar(structModel.TypeName, structModel.TagNames)); err != nil {
+		if err := g.addVar(g.generateTagsVar(model.TypeName, model.TagNames)); err != nil {
 			return err
 		}
 	}
@@ -272,22 +313,22 @@ func (g *Generator) GenerateFile(structModel *struc.StructModel, file *ast.File,
 	if all || *g.Content.FieldTagsMap {
 		g.addVarDelim()
 		if err := g.addVar(
-			g.generateFieldTagsMapVar(structModel.TypeName, structModel.TagNames, structModel.FieldNames, structModel.FieldsTagValue)); err != nil {
+			g.generateFieldTagsMapVar(model.TypeName, model.TagNames, model.FieldNames, model.FieldsTagValue)); err != nil {
 			return err
 		}
 	}
 
 	if all || len(*g.Content.TagValues) > 0 {
-		if len(structModel.TagNames) == 0 {
+		if len(model.TagNames) == 0 {
 			return g.noTagsError("TagValues")
 		}
 
 		g.addVarDelim()
 		values := *g.Content.TagValues
 		if len(*g.Content.TagValues) == 0 {
-			values = getTagsValues(structModel.TagNames)
+			values = getTagsValues(model.TagNames)
 		}
-		vars, bodies, err := g.generateTagValuesVar(structModel.TypeName, values, structModel.FieldNames, structModel.FieldsTagValue)
+		vars, bodies, err := g.generateTagValuesVar(model.TypeName, values, model.FieldNames, model.FieldsTagValue)
 		if err != nil {
 			return err
 		}
@@ -300,90 +341,73 @@ func (g *Generator) GenerateFile(structModel *struc.StructModel, file *ast.File,
 
 	if all || *g.Content.TagValuesMap {
 		g.addVarDelim()
-		if err := g.addVar(g.generateTagValuesMapVar(structModel.TypeName, structModel.TagNames, structModel.FieldNames, structModel.FieldsTagValue)); err != nil {
+		if err := g.addVar(g.generateTagValuesMapVar(model)); err != nil {
 			return err
 		}
 	}
 
 	if all || *g.Content.TagFieldsMap {
 		g.addVarDelim()
-		if err := g.addVar(g.generateTagFieldsMapVar(structModel.TypeName, structModel.TagNames, structModel.FieldNames, structModel.FieldsTagValue)); err != nil {
+		if err := g.addVar(g.generateTagFieldsMapVar(model)); err != nil {
 			return err
 		}
 	}
 
 	if all || *g.Content.FieldTagValueMap {
 		g.addVarDelim()
-		if err := g.addVar(g.generateFieldTagValueMapVar(structModel.FieldNames, structModel.TagNames, structModel.TypeName, structModel.FieldsTagValue)); err != nil {
+		if err := g.addVar(g.generateFieldTagValueMapVar(model)); err != nil {
 			return err
 		}
 	}
 
 	if all || *g.Content.GetFieldValue {
-		if err := g.addReceiverFunc(g.generateGetFieldValueFunc(structModel.TypeName, structModel.FieldNames)); err != nil {
+		if err := g.addReceiverFunc(g.generateGetFieldValueFunc(model, pkgAlias)); err != nil {
 			return err
 		}
 	}
 	if all || *g.Content.GetFieldValueByTagValue {
-		if err := g.addReceiverFunc(g.generateGetFieldValueByTagValueFunc(structModel.TypeName, structModel.FieldNames, structModel.TagNames, structModel.FieldsTagValue)); err != nil {
+		if err := g.addReceiverFunc(g.generateGetFieldValueByTagValueFunc(model, pkgAlias)); err != nil {
 			return err
 		}
 	}
 
 	if all || (*g.Content.GetFieldValuesByTagGeneric) {
-		if err := g.addReceiverFunc(g.generateGetFieldValuesByTagFuncGeneric(structModel.TypeName, structModel.FieldNames, structModel.TagNames, structModel.FieldsTagValue)); err != nil {
+		if err := g.addReceiverFunc(g.generateGetFieldValuesByTagFuncGeneric(model, pkgAlias)); err != nil {
 			return err
 		}
 	}
 
 	if all || len(*g.Content.GetFieldValuesByTag) > 0 {
-		funcNames, funcBodies, err := g.generateGetFieldValuesByTagFunctions(structModel.TypeName, structModel.FieldNames, structModel.TagNames, structModel.FieldsTagValue)
+		receiverType, funcNames, funcBodies, err := g.generateGetFieldValuesByTagFunctions(model, pkgAlias)
 		if err != nil {
 			return err
 		}
 		for _, funcName := range funcNames {
 			funcBody := funcBodies[funcName]
-			if err = g.addReceiverFunc(structModel.TypeName, funcName, funcBody, nil); err != nil {
+			if err = g.addReceiverFunc(receiverType, funcName, funcBody, nil); err != nil {
 				return err
 			}
 		}
 	}
 
 	if all || *g.Content.AsMap {
-		if err := g.addReceiverFunc(g.generateAsMapFunc(structModel.TypeName, structModel.FieldNames)); err != nil {
+		if err := g.addReceiverFunc(g.generateAsMapFunc(model, pkgAlias)); err != nil {
 			return err
 		}
 	}
 	if all || *g.Content.AsTagMap {
-		if err := g.addReceiverFunc(g.generateAsTagMapFunc(structModel.TypeName, structModel.FieldNames, structModel.TagNames, structModel.FieldsTagValue)); err != nil {
+		if err := g.addReceiverFunc(g.generateAsTagMapFunc(model, pkgAlias)); err != nil {
 			return err
 		}
 	}
 
-	if err := g.generateHead(structModel.TypeName, structModel.TagNames, structModel.FieldNames, structModel.FieldsTagValue, all); err != nil {
+	if err := g.generateHead(model, all); err != nil {
 		return err
 	}
 
-	rewrite := true
-	if file != nil {
-		rewrite = false
-		for _, comment := range file.Comments {
-			pos := comment.Pos()
-			base := fileInfo.Base()
-			firstComment := int(pos) == base
-			if firstComment {
-				text := comment.Text()
-				generatedMarker := g.generatedMarker()
-				generated := strings.HasPrefix(text, generatedMarker)
-				rewrite = generated
-				break
-			}
-		}
-	}
-
-	if rewrite {
+	if isRewrite {
 		g.body = &bytes.Buffer{}
-		g.writeHead(structModel)
+		g.writeHead(model, outPackageName, needImport)
 
 		g.writeTypes()
 		g.writeConstants()
@@ -391,15 +415,103 @@ func (g *Generator) GenerateFile(structModel *struc.StructModel, file *ast.File,
 		g.writeReceiverFunctions()
 		g.writeFunctions()
 	} else {
-
 		//injects
+		chunks, err := g.getInjectChunks(model, outFile, outFileInfo.Base(), needImport)
+		if err != nil {
+			return err
+		}
+		name := outFileInfo.Name()
+		fileBytes, err := ioutil.ReadFile(name)
+		if err != nil {
+			return err
+		}
 
-		base := fileInfo.Base()
-		chunkVals := make(map[int]map[int]string)
+		newFileContent := inject(chunks, string(fileBytes))
+		g.body = bytes.NewBufferString(newFileContent)
 
-		for _, decl := range file.Decls {
-			switch dt := decl.(type) {
-			case *ast.GenDecl:
+		//write not injected
+		g.filterInjected()
+
+		g.writeTypes()
+		g.writeConstants()
+		g.writeVars()
+		g.writeReceiverFunctions()
+		g.writeFunctions()
+	}
+	return nil
+}
+
+func (g *Generator) isRewrite(outFile *ast.File, outFileInfo *token.File) bool {
+	if outFile == nil {
+		return true
+	}
+	for _, comment := range outFile.Comments {
+		pos := comment.Pos()
+		base := outFileInfo.Base()
+		firstComment := int(pos) == base
+		if firstComment {
+			text := comment.Text()
+			generatedMarker := g.generatedMarker()
+			generated := strings.HasPrefix(text, generatedMarker)
+			return generated
+		}
+	}
+	return false
+}
+
+func (g *Generator) findImportPackageAlias(model *struc.StructModel, outFile *ast.File, imprt bool) (string, bool, error) {
+	if !imprt {
+		return "", false, nil
+	}
+	for _, decl := range outFile.Decls {
+		switch dt := decl.(type) {
+		case *ast.GenDecl:
+			if dt.Tok != token.IMPORT {
+				continue
+			}
+			for _, spec := range dt.Specs {
+				switch st := spec.(type) {
+				case *ast.ImportSpec:
+					if value, err := strconv.Unquote(st.Path.Value); err != nil {
+						return "", false, err
+					} else if imported := value == model.PackagePath; imported {
+						if st.Name != nil {
+							return st.Name.Name, imported, nil
+						}
+						return "", imported, nil
+					}
+				}
+			}
+		}
+	}
+	return "", false, nil
+}
+
+func (g *Generator) getInjectChunks(model *struc.StructModel, outFile *ast.File, base int, needImport bool) (map[int]map[int]string, error) {
+	noReceiver := g.Conf.NoReceiver != nil && *g.Conf.NoReceiver
+	chunks := make(map[int]map[int]string)
+
+	importInjected := false
+	for _, decl := range outFile.Decls {
+		switch dt := decl.(type) {
+		case *ast.GenDecl:
+			if needImport && dt.Tok == token.IMPORT {
+				expr := g.importExpr(model, false)
+				var start int
+				var end int
+				if len(dt.Specs) == 0 {
+					start = int(dt.Pos()) - base
+					end = int(dt.End()) - base
+				} else {
+					if dt.Rparen != token.NoPos {
+						start = int(dt.Rparen) - base
+						end = start
+						expr = "\n" + g.importExpr(model, true)
+					}
+				}
+				chunks[start] = map[int]string{end: expr}
+				importInjected = true
+			} else {
 				for _, spec := range dt.Specs {
 					switch st := spec.(type) {
 					case *ast.TypeSpec:
@@ -411,7 +523,7 @@ func (g *Generator) GenerateFile(structModel *struc.StructModel, file *ast.File,
 						end := int(st.Type.End()) - base
 						name := st.Name.Name
 						if newValue, found := g.typeValues[name]; found {
-							chunkVals[start] = map[int]string{end: newValue}
+							chunks[start] = map[int]string{end: newValue}
 							delete(g.typeValues, name)
 						}
 					case *ast.ValueSpec:
@@ -434,67 +546,79 @@ func (g *Generator) GenerateFile(structModel *struc.StructModel, file *ast.File,
 							}
 							name := objectName.Name
 							if newValue, found := generatingValues[name]; found {
-								chunkVals[start] = map[int]string{end: newValue}
+								chunks[start] = map[int]string{end: newValue}
 								delete(generatingValues, name)
 							}
 						}
 					}
 				}
-			case *ast.FuncDecl:
-				start := int(dt.Pos()) - base
-				end := int(dt.End()) - base
-				name := dt.Name.Name
-				recv := dt.Recv
-				if recv != nil {
-					list := recv.List
-					if len(list) > 0 {
-						field := list[0]
-						typ := field.Type
-						receiverName := getReceiverName(typ)
-						recFuncs, hasFuncs := g.receiverFuncValues[receiverName]
-						if hasFuncs {
-							funcDecl, hasFuncDecl := recFuncs[name]
-							if hasFuncDecl {
-								chunkVals[start] = map[int]string{end: funcDecl}
-								delete(recFuncs, name)
-							}
-						}
+			}
+		case *ast.FuncDecl:
+			start := int(dt.Pos()) - base
+			end := int(dt.End()) - base
+			name := dt.Name.Name
+			recv := dt.Recv
+			if recv != nil {
+				if _, err := g.addReceiveFuncOnRewrite(recv.List, name, chunks, start, end); err != nil {
+					return nil, err
+				}
+			} else {
+				handled := false
+				if noReceiver {
+					params := dt.Type.Params
+					var err error
+					handled, err = g.addReceiveFuncOnRewrite(params.List, name, chunks, start, end)
+					if err != nil {
+						return nil, err
 					}
-				} else {
+				}
+				if !handled {
 					funcDecl, hasFuncDecl := g.funcValues[name]
 					if hasFuncDecl {
-						chunkVals[start] = map[int]string{end: funcDecl}
+						chunks[start] = map[int]string{end: funcDecl}
 						delete(g.funcValues, name)
 					}
 				}
 			}
 		}
-
-		chunkPos := getSortedChunks(chunkVals)
-
-		name := fileInfo.Name()
-		fileBytes, err := ioutil.ReadFile(name)
-		if err != nil {
-			return err
-		}
-		fileContent := string(fileBytes)
-
-		newFileContent := rewriteChunks(chunkPos, chunkVals, fileContent)
-
-		g.body = bytes.NewBufferString(newFileContent)
-
-		//write not injected
-		g.filterInjected()
-
-		g.writeTypes()
-		g.writeConstants()
-		g.writeVars()
-		g.writeReceiverFunctions()
-		g.writeFunctions()
-
 	}
 
-	return nil
+	if needImport && !importInjected {
+		start := int(outFile.Name.End()) - base
+		end := start
+		chunks[start] = map[int]string{end: g.importExpr(model, false)}
+	}
+	return chunks, nil
+}
+
+func (g *Generator) importExpr(model *struc.StructModel, forMultiline bool) string {
+	quoted := "\"" + model.PackagePath + "\"\n"
+	if forMultiline {
+		return "\n" + quoted
+	}
+	return "\nimport " + quoted
+}
+
+func (g *Generator) addReceiveFuncOnRewrite(list []*ast.Field, name string, chunks map[int]map[int]string, start int, end int) (bool, error) {
+	if len(list) == 0 {
+		return false, nil
+	}
+	field := list[0]
+	typ := field.Type
+	receiverName, err := getReceiverName(typ)
+	if err != nil {
+		return false, fmt.Errorf("func %v; %w", name, err)
+	}
+	recFuncs, hasFuncs := g.receiverFuncValues[receiverName]
+	if hasFuncs {
+		funcDecl, hasFuncDecl := recFuncs[name]
+		if hasFuncDecl {
+			chunks[start] = map[int]string{end: funcDecl}
+			delete(recFuncs, name)
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (g *Generator) getUsedTags(allTags []struc.TagName) []struc.TagName {
@@ -520,21 +644,39 @@ func toSet(values []string) map[string]interface{} {
 	return set
 }
 
-func getReceiverName(typ ast.Expr) string {
+func getReceiverName(typ ast.Expr) (string, error) {
 	switch tt := typ.(type) {
 	case *ast.StarExpr:
 		return getReceiverName(tt.X)
 	case *ast.Ident:
-		return tt.Name
+		return tt.Name, nil
+	case *ast.SelectorExpr:
+		name := tt.Sel.Name
+		x := tt.X
+		if x != nil {
+			pkgAlias := ""
+			switch xt := x.(type) {
+			case *ast.Ident:
+				pkgAlias = xt.Name
+			default:
+				return "", errors.Errorf("receiver type; unexpected type %v, value %v", reflect.TypeOf(tt), tt)
+			}
+			if len(pkgAlias) > 0 {
+				return pkgAlias + "." + name, nil
+			}
+		}
+		return name, nil
+	default:
+		return "", errors.Errorf("receiver name; unexpecte type %v, value %v", reflect.TypeOf(tt), tt)
 	}
-	return ""
 }
 
-func rewriteChunks(sortedPos []int, chunkVals map[int]map[int]string, fileContent string) string {
+func inject(chunks map[int]map[int]string, fileContent string) string {
+	sortedPos := getSortedChunks(chunks)
 	newFileContent := ""
 	start := 0
 	for _, end := range sortedPos {
-		for j, value := range chunkVals[end] {
+		for j, value := range chunks[end] {
 			prefix := fileContent[start:end]
 			newFileContent += prefix + value
 			start = j
@@ -555,10 +697,15 @@ func getSortedChunks(chunkVals map[int]map[int]string) []int {
 	return chunkPos
 }
 
-func (g *Generator) writeHead(str *struc.StructModel) {
+func (g *Generator) writeHead(str *struc.StructModel, packageName string, needImport bool) {
 	g.writeBody("// %s'; DO NOT EDIT.\n\n", g.generatedMarker())
 	g.writeBody(*g.Conf.OutBuildTags)
-	g.writeBody("package %s\n", str.PackageName)
+	g.writeBody("package %s\n", packageName)
+
+	if needImport {
+		g.writeBody(g.importExpr(str, false))
+	}
+
 }
 
 func (g *Generator) writeConstants() {
@@ -638,15 +785,21 @@ func getTagsValues(names []struc.TagName) []string {
 	return result
 }
 
-func (g *Generator) generateHead(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue, all bool) error {
+func (g *Generator) generateHead(model *struc.StructModel, all bool) error {
+	var (
+		typeName   = model.TypeName
+		tagNames   = model.TagNames
+		fieldNames = model.FieldNames
+		fields     = model.FieldsTagValue
 
-	fieldType := baseType
-	tagType := baseType
-	tagValType := baseType
+		fieldType  = baseType
+		tagType    = baseType
+		tagValType = baseType
 
-	usedFieldType := g.used.fieldType
-	usedTagType := g.used.tagType
-	usedTagValueType := g.used.tagValueType
+		usedFieldType    = g.used.fieldType
+		usedTagType      = g.used.tagType
+		usedTagValueType = g.used.tagValueType
+	)
 
 	if usedFieldType {
 		fieldType = getFieldType(typeName, *g.Conf.Export)
@@ -837,7 +990,14 @@ func camel(name string) string {
 	return result
 }
 
-func (g *Generator) generateFieldTagValueMapVar(fieldNames []struc.FieldName, tagNames []struc.TagName, typeName string, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) (string, string, error) {
+func (g *Generator) generateFieldTagValueMapVar(model *struc.StructModel) (string, string, error) {
+	var (
+		fieldNames = model.FieldNames
+		tagNames   = model.TagNames
+		fields     = model.FieldsTagValue
+		typeName   = model.TypeName
+	)
+
 	varName := goName(typeName+"_FieldTagValue", *g.Conf.ExportVars)
 	if len(tagNames) == 0 {
 		return "", "", g.noTagsError(varName)
@@ -995,8 +1155,14 @@ func (g *Generator) generateTagValuesVar(typeName string, tagNames []string, fie
 	return vars, varValues, nil
 }
 
-func (g *Generator) generateTagValuesMapVar(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) (string, string, error) {
-	varName := goName(typeName+"_TagValues", *g.Conf.ExportVars)
+func (g *Generator) generateTagValuesMapVar(model *struc.StructModel) (string, string, error) {
+	var (
+		typeName   = model.TypeName
+		tagNames   = model.TagNames
+		fieldNames = model.FieldNames
+		fields     = model.FieldsTagValue
+		varName    = goName(typeName+"_TagValues", *g.Conf.ExportVars)
+	)
 
 	if len(tagNames) == 0 {
 		return "", "", g.noTagsError(varName)
@@ -1071,8 +1237,14 @@ func (g *Generator) getTagValueArrayType(tagValueType string) string {
 	return arrayType(tagValueType)
 }
 
-func (g *Generator) generateTagFieldsMapVar(typeName string, tagNames []struc.TagName, fieldNames []struc.FieldName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) (string, string, error) {
-	varName := goName(typeName+"_TagFields", *g.Conf.ExportVars)
+func (g *Generator) generateTagFieldsMapVar(model *struc.StructModel) (string, string, error) {
+	var (
+		typeName   = model.TypeName
+		tagNames   = model.TagNames
+		fieldNames = model.FieldNames
+		fields     = model.FieldsTagValue
+		varName    = goName(typeName+"_TagFields", *g.Conf.ExportVars)
+	)
 
 	if len(tagNames) == 0 {
 		return "", "", g.noTagsError(varName)
@@ -1353,9 +1525,12 @@ func (g *Generator) getTagArrayType(typeName string) string {
 	return arrayType(g.getTagType(typeName))
 }
 
-func (g *Generator) generateGetFieldValueFunc(typeName string, fieldNames []struc.FieldName) (string, string, string, error) {
-
-	var fieldType string
+func (g *Generator) generateGetFieldValueFunc(model *struc.StructModel, packageName string) (string, string, string, error) {
+	var (
+		typeName   = model.TypeName
+		fieldNames = model.FieldNames
+		fieldType  string
+	)
 	if *g.Conf.WrapType {
 		fieldType = g.getFieldType(typeName)
 	} else {
@@ -1367,11 +1542,14 @@ func (g *Generator) generateGetFieldValueFunc(typeName string, fieldNames []stru
 	receiverRef := g.asRefIfNeed(receiverVar)
 
 	funcName := goName("GetFieldValue", *g.Conf.Export)
+
+	typeLink := g.typeName(typeName, packageName)
+
 	var funcBody string
 	if *g.Conf.NoReceiver {
-		funcBody = "func " + funcName + "(" + receiverVar + " *" + typeName + ", " + valVar + " " + fieldType + ") interface{}"
+		funcBody = "func " + funcName + "(" + receiverVar + " *" + typeLink + ", " + valVar + " " + fieldType + ") interface{}"
 	} else {
-		funcBody = "func (" + receiverVar + " *" + typeName + ") " + funcName + "(" + valVar + " " + fieldType + ") interface{}"
+		funcBody = "func (" + receiverVar + " *" + typeLink + ") " + funcName + "(" + valVar + " " + fieldType + ") interface{}"
 	}
 	funcBody += " {" + g.noLint() + "\n" + "switch " + valVar + " {\n"
 
@@ -1388,10 +1566,17 @@ func (g *Generator) generateGetFieldValueFunc(typeName string, fieldNames []stru
 		"return nil" +
 		"\n}\n"
 
-	return typeName, funcName, funcBody, nil
+	return typeLink, funcName, funcBody, nil
 }
 
-func (g *Generator) generateGetFieldValueByTagValueFunc(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) (string, string, string, error) {
+func (g *Generator) generateGetFieldValueByTagValueFunc(model *struc.StructModel, pkgAlias string) (string, string, string, error) {
+	var (
+		typeName   = model.TypeName
+		fieldNames = model.FieldNames
+		tagNames   = model.TagNames
+		fields     = model.FieldsTagValue
+	)
+
 	funcName := goName("GetFieldValueByTagValue", *g.Conf.Export)
 	if len(tagNames) == 0 {
 		return "", "", "", g.noTagsError(funcName)
@@ -1407,11 +1592,13 @@ func (g *Generator) generateGetFieldValueByTagValueFunc(typeName string, fieldNa
 	receiverVar := "v"
 	receiverRef := g.asRefIfNeed(receiverVar)
 
+	typeLink := g.typeName(typeName, pkgAlias)
+
 	var funcBody string
 	if *g.Conf.NoReceiver {
-		funcBody = "func " + funcName + "(" + receiverVar + " *" + typeName + ", " + valVar + " " + valType + ") interface{}"
+		funcBody = "func " + funcName + "(" + receiverVar + " *" + typeLink + ", " + valVar + " " + valType + ") interface{}"
 	} else {
-		funcBody = "func (" + receiverVar + " *" + typeName + ") " + funcName + "(" + valVar + " " + valType + ") interface{}"
+		funcBody = "func (" + receiverVar + " *" + typeLink + ") " + funcName + "(" + valVar + " " + valType + ") interface{}"
 	}
 	funcBody += " {" + g.noLint() + "\n"
 	funcBody += "switch " + valVar + " {\n"
@@ -1453,10 +1640,16 @@ func (g *Generator) generateGetFieldValueByTagValueFunc(typeName string, fieldNa
 		"return nil" +
 		"\n}\n"
 
-	return typeName, funcName, funcBody, nil
+	return typeLink, funcName, funcBody, nil
 }
 
-func (g *Generator) generateGetFieldValuesByTagFuncGeneric(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fieldTagValues map[struc.FieldName]map[struc.TagName]struc.TagValue) (string, string, string, error) {
+func (g *Generator) generateGetFieldValuesByTagFuncGeneric(model *struc.StructModel, alias string) (string, string, string, error) {
+	var (
+		typeName       = model.TypeName
+		fieldNames     = model.FieldNames
+		tagNames       = model.TagNames
+		fieldTagValues = model.FieldsTagValue
+	)
 	funcName := goName("GetFieldValuesByTag", *g.Conf.Export)
 	if len(tagNames) == 0 {
 		return "", "", "", g.noTagsError(funcName)
@@ -1471,12 +1664,14 @@ func (g *Generator) generateGetFieldValuesByTagFuncGeneric(typeName string, fiel
 	receiverVar := "v"
 	receiverRef := g.asRefIfNeed(receiverVar)
 
+	typeLink := g.typeName(typeName, alias)
+
 	resultType := "[]interface{}"
 	var funcBody string
 	if *g.Conf.NoReceiver {
-		funcBody = "func " + funcName + "(" + receiverVar + " *" + typeName + ", " + valVar + " " + tagType + ") " + resultType
+		funcBody = "func " + funcName + "(" + receiverVar + " *" + typeLink + ", " + valVar + " " + tagType + ") " + resultType
 	} else {
-		funcBody = "func (" + receiverVar + " *" + typeName + ") " + funcName + "(" + valVar + " " + tagType + ") " + resultType
+		funcBody = "func (" + receiverVar + " *" + typeLink + ") " + funcName + "(" + valVar + " " + tagType + ") " + resultType
 	}
 	funcBody += " {" + g.noLint() + "\n" + "switch " + valVar + " {\n"
 
@@ -1493,11 +1688,16 @@ func (g *Generator) generateGetFieldValuesByTagFuncGeneric(typeName string, fiel
 		"return nil" +
 		"\n}\n"
 
-	return typeName, funcName, funcBody, nil
+	return typeLink, funcName, funcBody, nil
 }
 
-func (g *Generator) generateGetFieldValuesByTagFunctions(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) ([]string, map[string]string, error) {
-
+func (g *Generator) generateGetFieldValuesByTagFunctions(model *struc.StructModel, alias string) (string, []string, map[string]string, error) {
+	var (
+		typeName   = model.TypeName
+		fieldNames = model.FieldNames
+		tagNames   = model.TagNames
+		fields     = model.FieldsTagValue
+	)
 	usedTags := g.getUsedTags(tagNames)
 
 	const funcNamePrefix = "GetFieldValuesByTag"
@@ -1509,7 +1709,7 @@ func (g *Generator) generateGetFieldValuesByTagFunctions(typeName string, fieldN
 			}
 			msg += g.getFuncName(funcNamePrefix, tagName)
 		}
-		return nil, nil, g.noTagsError(msg)
+		return "", nil, nil, g.noTagsError(msg)
 	}
 
 	receiverVar := "v"
@@ -1517,15 +1717,16 @@ func (g *Generator) generateGetFieldValuesByTagFunctions(typeName string, fieldN
 
 	resultType := "[]interface{}"
 
+	typeLink := g.typeName(typeName, alias)
 	funcNames := make([]string, len(usedTags))
 	funcBodies := make(map[string]string, len(usedTags))
 	for i, tagName := range usedTags {
 		funcName := g.getFuncName(funcNamePrefix, tagName)
 		var funcBody string
 		if *g.Conf.NoReceiver {
-			funcBody = "func " + funcName + "(" + receiverVar + " *" + typeName + ") " + resultType
+			funcBody = "func " + funcName + "(" + receiverVar + " *" + typeLink + ") " + resultType
 		} else {
-			funcBody = "func (" + receiverVar + " *" + typeName + ") " + funcName + "() " + resultType
+			funcBody = "func (" + receiverVar + " *" + typeLink + ") " + funcName + "() " + resultType
 		}
 		funcBody += " {" + g.noLint() + "\n"
 
@@ -1536,11 +1737,11 @@ func (g *Generator) generateGetFieldValuesByTagFunctions(typeName string, fieldN
 
 		funcNames[i] = funcName
 		if _, ok := funcBodies[funcName]; ok {
-			return nil, nil, errors.Errorf("duplicated function %s", funcName)
+			return "", nil, nil, errors.Errorf("duplicated function %s", funcName)
 		}
 		funcBodies[funcName] = funcBody
 	}
-	return funcNames, funcBodies, nil
+	return typeLink, funcNames, funcBodies, nil
 }
 
 func (g *Generator) getFuncName(funcNamePrefix string, tagName struc.TagName) string {
@@ -1633,7 +1834,11 @@ func (g *Generator) generateArrayToStringsFunc(arrayTypeName string, resultType 
 	return arrayTypeName, funcName, funcBody, nil
 }
 
-func (g *Generator) generateAsMapFunc(typeName string, fieldNames []struc.FieldName) (string, string, string, error) {
+func (g *Generator) generateAsMapFunc(model *struc.StructModel, alias string) (string, string, string, error) {
+
+	typeName := model.TypeName
+	fieldNames := model.FieldNames
+
 	export := *g.Conf.Export
 
 	receiverVar := "v"
@@ -1645,11 +1850,12 @@ func (g *Generator) generateAsMapFunc(typeName string, fieldNames []struc.FieldN
 	}
 
 	funcName := goName("AsMap", export)
+	typeLink := g.typeName(typeName, alias)
 	var funcBody string
 	if *g.Conf.NoReceiver {
-		funcBody = "func " + funcName + "(" + receiverVar + " *" + typeName + ") map[" + keyType + "]interface{}"
+		funcBody = "func " + funcName + "(" + receiverVar + " *" + typeLink + ") map[" + keyType + "]interface{}"
 	} else {
-		funcBody = "func (" + receiverVar + " *" + typeName + ") " + funcName + "() map[" + keyType + "]interface{}"
+		funcBody = "func (" + receiverVar + " *" + typeLink + ") " + funcName + "() map[" + keyType + "]interface{}"
 	}
 	funcBody += " {" + g.noLint() + "\n" +
 		"	return map[" + keyType + "]interface{}{\n"
@@ -1665,10 +1871,16 @@ func (g *Generator) generateAsMapFunc(typeName string, fieldNames []struc.FieldN
 		"	}\n" +
 		"}\n"
 
-	return typeName, funcName, funcBody, nil
+	return typeLink, funcName, funcBody, nil
 }
 
-func (g *Generator) generateAsTagMapFunc(typeName string, fieldNames []struc.FieldName, tagNames []struc.TagName, fields map[struc.FieldName]map[struc.TagName]struc.TagValue) (string, string, string, error) {
+func (g *Generator) generateAsTagMapFunc(model *struc.StructModel, alias string) (string, string, string, error) {
+	var (
+		typeName   = model.TypeName
+		fieldNames = model.FieldNames
+		tagNames   = model.TagNames
+		fields     = model.FieldsTagValue
+	)
 	funcName := goName("AsTagMap", *g.Conf.Export)
 	if len(tagNames) == 0 {
 		return "", "", "", g.noTagsError(funcName)
@@ -1690,11 +1902,12 @@ func (g *Generator) generateAsTagMapFunc(typeName string, fieldNames []struc.Fie
 
 	mapType := "map[" + tagValueType + "]" + valueType
 
+	typeLink := g.typeName(typeName, alias)
 	var funcBody string
 	if *g.Conf.NoReceiver {
-		funcBody = "func " + funcName + "(" + receiverVar + " *" + typeName + ", " + varName + " " + tagType + ") " + mapType
+		funcBody = "func " + funcName + "(" + receiverVar + " *" + typeLink + ", " + varName + " " + tagType + ") " + mapType
 	} else {
-		funcBody = "func (" + receiverVar + " *" + typeName + ") " + funcName + "(" + varName + " " + tagType + ") " + mapType
+		funcBody = "func (" + receiverVar + " *" + typeLink + ") " + funcName + "(" + varName + " " + tagType + ") " + mapType
 	}
 
 	funcBody += " {" + g.noLint() + "\n" +
@@ -1726,7 +1939,14 @@ func (g *Generator) generateAsTagMapFunc(typeName string, fieldNames []struc.Fie
 		"return nil" +
 		"}\n"
 
-	return typeName, funcName, funcBody, nil
+	return typeLink, funcName, funcBody, nil
+}
+
+func (g *Generator) typeName(typeName string, pkg string) string {
+	if len(pkg) > 0 {
+		return pkg + "." + typeName
+	}
+	return typeName
 }
 
 func (g *Generator) noTagsError(funcName string) error {

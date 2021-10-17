@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+
+	"golang.org/x/tools/go/packages"
 )
 
 var (
@@ -23,6 +25,8 @@ type FieldName string
 type StructModel struct {
 	TypeName          string
 	PackageName       string
+	PackagePath       string
+	FilePath          string
 	FieldsTagValue    map[FieldName]map[TagName]TagValue
 	FieldNames        []FieldName
 	TagNames          []TagName
@@ -30,7 +34,7 @@ type StructModel struct {
 	ConstantTemplates map[string]string
 }
 
-func FindStructTags(files []*ast.File, typeName string, includedTags map[TagName]interface{}, constants []string, constantReplacers map[string]string) (*StructModel, error) {
+func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.File, fileSet *token.FileSet, typeName string, includedTags map[TagName]interface{}, constants []string, constantReplacers map[string]string) (*StructModel, error) {
 	var (
 		str = new(StructModel)
 
@@ -79,7 +83,8 @@ func FindStructTags(files []*ast.File, typeName string, includedTags map[TagName
 		ast.Inspect(file, func(node ast.Node) bool {
 			switch nt := node.(type) {
 			case *ast.TypeSpec:
-				return handleTypeSpec(nt, typeName, includedTags, str, file.Name.Name)
+				fileInfo := fileSet.File(file.Pos())
+				return handleTypeSpec(nt, typeName, includedTags, str, file, fileInfo, filePackages)
 			case *ast.ValueSpec:
 				for _, name := range nt.Names {
 					templateConst := name.Name
@@ -245,7 +250,12 @@ func toStringValue(value ast.Expr, substitutes map[string]string) (string, token
 	return strValue, kind, nil
 }
 
-func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, includedTags map[TagName]interface{}, str *StructModel, packageName string) bool {
+func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, includedTags map[TagName]interface{}, str *StructModel, file *ast.File, fileInfo *token.File, filePackages map[*ast.File]*packages.Package) bool {
+	filePath := fileInfo.Name()
+	pkg := filePackages[file]
+	pkgPath := pkg.PkgPath
+	packageName := file.Name.Name
+
 	rawType := typeSpec.Type
 	n := typeSpec.Name.Name
 
@@ -255,7 +265,7 @@ func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, includedTags map[Ta
 
 	structType, ok := rawType.(*ast.StructType)
 	if !ok {
-		return true
+		return false
 	}
 
 	_fields := structType.Fields.List
@@ -268,7 +278,6 @@ func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, includedTags map[Ta
 
 	for _, field := range _fields {
 		for _, _fieldName := range field.Names {
-
 			fieldTag := field.Tag
 			var tagsValues string
 			if fieldTag != nil {
@@ -320,7 +329,9 @@ func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, includedTags map[Ta
 
 	*str = StructModel{
 		TypeName:       typeName,
+		FilePath:       filePath,
 		PackageName:    packageName,
+		PackagePath:    pkgPath,
 		FieldsTagValue: fields,
 		FieldNames:     fieldNames,
 		TagNames:       tagNames,

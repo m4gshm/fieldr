@@ -3,12 +3,8 @@ module example
 go 1.16
 
 require (
-	github.com/Masterminds/squirrel v1.5.0 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/golangci/golangci-lint v1.42.1 // indirect
-	github.com/jmoiron/sqlx v1.3.4 // indirect
+	github.com/Masterminds/squirrel v1.5.0
 	github.com/kr/text v0.2.0 // indirect
-	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/stretchr/testify v1.7.0
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect

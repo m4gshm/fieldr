@@ -34,6 +34,7 @@ func NewGeneratorConfig(flagSet *flag.FlagSet) *generator.Config {
 		IncludeFieldTags: flagSet.String("filedTags", "", "comma-separated list of used field tags"),
 		Nolint:           flagSet.Bool("nolint", false, "add //nolint comment"),
 		OutBuildTags:     flagSet.String("outBuildTag", "", "add build tag to generated file"),
+		OutPackage:       flagSet.String("outPackage", "", "output package name"),
 		WrapType:         flagSet.Bool("wrap", false, "wrap tag const by own type"),
 		HardcodeValues:   flagSet.Bool("hardcode", false, "hardcode tag values into generated variables, methods"),
 		ReturnRefs:       flagSet.Bool("ref", false, "return field as refs in generated methods"),
