@@ -1,7 +1,8 @@
 package as_map_no_empty_tag_dest
 
 import (
-	asMap2 "example/as-map"
+	as_map1 "example/as-map"
+	as_map "fmt"
 )
 
 type (
@@ -26,7 +27,11 @@ const (
 	structTagValue_toMap_noExport = StructTagValue("no_export") //nolint
 )
 
-func AsMap(v *asMap2.Struct) map[StructField]interface{} {
+func init() {
+	as_map.Print("just for fun")
+}
+
+func AsMap(v *as_map1.Struct) map[StructField]interface{} {
 	return map[StructField]interface{}{
 		StructField_ID:              v.ID,
 		StructField_Name:            v.Name,
@@ -36,7 +41,7 @@ func AsMap(v *asMap2.Struct) map[StructField]interface{} {
 	}
 }
 
-func AsTagMap(v *asMap2.Struct, tag StructTag) map[StructTagValue]interface{} {
+func AsTagMap(v *as_map1.Struct, tag StructTag) map[StructTagValue]interface{} {
 	switch tag {
 	case StructTag_toMap:
 		return map[StructTagValue]interface{}{

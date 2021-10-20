@@ -239,28 +239,45 @@ func (g *Generator) GenerateFile(model *struc.StructModel, outFile *ast.File, ou
 		if len(name) > 0 {
 			outPackageName = name
 		} else {
-			outPackageName = pkgPathToName(outPackagePath)
+			outPackageName = packagePathToName(outPackagePath)
 		}
 		logger.Debugw("output package %v, path %v", outPackageName, outPackagePath)
 	}
 
 	needImport := model.PackagePath != outPackagePath
 
-	pkgAlias := ""
+	structPackage := ""
 	if needImport {
-		pkgAlias = model.PackageName
+		structPackage = model.PackageName
 	}
 
 	isRewrite := g.isRewrite(outFile, outFileInfo)
-	if !isRewrite {
-		alias, found, err := g.findImportPackageAlias(model, outFile, needImport)
+	if !isRewrite && needImport {
+		alias, found, err := g.findImportPackageAlias(model, outFile)
 		if err != nil {
 			return err
 		}
 		if found {
 			needImport = false
 			if len(alias) > 0 {
-				pkgAlias = alias
+				structPackage = alias
+			}
+		} else {
+			structPackageSuffixed := structPackage
+			duplicated := false
+			i := 0
+			for i <= 100 {
+				if duplicated, err = g.hasDuplicatedPackage(outFile, structPackageSuffixed); err != nil {
+					return err
+				} else if duplicated {
+					i++
+					structPackageSuffixed = structPackage + strconv.Itoa(i)
+				} else {
+					break
+				}
+			}
+			if !duplicated && i > 0 {
+				structPackage = structPackageSuffixed
 			}
 		}
 	}
@@ -361,24 +378,24 @@ func (g *Generator) GenerateFile(model *struc.StructModel, outFile *ast.File, ou
 	}
 
 	if all || *g.Content.GetFieldValue {
-		if err := g.addReceiverFunc(g.generateGetFieldValueFunc(model, pkgAlias)); err != nil {
+		if err := g.addReceiverFunc(g.generateGetFieldValueFunc(model, structPackage)); err != nil {
 			return err
 		}
 	}
 	if all || *g.Content.GetFieldValueByTagValue {
-		if err := g.addReceiverFunc(g.generateGetFieldValueByTagValueFunc(model, pkgAlias)); err != nil {
+		if err := g.addReceiverFunc(g.generateGetFieldValueByTagValueFunc(model, structPackage)); err != nil {
 			return err
 		}
 	}
 
 	if all || (*g.Content.GetFieldValuesByTagGeneric) {
-		if err := g.addReceiverFunc(g.generateGetFieldValuesByTagFuncGeneric(model, pkgAlias)); err != nil {
+		if err := g.addReceiverFunc(g.generateGetFieldValuesByTagFuncGeneric(model, structPackage)); err != nil {
 			return err
 		}
 	}
 
 	if all || len(*g.Content.GetFieldValuesByTag) > 0 {
-		receiverType, funcNames, funcBodies, err := g.generateGetFieldValuesByTagFunctions(model, pkgAlias)
+		receiverType, funcNames, funcBodies, err := g.generateGetFieldValuesByTagFunctions(model, structPackage)
 		if err != nil {
 			return err
 		}
@@ -391,12 +408,12 @@ func (g *Generator) GenerateFile(model *struc.StructModel, outFile *ast.File, ou
 	}
 
 	if all || *g.Content.AsMap {
-		if err := g.addReceiverFunc(g.generateAsMapFunc(model, pkgAlias)); err != nil {
+		if err := g.addReceiverFunc(g.generateAsMapFunc(model, structPackage)); err != nil {
 			return err
 		}
 	}
 	if all || *g.Content.AsTagMap {
-		if err := g.addReceiverFunc(g.generateAsTagMapFunc(model, pkgAlias)); err != nil {
+		if err := g.addReceiverFunc(g.generateAsTagMapFunc(model, structPackage)); err != nil {
 			return err
 		}
 	}
@@ -416,7 +433,7 @@ func (g *Generator) GenerateFile(model *struc.StructModel, outFile *ast.File, ou
 		g.writeFunctions()
 	} else {
 		//injects
-		chunks, err := g.getInjectChunks(model, outFile, outFileInfo.Base(), needImport)
+		chunks, err := g.getInjectChunks(model, outFile, outFileInfo.Base(), needImport, structPackage)
 		if err != nil {
 			return err
 		}
@@ -459,10 +476,7 @@ func (g *Generator) isRewrite(outFile *ast.File, outFileInfo *token.File) bool {
 	return false
 }
 
-func (g *Generator) findImportPackageAlias(model *struc.StructModel, outFile *ast.File, imprt bool) (string, bool, error) {
-	if !imprt {
-		return "", false, nil
-	}
+func (g *Generator) findImportPackageAlias(model *struc.StructModel, outFile *ast.File) (string, bool, error) {
 	for _, decl := range outFile.Decls {
 		switch dt := decl.(type) {
 		case *ast.GenDecl:
@@ -487,7 +501,35 @@ func (g *Generator) findImportPackageAlias(model *struc.StructModel, outFile *as
 	return "", false, nil
 }
 
-func (g *Generator) getInjectChunks(model *struc.StructModel, outFile *ast.File, base int, needImport bool) (map[int]map[int]string, error) {
+func (g *Generator) hasDuplicatedPackage(outFile *ast.File, packageName string) (bool, error) {
+	for _, decl := range outFile.Decls {
+		switch dt := decl.(type) {
+		case *ast.GenDecl:
+			if dt.Tok != token.IMPORT {
+				continue
+			}
+			for _, spec := range dt.Specs {
+				switch st := spec.(type) {
+				case *ast.ImportSpec:
+					var name string
+					if st.Name != nil {
+						name = st.Name.Name
+					} else if pathValue, err := strconv.Unquote(st.Path.Value); err != nil {
+						return false, err
+					} else {
+						name = packagePathToName(pathValue)
+					}
+					if name == packageName {
+						return true, nil
+					}
+				}
+			}
+		}
+	}
+	return false, nil
+}
+
+func (g *Generator) getInjectChunks(model *struc.StructModel, outFile *ast.File, base int, needImport bool, structPackage string) (map[int]map[int]string, error) {
 	noReceiver := g.Conf.NoReceiver != nil && *g.Conf.NoReceiver
 	chunks := make(map[int]map[int]string)
 
@@ -496,7 +538,7 @@ func (g *Generator) getInjectChunks(model *struc.StructModel, outFile *ast.File,
 		switch dt := decl.(type) {
 		case *ast.GenDecl:
 			if needImport && dt.Tok == token.IMPORT {
-				expr := g.importExpr(model, false)
+				expr := g.importExpr(model, structPackage, false)
 				var start int
 				var end int
 				if len(dt.Specs) == 0 {
@@ -506,7 +548,7 @@ func (g *Generator) getInjectChunks(model *struc.StructModel, outFile *ast.File,
 					if dt.Rparen != token.NoPos {
 						start = int(dt.Rparen) - base
 						end = start
-						expr = "\n" + g.importExpr(model, true)
+						expr = "\n" + g.importExpr(model, structPackage, true)
 					}
 				}
 				chunks[start] = map[int]string{end: expr}
@@ -586,13 +628,18 @@ func (g *Generator) getInjectChunks(model *struc.StructModel, outFile *ast.File,
 	if needImport && !importInjected {
 		start := int(outFile.Name.End()) - base
 		end := start
-		chunks[start] = map[int]string{end: g.importExpr(model, false)}
+		chunks[start] = map[int]string{end: g.importExpr(model, structPackage, false)}
 	}
 	return chunks, nil
 }
 
-func (g *Generator) importExpr(model *struc.StructModel, forMultiline bool) string {
-	quoted := "\"" + model.PackagePath + "\"\n"
+func (g *Generator) importExpr(model *struc.StructModel, packageName string, forMultiline bool) string {
+	path := model.PackagePath
+	name := packagePathToName(path)
+	quoted := "\"" + path + "\"\n"
+	if name != packageName {
+		quoted = packageName + " " + quoted
+	}
 	if forMultiline {
 		return "\n" + quoted
 	}
@@ -703,9 +750,8 @@ func (g *Generator) writeHead(str *struc.StructModel, packageName string, needIm
 	g.writeBody("package %s\n", packageName)
 
 	if needImport {
-		g.writeBody(g.importExpr(str, false))
+		g.writeBody(g.importExpr(str, "", false))
 	}
-
 }
 
 func (g *Generator) writeConstants() {
@@ -2129,15 +2175,15 @@ func (g *Generator) noLint() string {
 func filterNotExisted(names []string, values map[string]string) []string {
 	newTypeNames := make([]string, 0)
 	var prev *string
-	for _, name := range names {
+	for i, name := range names {
 		if len(name) == 0 {
 			if prev != nil && len(*prev) > 0 {
 				newTypeNames = append(newTypeNames, name)
 			}
 		} else if _, ok := values[name]; ok {
 			newTypeNames = append(newTypeNames, name)
+			prev = &names[i]
 		}
-		prev = &name
 	}
 	return newTypeNames
 }

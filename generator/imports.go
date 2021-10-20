@@ -12,7 +12,7 @@ func badSymbol(ch rune) bool {
 		ch == '_' || ch >= utf8.RuneSelf && (unicode.IsLetter(ch)))
 }
 
-func pkgPathToName(importPath string) string {
+func packagePathToName(importPath string) string {
 	base := path.Base(importPath)
 	builder := strings.Builder{}
 	for _, r := range base {
