@@ -38,6 +38,7 @@ type Generator struct {
 	body              *bytes.Buffer
 	used              Used
 	excludedTagValues map[string]bool
+	excludedFields    map[struc.FieldName]bool
 	Constants         []string
 
 	constNames         []string
@@ -72,6 +73,8 @@ type Config struct {
 	OutBuildTags     *string
 	IncludeFieldTags *string
 	OutPackage       *string
+	Name             *string
+	ExcludeFields    *[]string
 }
 
 type ContentConfig struct {
@@ -294,6 +297,21 @@ func (g *Generator) GenerateFile(model *struc.StructModel, outFile *ast.File, ou
 		}
 	}
 
+	excludedFields := make(map[struc.FieldName]bool)
+	for _, excludes := range *g.Conf.ExcludeFields {
+		e := strings.Split(excludes, struc.ListValuesSeparator)
+		for _, exclude := range e {
+			excludedFields[struc.FieldName(exclude)] = true
+		}
+	}
+
+	g.excludedFields = make(map[struc.FieldName]bool)
+	for _, fieldName := range model.FieldNames {
+		if _, ok := excludedFields[fieldName]; ok {
+			g.excludedFields[fieldName] = true
+		}
+	}
+
 	g.constNames = make([]string, 0)
 	g.constValues = make(map[string]string)
 	g.constComments = make(map[string]string)
@@ -377,24 +395,37 @@ func (g *Generator) GenerateFile(model *struc.StructModel, outFile *ast.File, ou
 		}
 	}
 
-	if all || *g.Content.GetFieldValue {
+	getFieldValue := *g.Content.GetFieldValue
+	getFieldValueByTagValue := *g.Content.GetFieldValueByTagValue
+	getFieldValuesByTagGeneric := *g.Content.GetFieldValuesByTagGeneric
+	getFieldValuesByTag := *g.Content.GetFieldValuesByTag
+	asMap := *g.Content.AsMap
+	asTagMap := *g.Content.AsTagMap
+
+	generateManyFuncs := all || (toInt(getFieldValue)+toInt(getFieldValueByTagValue)+
+		toInt(getFieldValuesByTagGeneric)+len(getFieldValuesByTag)+toInt(asMap)+toInt(asTagMap)) > 1
+	if len(*g.Conf.Name) > 0 && generateManyFuncs {
+		return errors.New("-name not supported for multiple functions, please specify only one function")
+	}
+
+	if all || getFieldValue {
 		if err := g.addReceiverFunc(g.generateGetFieldValueFunc(model, structPackage)); err != nil {
 			return err
 		}
 	}
-	if all || *g.Content.GetFieldValueByTagValue {
+	if all || getFieldValueByTagValue {
 		if err := g.addReceiverFunc(g.generateGetFieldValueByTagValueFunc(model, structPackage)); err != nil {
 			return err
 		}
 	}
 
-	if all || (*g.Content.GetFieldValuesByTagGeneric) {
+	if all || getFieldValuesByTagGeneric {
 		if err := g.addReceiverFunc(g.generateGetFieldValuesByTagFuncGeneric(model, structPackage)); err != nil {
 			return err
 		}
 	}
 
-	if all || len(*g.Content.GetFieldValuesByTag) > 0 {
+	if all || len(getFieldValuesByTag) > 0 {
 		receiverType, funcNames, funcBodies, err := g.generateGetFieldValuesByTagFunctions(model, structPackage)
 		if err != nil {
 			return err
@@ -407,12 +438,12 @@ func (g *Generator) GenerateFile(model *struc.StructModel, outFile *ast.File, ou
 		}
 	}
 
-	if all || *g.Content.AsMap {
+	if all || asMap {
 		if err := g.addReceiverFunc(g.generateAsMapFunc(model, structPackage)); err != nil {
 			return err
 		}
 	}
-	if all || *g.Content.AsTagMap {
+	if all || asTagMap {
 		if err := g.addReceiverFunc(g.generateAsTagMapFunc(model, structPackage)); err != nil {
 			return err
 		}
@@ -456,6 +487,13 @@ func (g *Generator) GenerateFile(model *struc.StructModel, outFile *ast.File, ou
 		g.writeFunctions()
 	}
 	return nil
+}
+
+func toInt(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
 }
 
 func (g *Generator) isRewrite(outFile *ast.File, outFileInfo *token.File) bool {
@@ -1527,7 +1565,8 @@ func (g *Generator) getFieldArrayType(typeName string) string {
 }
 
 func (g *Generator) isFieldExcluded(fieldName struc.FieldName) bool {
-	return !*g.Conf.AllFields && isPrivate(fieldName)
+	_, excluded := g.excludedFields[fieldName]
+	return (!*g.Conf.AllFields && isPrivate(fieldName)) || excluded
 }
 
 func (g *Generator) generateTagsVar(typeName string, tagNames []struc.TagName) (string, string, error) {
@@ -1587,7 +1626,7 @@ func (g *Generator) generateGetFieldValueFunc(model *struc.StructModel, packageN
 	receiverVar := "v"
 	receiverRef := g.asRefIfNeed(receiverVar)
 
-	funcName := goName("GetFieldValue", *g.Conf.Export)
+	funcName := g.renameFuncByConfig(goName("GetFieldValue", *g.Conf.Export))
 
 	typeLink := g.typeName(typeName, packageName)
 
@@ -1623,7 +1662,7 @@ func (g *Generator) generateGetFieldValueByTagValueFunc(model *struc.StructModel
 		fields     = model.FieldsTagValue
 	)
 
-	funcName := goName("GetFieldValueByTagValue", *g.Conf.Export)
+	funcName := g.renameFuncByConfig(goName("GetFieldValueByTagValue", *g.Conf.Export))
 	if len(tagNames) == 0 {
 		return "", "", "", g.noTagsError(funcName)
 	}
@@ -1696,7 +1735,7 @@ func (g *Generator) generateGetFieldValuesByTagFuncGeneric(model *struc.StructMo
 		tagNames       = model.TagNames
 		fieldTagValues = model.FieldsTagValue
 	)
-	funcName := goName("GetFieldValuesByTag", *g.Conf.Export)
+	funcName := g.renameFuncByConfig(goName("GetFieldValuesByTag", *g.Conf.Export))
 	if len(tagNames) == 0 {
 		return "", "", "", g.noTagsError(funcName)
 	}
@@ -1738,6 +1777,11 @@ func (g *Generator) generateGetFieldValuesByTagFuncGeneric(model *struc.StructMo
 }
 
 func (g *Generator) generateGetFieldValuesByTagFunctions(model *struc.StructModel, alias string) (string, []string, map[string]string, error) {
+
+	getFuncName := func(funcNamePrefix string, tagName struc.TagName) string {
+		return goName(funcNamePrefix+camel(string(tagName)), *g.Conf.Export)
+	}
+
 	var (
 		typeName   = model.TypeName
 		fieldNames = model.FieldNames
@@ -1753,7 +1797,7 @@ func (g *Generator) generateGetFieldValuesByTagFunctions(model *struc.StructMode
 			if len(msg) > 0 {
 				msg += ","
 			}
-			msg += g.getFuncName(funcNamePrefix, tagName)
+			msg += getFuncName(funcNamePrefix, tagName)
 		}
 		return "", nil, nil, g.noTagsError(msg)
 	}
@@ -1767,7 +1811,7 @@ func (g *Generator) generateGetFieldValuesByTagFunctions(model *struc.StructMode
 	funcNames := make([]string, len(usedTags))
 	funcBodies := make(map[string]string, len(usedTags))
 	for i, tagName := range usedTags {
-		funcName := g.getFuncName(funcNamePrefix, tagName)
+		funcName := g.renameFuncByConfig(getFuncName(funcNamePrefix, tagName))
 		var funcBody string
 		if *g.Conf.NoReceiver {
 			funcBody = "func " + funcName + "(" + receiverVar + " *" + typeLink + ") " + resultType
@@ -1790,8 +1834,13 @@ func (g *Generator) generateGetFieldValuesByTagFunctions(model *struc.StructMode
 	return typeLink, funcNames, funcBodies, nil
 }
 
-func (g *Generator) getFuncName(funcNamePrefix string, tagName struc.TagName) string {
-	return goName(funcNamePrefix+camel(string(tagName)), *g.Conf.Export)
+func (g *Generator) renameFuncByConfig(funcName string) string {
+	if g.Conf.Name != nil && len(*g.Conf.Name) > 0 {
+		renameTo := *g.Conf.Name
+		logger.Debugw("rename func %v to %v", funcName, renameTo)
+		funcName = renameTo
+	}
+	return funcName
 }
 
 func (g *Generator) fieldValuesArrayByTag(receiverRef string, resultType string, tagName struc.TagName, fieldNames []struc.FieldName, tagFieldValues map[struc.FieldName]map[struc.TagName]struc.TagValue) string {
@@ -1895,7 +1944,7 @@ func (g *Generator) generateAsMapFunc(model *struc.StructModel, alias string) (s
 		keyType = g.getFieldType(typeName)
 	}
 
-	funcName := goName("AsMap", export)
+	funcName := g.renameFuncByConfig(goName("AsMap", export))
 	typeLink := g.typeName(typeName, alias)
 	var funcBody string
 	if *g.Conf.NoReceiver {
@@ -1927,7 +1976,7 @@ func (g *Generator) generateAsTagMapFunc(model *struc.StructModel, alias string)
 		tagNames   = model.TagNames
 		fields     = model.FieldsTagValue
 	)
-	funcName := goName("AsTagMap", *g.Conf.Export)
+	funcName := g.renameFuncByConfig(goName("AsTagMap", *g.Conf.Export))
 	if len(tagNames) == 0 {
 		return "", "", "", g.noTagsError(funcName)
 	}
@@ -2130,6 +2179,7 @@ func (g *Generator) generateConstants(str *struc.StructModel) error {
 }
 
 func (g *Generator) generateConst(constName string, constTemplate string, data ConstTemplateData) (string, error) {
+
 	add := func(first int, second int) int {
 		return first + second
 	}

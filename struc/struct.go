@@ -13,6 +13,10 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+const ReplaceableValueSeparator = "="
+const KeyValueSeparator = ":"
+const ListValuesSeparator = ","
+
 var (
 	TagParsers    = TagValueParsers{}
 	ExcludeValues = map[TagName]map[TagValue]bool{}
@@ -139,12 +143,12 @@ func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.F
 }
 
 func splitConstantName(constant string) (string, string, map[string]string, error) {
-	index := strings.Index(constant, ":")
+	index := strings.Index(constant, KeyValueSeparator)
 	if index > 0 {
 		generatingConstant := constant[:index]
 		templatePart := constant[index+1:]
 
-		index = strings.Index(templatePart, ":")
+		index = strings.Index(templatePart, KeyValueSeparator)
 		if index > 0 {
 			templateConst := templatePart[:index]
 			substitutePart := templatePart[index+1:]
@@ -162,7 +166,7 @@ func splitConstantName(constant string) (string, string, map[string]string, erro
 func ExtractReplacers(substituteParts ...string) (map[string]string, error) {
 	substitutes := make(map[string]string)
 	for _, substitutePart := range substituteParts {
-		substitutesPairs := strings.Split(substitutePart, ",")
+		substitutesPairs := strings.Split(substitutePart, ListValuesSeparator)
 		for _, substitutesPair := range substitutesPairs {
 			key, value := extractReplacer(substitutesPair)
 			if len(key) > 0 {
@@ -177,7 +181,7 @@ func ExtractReplacers(substituteParts ...string) (map[string]string, error) {
 }
 
 func extractReplacer(replacerPair string) (string, string) {
-	substitute := strings.Split(replacerPair, "=")
+	substitute := strings.Split(replacerPair, ReplaceableValueSeparator)
 	replaced := ""
 	replacer := ""
 	if len(substitute) >= 1 {

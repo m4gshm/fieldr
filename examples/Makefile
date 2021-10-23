@@ -7,17 +7,14 @@ baseMake:
 
 .PHONY: generate
 generate:
-	$(info #Generate...)
 	go generate -v ./...
 
 .PHONY: test
 test:
-	$(info #Test...)
 	go test ./...
 
 .PHONY: bench
 bench:
-	$(info #Benchmark...)
 	go test -bench . -benchtime 1s ./...
 
 .PHONY: lint-install
@@ -26,5 +23,8 @@ lint-install:
 
 .PHONY: lint
 lint: lint-install
-	$(info #Lint...)
 	golangci-lint run
+
+.PHONY: test-postgres
+test-integration:
+	go test -tags postgres ./...
