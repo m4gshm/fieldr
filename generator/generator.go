@@ -2101,18 +2101,31 @@ func (g *Generator) getFieldConstName(typeName string, fieldName struc.FieldName
 	return getFieldConstName(typeName, fieldName, isExport(fieldName, *g.Conf.Export))
 }
 
-type ConstTemplateData struct {
-	Fields        []string
-	Tags          []string
-	FieldTags     map[string][]string
-	TagValues     map[string][]string
-	TagFields     map[string][]string
-	FieldTagValue map[string]map[string]string
+func (g *Generator) generateConstants(str *struc.StructModel) error {
+	data, err := g.NewTemplateDataObject(str)
+	if err != nil {
+		return err
+	}
+
+	for _, constName := range str.Constants {
+		text, ok := str.ConstantTemplates[constName]
+		if !ok {
+			continue
+		}
+		constName = goName(constName, *g.Conf.Export)
+		var constVal string
+		if constVal, err = g.generateConst(constName, text, data); err != nil {
+			return err
+		} else if err = g.addConst(constName, constVal); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func (g *Generator) generateConstants(str *struc.StructModel) error {
+func (g *Generator) NewTemplateDataObject(str *struc.StructModel) (*TemplateDataObject, error) {
 	if len(str.Constants) == 0 {
-		return nil
+		return nil, nil
 	}
 	fields := make([]string, len(str.FieldNames))
 	tags := make([]string, len(str.TagNames))
@@ -2168,14 +2181,15 @@ func (g *Generator) generateConstants(str *struc.StructModel) error {
 		fieldTags[fld] = t
 	}
 
-	data := ConstTemplateData{
+	return &TemplateDataObject{
 		Fields:        fields,
 		Tags:          tags,
 		FieldTags:     fieldTags,
 		TagValues:     tagValues,
 		TagFields:     tagFields,
 		FieldTagValue: ftv,
-	}
+	}, nil
+}
 
 	for _, constName := range str.Constants {
 		text, ok := str.ConstantTemplates[constName]
