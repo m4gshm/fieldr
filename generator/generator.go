@@ -192,6 +192,14 @@ func (c *Config) MergeWith(src *Config, constantReplacers map[string]string) (*C
 	if len(*src.OutBuildTags) > 0 && len(*c.OutBuildTags) == 0 {
 		c.OutBuildTags = src.OutBuildTags
 	}
+
+	if len(*src.Name) > 0 && len(*c.Name) == 0 {
+		c.Name = src.Name
+	}
+
+	if len(*c.ExcludeFields) == 0 && len(*src.ExcludeFields) != 0 {
+		c.ExcludeFields = src.ExcludeFields
+	}
 	return c, nil
 }
 
