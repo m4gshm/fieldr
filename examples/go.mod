@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/Masterminds/squirrel v1.5.0
+	github.com/golangci/golangci-lint v1.42.1 // indirect
 	github.com/jackc/pgx/v4 v4.13.0
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.10.2 // indirect
