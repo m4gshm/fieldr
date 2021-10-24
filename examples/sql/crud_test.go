@@ -1,14 +1,13 @@
-//go:build postgres
-
 package sql
 
 import (
 	"database/sql"
+	"github.com/lib/pq"
+	"github.com/pressly/goose/v3"
 	"testing"
 	"time"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
-	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,12 +30,12 @@ func Test_CRUD(t *testing.T) {
 	}
 
 	var (
-		ts      = time.Now().UTC()
+		ts      = time.Now().Round(time.Second).UTC()
 		surname = "Surname"
 		name    = "Name"
 	)
-	e := &Entity{Name: name, Surname: surname, Ts: ts}
-	var newID int
+	e := &Entity{Name: name, Surname: surname, Ts: ts, Values: pq.Array([]int32{1, 2, 3, 4}).(*pq.Int32Array)}
+	var newID int32
 	newID, err = e.Store(db)
 	if err != nil {
 		t.Fatal(err)
@@ -65,6 +64,14 @@ func Test_CRUD(t *testing.T) {
 	assert.Equal(t, name, byID.Name)
 	assert.Equal(t, surname, byID.Surname)
 	assert.Equal(t, ts, byID.Ts)
+
+	byIDs, err := GetByIDs(db, id, -1)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	assert.Equal(t, *e, *(byIDs[0]))
 
 	deleted, err := byID.Delete(db)
 	if err != nil {

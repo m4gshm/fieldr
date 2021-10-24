@@ -5,34 +5,44 @@ package sql
 
 //go:generate fieldr -GetFieldValuesByTag db -ref -excludeFields ID -name insertValues
 //go:generate fieldr -GetFieldValuesByTag db -ref -name values
-//go:generate fieldr -const sql_Upsert:_upsert -const sql_Insert:_insert
-//go:generate fieldr -const sql_selectByID:_selectByID -const sql_deleteByID:_deleteByID
+//go:generate fieldr -const sqlUpsert:_upsert -const sqlInsert:_insert
+//go:generate fieldr -const sqlSelectByID:_selectByID -const sqlDeleteByID:_deleteByID
+//go:generate fieldr -const sqlSelectByIDs:_selectByIDs -constLen 100
 
 import (
 	"database/sql"
+	"github.com/lib/pq"
 	"time"
 )
 
 type Entity struct {
-	ID      int       `db:"id" pk:""`
-	Name    string    `db:"name"`
-	Surname string    `db:"surname"`
-	Ts      time.Time `db:"ts"`
+	ID      int32          `db:"id" pk:"" json:"id,omitempty"`
+	Name    string         `db:"name" json:"name,omitempty"`
+	Surname string         `db:"surname" json:"surname,omitempty"`
+	Values  *pq.Int32Array `db:"values" json:"values,omitempty"`
+	Ts      time.Time      `db:"ts" json:"ts"`
 }
 
 const (
-	TableName  = "tableName"
-	sql_Insert = "INSERT INTO \"tableName\" (name,surname,ts) VALUES ($1,$2,$3) " +
-		"RETURNING id"
-	sql_Upsert = "INSERT INTO \"tableName\" (id,name,surname,ts) VALUES " +
-		"($1,$2,$3,$4) ON CONFLICT (id) DO UPDATE SET name=$2,surname=$3,ts=$4 " +
-		"RETURNING id"
-	sql_selectByID = "SELECT id,name,surname,ts FROM \"tableName\" WHERE id = $1"
-	sql_deleteByID = "DELETE FROM \"tableName\" WHERE id = $1"
+	TableName = "tableName"
+	sqlInsert = "INSERT INTO \"tableName\" (name,surname,values,ts) VALUES " +
+		"($1,$2,$3,$4) RETURNING id"
+	sqlUpsert = "INSERT INTO \"tableName\" (id,name,surname,values,ts) VALUES " +
+		"($1,$2,$3,$4,$5) ON CONFLICT (id) DO UPDATE SET " +
+		"name=$2,surname=$3,values=$4,ts=$5 RETURNING id"
+	sqlSelectByID = "SELECT id,name,surname,values,ts FROM \"tableName\" WHERE id " +
+		"= $1"
+	sqlSelectByIDs = "SELECT id,name,surname,values,ts FROM \"tableName\" WHERE id = ANY($1::int[])"
+	sqlDeleteByID  = "DELETE FROM \"tableName\" WHERE id = $1"
 )
 
 func (v *Entity) insertValues() []interface{} {
-	return []interface{}{&v.Name, &v.Surname, &v.Ts}
+	return []interface{}{
+		&v.Name,
+		&v.Surname,
+		&v.Values,
+		&v.Ts,
+	}
 }
 
 func (v *Entity) values() []interface{} {
@@ -40,12 +50,13 @@ func (v *Entity) values() []interface{} {
 		&v.ID,
 		&v.Name,
 		&v.Surname,
+		&v.Values,
 		&v.Ts,
 	}
 }
 
-func GetByID(e *sql.DB, id int) (*Entity, error) {
-	row := e.QueryRow(sql_selectByID, id)
+func GetByID(e RowQuerier, id int32) (*Entity, error) {
+	row := e.QueryRow(sqlSelectByID, id)
 	if err := row.Err(); err != nil {
 		return nil, err
 	}
@@ -56,23 +67,42 @@ func GetByID(e *sql.DB, id int) (*Entity, error) {
 	return entity, nil
 }
 
-func (v *Entity) Store(e RowQuerier) (int, error) {
+func GetByIDs(e RowsQuerier, ids ...int32) ([]*Entity, error) {
+	rows, err := e.Query(sqlSelectByIDs, pq.Array(ids))
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*Entity, 0, len(ids))
+	for rows.Next() {
+		if err = rows.Err(); err != nil {
+			return nil, err
+		}
+		var entity Entity
+		if err := rows.Scan(entity.values()...); err != nil {
+			return nil, err
+		}
+		result = append(result, &entity)
+	}
+	return result, nil
+}
+
+func (v *Entity) Store(e RowQuerier) (int32, error) {
 	var (
 		columns []interface{}
 		sqlOp   string
 	)
 	if v.ID == 0 {
-		sqlOp = sql_Insert
+		sqlOp = sqlInsert
 		columns = v.insertValues()
 	} else {
-		sqlOp = sql_Upsert
+		sqlOp = sqlUpsert
 		columns = v.values()
 	}
 	row := e.QueryRow(sqlOp, columns...)
 	if err := row.Err(); err != nil {
 		return -1, err
 	}
-	var newID int
+	var newID int32
 	if err := row.Scan(&newID); err != nil {
 		return -1, err
 	}
@@ -83,7 +113,7 @@ func (v *Entity) Store(e RowQuerier) (int, error) {
 }
 
 func (v *Entity) Delete(e Execer) (bool, error) {
-	exec, err := e.Exec(sql_deleteByID, v.ID)
+	exec, err := e.Exec(sqlDeleteByID, v.ID)
 	if err != nil {
 		return false, err
 	}
@@ -100,4 +130,8 @@ type Execer interface {
 
 type RowQuerier interface {
 	QueryRow(string, ...interface{}) *sql.Row
+}
+
+type RowsQuerier interface {
+	Query(query string, args ...interface{}) (*sql.Rows, error)
 }

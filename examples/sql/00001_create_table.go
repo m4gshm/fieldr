@@ -16,6 +16,7 @@ func Up00001(tx *sql.Tx) error {
 	id serial constraint table_name_pk primary key,
 	name text,
 	surname text,
+	values int[],
 	ts timestamp
 );`
 	if _, err := tx.Exec(query); err != nil {

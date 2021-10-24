@@ -2191,27 +2191,17 @@ func (g *Generator) NewTemplateDataObject(str *struc.StructModel) (*TemplateData
 	}, nil
 }
 
-	for _, constName := range str.Constants {
-		text, ok := str.ConstantTemplates[constName]
-		if !ok {
-			continue
-		}
-		constName = goName(constName, *g.Conf.Export)
-		if constVal, err := g.generateConst(constName, text, data); err != nil {
-			return err
-		} else if err = g.addConst(constName, constVal); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (g *Generator) generateConst(constName string, constTemplate string, data ConstTemplateData) (string, error) {
-
+func (g *Generator) generateConst(constName string, constTemplate string, data *TemplateDataObject) (string, error) {
 	add := func(first int, second int) int {
 		return first + second
 	}
-	tmpl, err := template.New(constName).Funcs(template.FuncMap{"add": add}).Parse(constTemplate)
+	inc := func(value int) int {
+		return add(value, 1)
+	}
+	dec := func(value int) int {
+		return add(value, -1)
+	}
+	tmpl, err := template.New(constName).Funcs(template.FuncMap{"add": add, "inc": inc, "dec": dec}).Parse(constTemplate)
 	if err != nil {
 		return "", errors.Wrapf(err, "const: %s", constName)
 	}
