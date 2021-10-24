@@ -880,9 +880,9 @@ func (g *Generator) generateHead(model *struc.StructModel, all bool) error {
 		tagType    = baseType
 		tagValType = baseType
 
-		usedFieldType    = g.used.fieldType
-		usedTagType      = g.used.tagType
-		usedTagValueType = g.used.tagValueType
+		usedFieldType    = g.used.fieldType || *g.Content.EnumFields
+		usedTagType      = g.used.tagType || *g.Content.EnumTags
+		usedTagValueType = g.used.tagValueType || *g.Content.EnumTagValues
 	)
 
 	if usedFieldType {
@@ -895,8 +895,9 @@ func (g *Generator) generateHead(model *struc.StructModel, all bool) error {
 		tagValType = getTagValueType(typeName, *g.Conf.Export)
 	}
 
-	if *g.Conf.WrapType {
-		if usedFieldType {
+	wrapType := *g.Conf.WrapType
+	if wrapType {
+		if usedFieldType || *g.Content.EnumFields {
 			g.addType(fieldType, baseType)
 			if g.used.fieldArrayType {
 				g.addType(arrayType(fieldType), "[]"+fieldType)
@@ -941,7 +942,7 @@ func (g *Generator) generateHead(model *struc.StructModel, all bool) error {
 		}
 	}
 
-	if *g.Conf.WrapType {
+	if wrapType {
 		if all || *g.Content.Strings {
 			if g.used.fieldArrayType {
 				if err := g.addReceiverFunc(g.generateArrayToStringsFunc(arrayType(fieldType), baseType)); err != nil {
@@ -1846,24 +1847,29 @@ func (g *Generator) renameFuncByConfig(funcName string) string {
 func (g *Generator) fieldValuesArrayByTag(receiverRef string, resultType string, tagName struc.TagName, fieldNames []struc.FieldName, tagFieldValues map[struc.FieldName]map[struc.TagName]struc.TagValue) string {
 	fieldExpr := ""
 
-	compact := *g.Conf.Compact || g.generatedAmount(fieldNames) <= oneLineSize
-	if !compact {
-		fieldExpr += "\n"
-	}
-
+	usedFieldNames := make([]struc.FieldName, 0)
 	for _, fieldName := range fieldNames {
 		if g.isFieldExcluded(fieldName) {
 			continue
 		}
 		_, ok := tagFieldValues[fieldName][tagName]
 		if ok {
-			if compact && len(fieldExpr) > 0 {
-				fieldExpr += ", "
-			}
-			fieldExpr += receiverRef + "." + string(fieldName)
-			if !compact {
-				fieldExpr += ",\n"
-			}
+			usedFieldNames = append(usedFieldNames, fieldName)
+		}
+	}
+
+	compact := *g.Conf.Compact || g.generatedAmount(usedFieldNames) <= oneLineSize
+	if !compact {
+		fieldExpr += "\n"
+	}
+
+	for _, fieldName := range usedFieldNames {
+		if compact && len(fieldExpr) > 0 {
+			fieldExpr += ", "
+		}
+		fieldExpr += receiverRef + "." + string(fieldName)
+		if !compact {
+			fieldExpr += ",\n"
 		}
 	}
 	fieldExpr = resultType + "{" + fieldExpr + "}"

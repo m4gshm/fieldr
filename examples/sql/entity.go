@@ -21,12 +21,12 @@ type Entity struct {
 }
 
 const (
-	TableName  = "tableName" //nolint
+	TableName  = "tableName"
 	sql_Insert = "INSERT INTO \"tableName\" (name,surname,ts) VALUES ($1,$2,$3) " +
 		"RETURNING id"
 	sql_Upsert = "INSERT INTO \"tableName\" (id,name,surname,ts) VALUES " +
 		"($1,$2,$3,$4) ON CONFLICT (id) DO UPDATE SET name=$2,surname=$3,ts=$4 " +
-		"RETURNING id" //nolint
+		"RETURNING id"
 	sql_selectByID = "SELECT id,name,surname,ts FROM \"tableName\" WHERE id = $1"
 	sql_deleteByID = "DELETE FROM \"tableName\" WHERE id = $1"
 )
