@@ -1,11 +1,13 @@
+//go:build postgres
+
 package sql
 
 import (
 	"database/sql"
-	"github.com/lib/pq"
-	"github.com/pressly/goose/v3"
 	"testing"
 	"time"
+
+	"github.com/pressly/goose/v3"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/stretchr/testify/assert"
@@ -34,7 +36,7 @@ func Test_CRUD(t *testing.T) {
 		surname = "Surname"
 		name    = "Name"
 	)
-	e := &Entity{Name: name, Surname: surname, Ts: ts, Values: pq.Array([]int32{1, 2, 3, 4}).(*pq.Int32Array)}
+	e := &Entity{Name: name, Surname: surname, Ts: ts, Values: []int32{1, 2, 3, 4}}
 	var newID int32
 	newID, err = e.Store(db)
 	if err != nil {

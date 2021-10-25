@@ -40,20 +40,26 @@ func NewGeneratorConfig(flagSet *flag.FlagSet) *generator.Config {
 		HardcodeValues:   flagSet.Bool("hardcode", false, "hardcode tag values into generated variables, methods"),
 		Name:             flagSet.String("name", "", "rename generated function to defined name"),
 		ExcludeFields:    MultiVal(flagSet, "excludeFields", []string{}, "exclude values from generated function result for defined fields"),
-		ReturnRefs:       flagSet.Bool("ref", false, "return field as refs in generated methods"),
-		Export:           flagSet.Bool("export", false, "export generated types, constant, methods"),
-		NoReceiver:       flagSet.Bool("noReceiver", false, "generate no receiver-based methods for structure type"),
-		ExportVars:       flagSet.Bool("exportVars", false, "export generated variables only"),
-		AllFields:        flagSet.Bool("allFields", false, "include all fields (not only exported) in generated content"),
-		NoEmptyTag:       flagSet.Bool("noEmptyTag", false, "exclude tags without value"),
-		Compact:          flagSet.Bool("compact", false, "generate compact (in one line) array expressions"),
-		ConstLength:      flagSet.Int("constLen", generator.DefaultConstLength, "max cons length in line"),
+		TransformFieldValue: MultiVal(flagSet, "transform", []string{}, "field value transform applied to generated functions; "+
+			"format - "+transformFieldValueFormat),
+		ReturnRefs:  flagSet.Bool("ref", false, "return field as refs in generated methods"),
+		Export:      flagSet.Bool("export", false, "export generated types, constant, methods"),
+		NoReceiver:  flagSet.Bool("noReceiver", false, "generate no receiver-based methods for structure type"),
+		ExportVars:  flagSet.Bool("exportVars", false, "export generated variables only"),
+		AllFields:   flagSet.Bool("allFields", false, "include all fields (not only exported) in generated content"),
+		NoEmptyTag:  flagSet.Bool("noEmptyTag", false, "exclude tags without value"),
+		Compact:     flagSet.Bool("compact", false, "generate compact (in one line) array expressions"),
+		ConstLength: flagSet.Int("constLen", generator.DefaultConstLength, "max cons length in line"),
 		ConstReplace: MultiVal(flagSet, "constReplace", []string{}, "constant's part (ident) replacers; "+
 			"format - "+ConstReplacersFormat),
 	}
 }
 
 const ConstReplacersFormat = "replaced_ident" + struc.ReplaceableValueSeparator + "replacer_ident" + struc.ListValuesSeparator + "replaced_ident2" + struc.ReplaceableValueSeparator + "replacer_ident"
+
+var transformFieldValueFormat = "trigger" + struc.KeyValueSeparator + "trigger_value" + struc.KeyValueSeparator + "engine" +
+	struc.ReplaceableValueSeparator + "engine_format" + "; supported trigger '" + string(generator.TransformTriggerField) +
+	"', engine '" + string(generator.TransformEngineFmt) + "'"
 
 func NewGeneratorContentConfig(flagSet *flag.FlagSet) *generator.ContentConfig {
 	return &generator.ContentConfig{

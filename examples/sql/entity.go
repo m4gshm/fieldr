@@ -2,6 +2,7 @@ package sql
 
 //go:fieldr -in ../util/const_template.go -out entity.go -type Entity
 //go:fieldr -constLen 60 -constReplace tableName="tableName"
+//go:fieldr -transform field:Values:fmt=pq.Array(%v)
 
 //go:generate fieldr -GetFieldValuesByTag db -ref -excludeFields ID -name insertValues
 //go:generate fieldr -GetFieldValuesByTag db -ref -name values
@@ -11,16 +12,17 @@ package sql
 
 import (
 	"database/sql"
-	"github.com/lib/pq"
 	"time"
+
+	pq "github.com/lib/pq"
 )
 
 type Entity struct {
-	ID      int32          `db:"id" pk:"" json:"id,omitempty"`
-	Name    string         `db:"name" json:"name,omitempty"`
-	Surname string         `db:"surname" json:"surname,omitempty"`
-	Values  *pq.Int32Array `db:"values" json:"values,omitempty"`
-	Ts      time.Time      `db:"ts" json:"ts"`
+	ID      int32     `db:"id" pk:"" json:"id,omitempty"`
+	Name    string    `db:"name" json:"name,omitempty"`
+	Surname string    `db:"surname" json:"surname,omitempty"`
+	Values  []int32   `db:"values" json:"values,omitempty"`
+	Ts      time.Time `db:"ts" json:"ts"`
 }
 
 const (
@@ -40,7 +42,7 @@ func (v *Entity) insertValues() []interface{} {
 	return []interface{}{
 		&v.Name,
 		&v.Surname,
-		&v.Values,
+		pq.Array(&v.Values),
 		&v.Ts,
 	}
 }
@@ -50,7 +52,7 @@ func (v *Entity) values() []interface{} {
 		&v.ID,
 		&v.Name,
 		&v.Surname,
-		&v.Values,
+		pq.Array(&v.Values),
 		&v.Ts,
 	}
 }

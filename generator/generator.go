@@ -26,6 +26,18 @@ import (
 
 const oneLineSize = 3
 
+type TransformTrigger string
+
+const (
+	TransformTriggerField TransformTrigger = "field"
+)
+
+type TransformEngine string
+
+const (
+	TransformEngineFmt TransformEngine = "fmt"
+)
+
 type Generator struct {
 	Name string
 
@@ -35,11 +47,12 @@ type Generator struct {
 	Conf    *Config
 	Content *ContentConfig
 
-	body              *bytes.Buffer
-	used              Used
-	excludedTagValues map[string]bool
-	excludedFields    map[struc.FieldName]bool
-	Constants         []string
+	body *bytes.Buffer
+	used Used
+
+	excludedTagValues          map[string]bool
+	excludedFields             map[struc.FieldName]bool
+	transformValuesByFieldName map[struc.FieldName][]func(string) string
 
 	constNames         []string
 	constValues        map[string]string
@@ -58,23 +71,24 @@ type Generator struct {
 const DefaultConstLength = 80
 
 type Config struct {
-	Nolint           *bool
-	Export           *bool
-	NoReceiver       *bool
-	ExportVars       *bool
-	AllFields        *bool
-	ReturnRefs       *bool
-	WrapType         *bool
-	HardcodeValues   *bool
-	NoEmptyTag       *bool
-	Compact          *bool
-	ConstLength      *int
-	ConstReplace     *[]string
-	OutBuildTags     *string
-	IncludeFieldTags *string
-	OutPackage       *string
-	Name             *string
-	ExcludeFields    *[]string
+	Nolint              *bool
+	Export              *bool
+	NoReceiver          *bool
+	ExportVars          *bool
+	AllFields           *bool
+	ReturnRefs          *bool
+	WrapType            *bool
+	HardcodeValues      *bool
+	NoEmptyTag          *bool
+	Compact             *bool
+	ConstLength         *int
+	ConstReplace        *[]string
+	OutBuildTags        *string
+	IncludeFieldTags    *string
+	OutPackage          *string
+	Name                *string
+	ExcludeFields       *[]string
+	TransformFieldValue *[]string
 }
 
 type ContentConfig struct {
@@ -200,6 +214,10 @@ func (c *Config) MergeWith(src *Config, constantReplacers map[string]string) (*C
 	if len(*c.ExcludeFields) == 0 && len(*src.ExcludeFields) != 0 {
 		c.ExcludeFields = src.ExcludeFields
 	}
+
+	if len(*c.TransformFieldValue) == 0 && len(*src.TransformFieldValue) != 0 {
+		c.TransformFieldValue = src.TransformFieldValue
+	}
 	return c, nil
 }
 
@@ -319,6 +337,63 @@ func (g *Generator) GenerateFile(model *struc.StructModel, outFile *ast.File, ou
 			g.excludedFields[fieldName] = true
 		}
 	}
+
+	transformValuesByFieldName := map[struc.FieldName][]func(string) string{}
+	for _, transformValue := range *g.Conf.TransformFieldValue {
+		transforms := strings.Split(transformValue, struc.ListValuesSeparator)
+		for _, transform := range transforms {
+			transformParts := strings.Split(transform, struc.KeyValueSeparator)
+			var transformTrigger TransformTrigger
+			var transformTriggerValue string
+			var transformer string
+			if len(transformParts) == 2 {
+				transformTrigger = TransformTriggerField
+				transformTriggerValue = transformParts[0]
+				transformer = transformParts[1]
+			} else if len(transformParts) == 3 {
+				transformTrigger = TransformTrigger(transformParts[0])
+				transformTriggerValue = transformParts[1]
+				transformer = transformParts[2]
+			} else {
+				return errors.Errorf("Unsupported transformValue format '%v'", transform)
+			}
+
+			var transformerEngine TransformEngine
+			var transformerEngineData string
+			transformerParts := strings.Split(transformer, struc.ReplaceableValueSeparator)
+			if len(transformerParts) == 0 {
+				return errors.Errorf("Undefined transformer value '%v'", transform)
+			} else if len(transformerParts) == 2 {
+				transformerEngine = TransformEngine(transformerParts[0])
+				transformerEngineData = transformerParts[1]
+			} else {
+				return errors.Errorf("Unsupported transformer value '%v' from '%v'", transformerParts[0], transformer)
+			}
+
+			var transformFunc func(string) string
+			switch transformerEngine {
+			case TransformEngineFmt:
+				transformFunc = func(fieldValue string) string {
+					return fmt.Sprintf(transformerEngineData, fieldValue)
+				}
+			default:
+				return errors.Errorf("Unsupported transform engine '%v' from '%v'", transformerEngine, transform)
+			}
+
+			switch transformTrigger {
+			case TransformTriggerField:
+				fieldName := struc.FieldName(transformTriggerValue)
+				fieldNameTransformEngines, ok := transformValuesByFieldName[fieldName]
+				if !ok {
+					fieldNameTransformEngines = []func(string) string{}
+				}
+				transformValuesByFieldName[fieldName] = append(fieldNameTransformEngines, transformFunc)
+			default:
+				return errors.Errorf("Unsupported transform trigger '%v' from '%v'", transformTrigger, transform)
+			}
+		}
+	}
+	g.transformValuesByFieldName = transformValuesByFieldName
 
 	g.constNames = make([]string, 0)
 	g.constValues = make(map[string]string)
@@ -1651,7 +1726,7 @@ func (g *Generator) generateGetFieldValueFunc(model *struc.StructModel, packageN
 		if g.isFieldExcluded(fieldName) {
 			continue
 		}
-		fieldExpr := receiverRef + "." + string(fieldName)
+		fieldExpr := g.transform(fieldName, receiverRef+"."+string(fieldName))
 		funcBody += "case " + g.getFieldConstName(typeName, fieldName) + ":\n" +
 			"return " + fieldExpr + "\n"
 	}
@@ -1661,6 +1736,17 @@ func (g *Generator) generateGetFieldValueFunc(model *struc.StructModel, packageN
 		"\n}\n"
 
 	return typeLink, funcName, funcBody, nil
+}
+
+func (g *Generator) transform(fieldName struc.FieldName, fieldValue string) string {
+	if transforms, ok := g.transformValuesByFieldName[fieldName]; ok {
+		for _, t := range transforms {
+			before := fieldValue
+			fieldValue = t(fieldValue)
+			logger.Debugw("transforming field value: field %v, value before %v, after", fieldName, before, fieldValue)
+		}
+	}
+	return fieldValue
 }
 
 func (g *Generator) generateGetFieldValueByTagValueFunc(model *struc.StructModel, pkgAlias string) (string, string, string, error) {
@@ -1726,7 +1812,7 @@ func (g *Generator) generateGetFieldValueByTagValueFunc(model *struc.StructModel
 		}
 		if caseExpr != "" {
 			funcBody += "case " + caseExpr + ":\n" +
-				"return " + receiverRef + "." + string(fieldName) + "\n"
+				"return " + g.transform(fieldName, receiverRef+"."+string(fieldName)) + "\n"
 		}
 	}
 
@@ -1875,7 +1961,7 @@ func (g *Generator) fieldValuesArrayByTag(receiverRef string, resultType string,
 		if compact && len(fieldExpr) > 0 {
 			fieldExpr += ", "
 		}
-		fieldExpr += receiverRef + "." + string(fieldName)
+		fieldExpr += g.transform(fieldName, receiverRef+"."+string(fieldName))
 		if !compact {
 			fieldExpr += ",\n"
 		}
@@ -1974,7 +2060,7 @@ func (g *Generator) generateAsMapFunc(model *struc.StructModel, alias string) (s
 			continue
 		}
 
-		funcBody += g.getFieldConstName(typeName, fieldName) + ": " + receiverRef + "." + string(fieldName) + ",\n"
+		funcBody += g.getFieldConstName(typeName, fieldName) + ": " + g.transform(fieldName, receiverRef+"."+string(fieldName)) + ",\n"
 	}
 	funcBody += "" +
 		"	}\n" +
@@ -2037,7 +2123,7 @@ func (g *Generator) generateAsTagMapFunc(model *struc.StructModel, alias string)
 				if g.excludedTagValues[tagValueConstName] {
 					continue
 				}
-				funcBody += tagValueConstName + ": " + receiverRef + "." + string(fieldName) + ",\n"
+				funcBody += tagValueConstName + ": " + g.transform(fieldName, receiverRef+"."+string(fieldName)) + ",\n"
 			}
 		}
 
