@@ -63,7 +63,7 @@ var transformFieldValueFormat = "trigger" + struc.KeyValueSeparator + "trigger_v
 
 func NewGeneratorContentConfig(flagSet *flag.FlagSet) *generator.ContentConfig {
 	return &generator.ContentConfig{
-		Constants: MultiVal(flagSet, "const", []string{}, "templated constant for generating field's tag based constant; "+
+		Constants: MultiVal(flagSet, "const", []string{}, "generate constant based on template constant; "+
 			"format - consName"+struc.KeyValueSeparator+"constTemplateName"+struc.KeyValueSeparator+ConstReplacersFormat),
 		EnumFields:       flagSet.Bool("EnumFields", false, "force to generate field constants"),
 		EnumTags:         flagSet.Bool("EnumTags", false, "force to generate tag constants"),
