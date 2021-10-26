@@ -33,7 +33,7 @@ func sqlUpsert(table string, pkColumn string, columns []string, values []interfa
 		update = update.Set(columns[i], values[i])
 	}
 
-	conflictSql := fmt.Sprintf("DO ON CONFLICT (%s)", pkColumn)
+	conflictSql := fmt.Sprintf("ON CONFLICT (%s) DO", pkColumn)
 
 	return newPlaceholderWrapper(insert.Suffix(conflictSql).SuffixExpr(update), placeholder)
 }

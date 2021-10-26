@@ -21,7 +21,7 @@ func TestSqlUpsert(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, []interface{}{entity.ID, entity.Name, entity.Surname, entity.Name, entity.Surname}, values)
-	assert.Equal(t, "INSERT INTO test_table (ID,NAME,SURNAME) VALUES ($1,$2,$3) DO ON CONFLICT (ID) UPDATE   SET NAME = $4, SURNAME = $5", sql)
+	assert.Equal(t, "INSERT INTO test_table (ID,NAME,SURNAME) VALUES ($1,$2,$3) ON CONFLICT (ID) DO UPDATE   SET NAME = $4, SURNAME = $5", sql)
 }
 
 func TestSqlSelectByID(t *testing.T) {
