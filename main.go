@@ -195,6 +195,7 @@ func main() {
 			}
 		}
 	}
+
 	if err = g.GenerateFile(structModel, outFile, outFileInfo, outPkg); err != nil {
 		log.Fatalf("generate file error: %s", err)
 	}

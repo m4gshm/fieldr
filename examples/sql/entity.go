@@ -2,7 +2,7 @@ package sql
 
 //go:fieldr -in ../util/const_template.go -out entity.go -type Entity
 //go:fieldr -constLen 60 -constReplace tableName="tableName"
-//go:fieldr -transform field:Values:fmt=pq.Array(%v)
+//go:fieldr -transform type:[]int32:fmt=pq.Array(%v) -transform type:[]int:fmt=pq.Array(%v)
 
 //go:generate fieldr -GetFieldValuesByTag db -ref -excludeFields ID -name insertValues
 //go:generate fieldr -GetFieldValuesByTag db -ref -name values

@@ -25,6 +25,7 @@ var (
 type TagName string
 type TagValue string
 type FieldName string
+type FieldType string
 
 type StructModel struct {
 	TypeName          string
@@ -33,6 +34,7 @@ type StructModel struct {
 	FilePath          string
 	FieldsTagValue    map[FieldName]map[TagName]TagValue
 	FieldNames        []FieldName
+	FieldsType        map[FieldName]FieldType
 	TagNames          []TagName
 	Constants         []string
 	ConstantTemplates map[string]string
@@ -104,7 +106,7 @@ func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.F
 					for _, constName := range constNames {
 						for _, value := range nt.Values {
 							substitutes := constantSubstitutes[constName]
-							strValue, _, err := toStringValue(value, substitutes)
+							strValue, _, err := extractConstantValue(value, substitutes)
 							if err != nil {
 								log.Fatalf("cons template error, const %v, error %v", templateConst, err)
 							}
@@ -194,7 +196,7 @@ func extractReplacer(replacerPair string) (string, string) {
 	return replaced, replacer
 }
 
-func toStringValue(value ast.Expr, substitutes map[string]string) (string, token.Token, error) {
+func extractConstantValue(value ast.Expr, substitutes map[string]string) (string, token.Token, error) {
 	var strValue string
 	var kind token.Token = -1
 	switch vt := value.(type) {
@@ -202,11 +204,11 @@ func toStringValue(value ast.Expr, substitutes map[string]string) (string, token
 		strValue = vt.Value
 		kind = vt.Kind
 	case *ast.BinaryExpr:
-		x, xKind, err := toStringValue(vt.X, substitutes)
+		x, xKind, err := extractConstantValue(vt.X, substitutes)
 		if err != nil {
 			return x, xKind, err
 		}
-		y, yKind, err := toStringValue(vt.Y, substitutes)
+		y, yKind, err := extractConstantValue(vt.Y, substitutes)
 		if err != nil {
 			return y, yKind, err
 		}
@@ -278,6 +280,7 @@ func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, includedTags map[Ta
 	fields := make(map[FieldName]map[TagName]TagValue)
 
 	fieldNames := make([]FieldName, 0, len(_fields))
+	fieldsType := make(map[FieldName]FieldType, len(_fields))
 	tagNames := make([]TagName, 0)
 
 	for _, field := range _fields {
@@ -306,6 +309,11 @@ func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, includedTags map[Ta
 			}
 
 			fldName := FieldName(_fieldName.Name)
+			fType, err := asString(field.Type)
+			if err != nil {
+				log.Fatalf("field type error; %v", err)
+			}
+			fieldsType[fldName] = FieldType(fType)
 
 			fieldTagValues := make(map[TagName]TagValue)
 			fieldNames = append(fieldNames, fldName)
@@ -338,10 +346,40 @@ func handleTypeSpec(typeSpec *ast.TypeSpec, typeName string, includedTags map[Ta
 		PackagePath:    pkgPath,
 		FieldsTagValue: fields,
 		FieldNames:     fieldNames,
+		FieldsType:     fieldsType,
 		TagNames:       tagNames,
 	}
 
 	return false
+}
+
+func asString(expr ast.Expr) (string, error) {
+	if expr == nil {
+		return "", nil
+	}
+	switch et := expr.(type) {
+	case fmt.Stringer:
+		return et.String(), nil
+	case *ast.ArrayType:
+		if elt, err := asString(et.Elt); err != nil {
+			return "", err
+		} else if l, err := asString(et.Len); err != nil {
+			return "", err
+		} else {
+			return "[" + l + "]" + elt, nil
+		}
+	case *ast.SelectorExpr:
+		if x, err := asString(et.X); err != nil {
+			return "", err
+		} else if sel, err := asString(et.Sel); err != nil {
+			return "", err
+		} else {
+			return x + "." + sel, nil
+		}
+	default:
+		return "", fmt.Errorf("asString; unsupported type; expr %v, type %v ", expr, reflect.TypeOf(expr))
+	}
+
 }
 
 //func getTagValueTemplates() (map[TagName]*regexp.Regexp, error) {

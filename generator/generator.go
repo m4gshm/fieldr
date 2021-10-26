@@ -30,6 +30,7 @@ type TransformTrigger string
 
 const (
 	TransformTriggerField TransformTrigger = "field"
+	TransformTriggerType  TransformTrigger = "type"
 )
 
 type TransformEngine string
@@ -53,6 +54,7 @@ type Generator struct {
 	excludedTagValues          map[string]bool
 	excludedFields             map[struc.FieldName]bool
 	transformValuesByFieldName map[struc.FieldName][]func(string) string
+	transformValuesByFieldType map[struc.FieldType][]func(string) string
 
 	constNames         []string
 	constValues        map[string]string
@@ -339,6 +341,7 @@ func (g *Generator) GenerateFile(model *struc.StructModel, outFile *ast.File, ou
 	}
 
 	transformValuesByFieldName := map[struc.FieldName][]func(string) string{}
+	transformValuesByFieldType := map[struc.FieldType][]func(string) string{}
 	for _, transformValue := range *g.Conf.TransformFieldValue {
 		transforms := strings.Split(transformValue, struc.ListValuesSeparator)
 		for _, transform := range transforms {
@@ -388,12 +391,20 @@ func (g *Generator) GenerateFile(model *struc.StructModel, outFile *ast.File, ou
 					fieldNameTransformEngines = []func(string) string{}
 				}
 				transformValuesByFieldName[fieldName] = append(fieldNameTransformEngines, transformFunc)
+			case TransformTriggerType:
+				fieldType := struc.FieldType(transformTriggerValue)
+				fieldNameTransformEngines, ok := transformValuesByFieldType[fieldType]
+				if !ok {
+					fieldNameTransformEngines = []func(string) string{}
+				}
+				transformValuesByFieldType[fieldType] = append(fieldNameTransformEngines, transformFunc)
 			default:
 				return errors.Errorf("Unsupported transform trigger '%v' from '%v'", transformTrigger, transform)
 			}
 		}
 	}
 	g.transformValuesByFieldName = transformValuesByFieldName
+	g.transformValuesByFieldType = transformValuesByFieldType
 
 	g.constNames = make([]string, 0)
 	g.constValues = make(map[string]string)
@@ -1726,7 +1737,7 @@ func (g *Generator) generateGetFieldValueFunc(model *struc.StructModel, packageN
 		if g.isFieldExcluded(fieldName) {
 			continue
 		}
-		fieldExpr := g.transform(fieldName, receiverRef+"."+string(fieldName))
+		fieldExpr := g.transform(fieldName, model.FieldsType[fieldName], receiverRef+"."+string(fieldName))
 		funcBody += "case " + g.getFieldConstName(typeName, fieldName) + ":\n" +
 			"return " + fieldExpr + "\n"
 	}
@@ -1738,13 +1749,19 @@ func (g *Generator) generateGetFieldValueFunc(model *struc.StructModel, packageN
 	return typeLink, funcName, funcBody, nil
 }
 
-func (g *Generator) transform(fieldName struc.FieldName, fieldValue string) string {
-	if transforms, ok := g.transformValuesByFieldName[fieldName]; ok {
-		for _, t := range transforms {
-			before := fieldValue
-			fieldValue = t(fieldValue)
-			logger.Debugw("transforming field value: field %v, value before %v, after", fieldName, before, fieldValue)
-		}
+func (g *Generator) transform(fieldName struc.FieldName, fieldType struc.FieldType, fieldValue string) string {
+	var transforms []func(string) string
+	if t, ok := g.transformValuesByFieldName[fieldName]; ok {
+		transforms = t
+	} else if t, ok := g.transformValuesByFieldType[fieldType]; ok {
+		transforms = t
+	} else {
+		return fieldValue
+	}
+	for _, t := range transforms {
+		before := fieldValue
+		fieldValue = t(fieldValue)
+		logger.Debugw("transforming field value: field %v, value before %v, after", fieldName, before, fieldValue)
 	}
 	return fieldValue
 }
@@ -1811,8 +1828,9 @@ func (g *Generator) generateGetFieldValueByTagValueFunc(model *struc.StructModel
 			}
 		}
 		if caseExpr != "" {
+			fieldType := model.FieldsType[fieldName]
 			funcBody += "case " + caseExpr + ":\n" +
-				"return " + g.transform(fieldName, receiverRef+"."+string(fieldName)) + "\n"
+				"return " + g.transform(fieldName, fieldType, receiverRef+"."+string(fieldName)) + "\n"
 		}
 	}
 
@@ -1825,10 +1843,8 @@ func (g *Generator) generateGetFieldValueByTagValueFunc(model *struc.StructModel
 
 func (g *Generator) generateGetFieldValuesByTagFuncGeneric(model *struc.StructModel, alias string) (string, string, string, error) {
 	var (
-		typeName       = model.TypeName
-		fieldNames     = model.FieldNames
-		tagNames       = model.TagNames
-		fieldTagValues = model.FieldsTagValue
+		typeName = model.TypeName
+		tagNames = model.TagNames
 	)
 	funcName := g.renameFuncByConfig(goName("GetFieldValuesByTag", *g.Conf.Export))
 	if len(tagNames) == 0 {
@@ -1856,7 +1872,7 @@ func (g *Generator) generateGetFieldValuesByTagFuncGeneric(model *struc.StructMo
 	funcBody += " {" + g.noLint() + "\n" + "switch " + valVar + " {\n"
 
 	for _, tagName := range tagNames {
-		fieldExpr := g.fieldValuesArrayByTag(receiverRef, resultType, tagName, fieldNames, fieldTagValues)
+		fieldExpr := g.fieldValuesArrayByTag(receiverRef, resultType, tagName, model)
 
 		caseExpr := g.getTagConstName(typeName, tagName)
 		funcBody += "case " + caseExpr + ":\n" +
@@ -1878,12 +1894,10 @@ func (g *Generator) generateGetFieldValuesByTagFunctions(model *struc.StructMode
 	}
 
 	var (
-		typeName   = model.TypeName
-		fieldNames = model.FieldNames
-		tagNames   = model.TagNames
-		fields     = model.FieldsTagValue
+		typeName = model.TypeName
+		tagNames = model.TagNames
+		usedTags = g.getUsedTags(tagNames)
 	)
-	usedTags := g.getUsedTags(tagNames)
 
 	const funcNamePrefix = "GetFieldValuesByTag"
 	if len(tagNames) == 0 {
@@ -1915,7 +1929,7 @@ func (g *Generator) generateGetFieldValuesByTagFunctions(model *struc.StructMode
 		}
 		funcBody += " {" + g.noLint() + "\n"
 
-		fieldExpr := g.fieldValuesArrayByTag(receiverRef, resultType, tagName, fieldNames, fields)
+		fieldExpr := g.fieldValuesArrayByTag(receiverRef, resultType, tagName, model)
 
 		funcBody += "return " + fieldExpr + "\n"
 		funcBody += "}\n"
@@ -1938,7 +1952,11 @@ func (g *Generator) renameFuncByConfig(funcName string) string {
 	return funcName
 }
 
-func (g *Generator) fieldValuesArrayByTag(receiverRef string, resultType string, tagName struc.TagName, fieldNames []struc.FieldName, tagFieldValues map[struc.FieldName]map[struc.TagName]struc.TagValue) string {
+func (g *Generator) fieldValuesArrayByTag(receiverRef string, resultType string, tagName struc.TagName, model *struc.StructModel) string {
+	var (
+		fieldNames     = model.FieldNames
+		tagFieldValues = model.FieldsTagValue
+	)
 	fieldExpr := ""
 
 	usedFieldNames := make([]struc.FieldName, 0)
@@ -1961,7 +1979,8 @@ func (g *Generator) fieldValuesArrayByTag(receiverRef string, resultType string,
 		if compact && len(fieldExpr) > 0 {
 			fieldExpr += ", "
 		}
-		fieldExpr += g.transform(fieldName, receiverRef+"."+string(fieldName))
+		fieldType := model.FieldsType[fieldName]
+		fieldExpr += g.transform(fieldName, fieldType, receiverRef+"."+string(fieldName))
 		if !compact {
 			fieldExpr += ",\n"
 		}
@@ -2030,9 +2049,10 @@ func (g *Generator) generateArrayToStringsFunc(arrayTypeName string, resultType 
 }
 
 func (g *Generator) generateAsMapFunc(model *struc.StructModel, alias string) (string, string, string, error) {
-
-	typeName := model.TypeName
-	fieldNames := model.FieldNames
+	var (
+		typeName   = model.TypeName
+		fieldNames = model.FieldNames
+	)
 
 	export := *g.Conf.Export
 
@@ -2059,8 +2079,9 @@ func (g *Generator) generateAsMapFunc(model *struc.StructModel, alias string) (s
 		if g.isFieldExcluded(fieldName) {
 			continue
 		}
-
-		funcBody += g.getFieldConstName(typeName, fieldName) + ": " + g.transform(fieldName, receiverRef+"."+string(fieldName)) + ",\n"
+		fieldType := model.FieldsType[fieldName]
+		funcBody += g.getFieldConstName(typeName, fieldName) + ": " +
+			g.transform(fieldName, fieldType, receiverRef+"."+string(fieldName)) + ",\n"
 	}
 	funcBody += "" +
 		"	}\n" +
@@ -2123,7 +2144,8 @@ func (g *Generator) generateAsTagMapFunc(model *struc.StructModel, alias string)
 				if g.excludedTagValues[tagValueConstName] {
 					continue
 				}
-				funcBody += tagValueConstName + ": " + g.transform(fieldName, receiverRef+"."+string(fieldName)) + ",\n"
+				fieldType := model.FieldsType[fieldName]
+				funcBody += tagValueConstName + ": " + g.transform(fieldName, fieldType, receiverRef+"."+string(fieldName)) + ",\n"
 			}
 		}
 
