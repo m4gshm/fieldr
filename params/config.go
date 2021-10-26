@@ -78,8 +78,8 @@ func NewGeneratorContentConfig(flagSet *flag.FlagSet) *generator.ContentConfig {
 
 		GetFieldValue:              flagSet.Bool("GetFieldValue", false, "generate GetFieldValue func"),
 		GetFieldValueByTagValue:    flagSet.Bool("GetFieldValueByTagValue", false, "generate GetFieldValueByTagValue func"),
-		GetFieldValuesByTagGeneric: flagSet.Bool("GetFieldValuesByTag_", false, "generate GetFieldValuesByTag func with tagName argument"),
-		GetFieldValuesByTag:        MultiVal(flagSet, "GetFieldValuesByTag", []string{}, "generate GetFieldValuesByTag<TAG_NAME> func, omit tag name to generate generic function"),
+		GetFieldValuesByTagGeneric: flagSet.Bool("GetFieldValuesByTag_", false, "generate generic GetFieldValuesByTag func with tagName argument"),
+		GetFieldValuesByTag:        MultiVal(flagSet, "GetFieldValuesByTag", []string{}, "generate GetFieldValuesByTag<TAG_NAME> func"),
 		AsMap:                      flagSet.Bool("AsMap", false, "generate AsMap func"),
 		AsTagMap:                   flagSet.Bool("AsTagMap", false, "generate AsTagMap func"),
 
