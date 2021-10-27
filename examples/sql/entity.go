@@ -1,13 +1,12 @@
 package sql
 
-//go:fieldr -in ../util/const_template.go -out entity.go -type Entity
-//go:fieldr -constLen 100 -constReplace tableName="tableName" -transform type:[]int32:fmt=pq.Array(%v)
+//go:fieldr -in ../sql_util/postgres.go -out entity.go -type Entity
+//go:fieldr -constLen 100 -constReplace tableName="tableName"
 
-//go:generate fieldr -GetFieldValuesByTag db -ref -excludeFields ID -name insertValues
-//go:generate fieldr -GetFieldValuesByTag db -ref -name values
-//go:generate fieldr -const sqlUpsert:_upsert -const sqlInsert:_insert
-//go:generate fieldr -const sqlSelectByID:_selectByID -const sqlDeleteByID:_deleteByID
-//go:generate fieldr -const sqlSelectByIDs:_selectByIDs
+//go:generate fieldr -GetFieldValuesByTag db -ref -excludeFields ID -name insertValues -compact
+//go:generate fieldr -GetFieldValuesByTag db -ref -name values -compact
+//go:generate fieldr -const sqlUpsert:_upsert -const sqlInsert:_insert -const sqlSelectByID:_selectByID
+//go:generate fieldr -const sqlSelectByIDs:_selectByIDs -const sqlDeleteByID:_deleteByID
 
 import (
 	"database/sql"
@@ -34,22 +33,11 @@ const (
 )
 
 func (v *Entity) insertValues() []interface{} {
-	return []interface{}{
-		&v.Name,
-		&v.Surname,
-		pq.Array(&v.Values),
-		&v.Ts,
-	}
+	return []interface{}{&v.Name, &v.Surname, pq.Array(&v.Values), &v.Ts}
 }
 
 func (v *Entity) values() []interface{} {
-	return []interface{}{
-		&v.ID,
-		&v.Name,
-		&v.Surname,
-		pq.Array(&v.Values),
-		&v.Ts,
-	}
+	return []interface{}{&v.ID, &v.Name, &v.Surname, pq.Array(&v.Values), &v.Ts}
 }
 
 func GetByID(e RowQuerier, id int32) (*Entity, error) {
