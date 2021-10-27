@@ -25,6 +25,6 @@ lint-install:
 lint: lint-install
 	golangci-lint run
 
-.PHONY: test-postgres
-test-integration:
+.PHONY: integration-test
+integration-test:
 	go test -tags postgres ./...

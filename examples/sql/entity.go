@@ -1,14 +1,13 @@
 package sql
 
 //go:fieldr -in ../util/const_template.go -out entity.go -type Entity
-//go:fieldr -constLen 60 -constReplace tableName="tableName"
-//go:fieldr -transform type:[]int32:fmt=pq.Array(%v) -transform type:[]int:fmt=pq.Array(%v)
+//go:fieldr -constLen 100 -constReplace tableName="tableName" -transform type:[]int32:fmt=pq.Array(%v)
 
 //go:generate fieldr -GetFieldValuesByTag db -ref -excludeFields ID -name insertValues
 //go:generate fieldr -GetFieldValuesByTag db -ref -name values
 //go:generate fieldr -const sqlUpsert:_upsert -const sqlInsert:_insert
 //go:generate fieldr -const sqlSelectByID:_selectByID -const sqlDeleteByID:_deleteByID
-//go:generate fieldr -const sqlSelectByIDs:_selectByIDs -constLen 100
+//go:generate fieldr -const sqlSelectByIDs:_selectByIDs
 
 import (
 	"database/sql"
@@ -26,14 +25,10 @@ type Entity struct {
 }
 
 const (
-	TableName = "tableName"
-	sqlInsert = "INSERT INTO \"tableName\" (name,surname,values,ts) VALUES " +
-		"($1,$2,$3,$4) RETURNING id"
-	sqlUpsert = "INSERT INTO \"tableName\" (id,name,surname,values,ts) VALUES " +
-		"($1,$2,$3,$4,$5) ON CONFLICT (id) DO UPDATE SET " +
-		"name=$2,surname=$3,values=$4,ts=$5 RETURNING id"
-	sqlSelectByID = "SELECT id,name,surname,values,ts FROM \"tableName\" WHERE id " +
-		"= $1"
+	sqlInsert = "INSERT INTO \"tableName\" (name,surname,values,ts) VALUES ($1,$2,$3,$4) RETURNING id"
+	sqlUpsert = "INSERT INTO \"tableName\" (id,name,surname,values,ts) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (id) DO " +
+		"UPDATE SET name=$2,surname=$3,values=$4,ts=$5 RETURNING id"
+	sqlSelectByID  = "SELECT id,name,surname,values,ts FROM \"tableName\" WHERE id = $1"
 	sqlSelectByIDs = "SELECT id,name,surname,values,ts FROM \"tableName\" WHERE id = ANY($1::int[])"
 	sqlDeleteByID  = "DELETE FROM \"tableName\" WHERE id = $1"
 )
