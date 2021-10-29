@@ -231,8 +231,10 @@ func extractConstantValue(value ast.Expr, substitutes map[string]string) (string
 					yQuote = y[yLen-1:]
 				}
 
-				if xQuote == yQuote {
+				if (xQuote == "\"" || xQuote == "`") && (yQuote == "\"" || yQuote == "`") {
 					strValue = x[:xLen-1] + y[1:]
+				} else {
+					strValue = x + op.String() + y
 				}
 			}
 		} else {
