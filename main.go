@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -268,7 +267,7 @@ func loadSrcFiles(inputs []string, fileSet *token.FileSet, files []*ast.File, fi
 }
 
 func loadFile(srcFile string, fileSet *token.FileSet) (*ast.File, *packages.Package, error) {
-	isAbs := path.IsAbs(srcFile)
+	isAbs := filepath.IsAbs(srcFile)
 	if !isAbs {
 		absFile, err := filepath.Abs(srcFile)
 		if err != nil {
@@ -280,7 +279,7 @@ func loadFile(srcFile string, fileSet *token.FileSet) (*ast.File, *packages.Pack
 	if err != nil {
 		return nil, nil, err
 	}
-	dir := path.Dir(srcFile)
+	dir := filepath.Dir(srcFile)
 	pkg, err := dirPackage(dir)
 	if err != nil {
 		return nil, nil, err
