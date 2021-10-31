@@ -7,9 +7,9 @@ import (
 )
 
 var benchStruct = Struct{
-	ID:     1,
-	Name:   "Name",
-	NoJson: "NoJson",
+	BaseStruct: BaseStruct{ID: 1},
+	Name:       "Name",
+	NoJson:     "NoJson",
 }
 
 func Benchmark_TestStruct_MarshalJSON(b *testing.B) {

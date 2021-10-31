@@ -8,9 +8,9 @@ import (
 )
 
 var testStruct = Struct{
-	ID:     1,
-	Name:   "NameValue",
-	NoJson: "NoJsonValue",
+	BaseStruct: BaseStruct{ID: 1},
+	Name:       "NameValue",
+	NoJson:     "NoJsonValue",
 }
 
 func TestStruct_MarshalJSON(t *testing.T) {

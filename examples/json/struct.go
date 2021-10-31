@@ -1,7 +1,11 @@
 package json
 
+type BaseStruct struct {
+	ID int `json:"id"`
+}
+
 type Struct struct {
-	ID       int    `json:"id"`
+	BaseStruct
 	Name     string `json:"name,omitempty"`
 	Surname  string `json:"surname,omitempty"`
 	NoJson   string `json:"-"`
