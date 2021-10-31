@@ -17,7 +17,8 @@ func Up00001(tx *sql.Tx) error {
 	name text,
 	surname text,
 	values int[],
-	ts timestamp
+	ts timestamp,
+	version bigint
 );`
 	if _, err := tx.Exec(query); err != nil {
 		return err

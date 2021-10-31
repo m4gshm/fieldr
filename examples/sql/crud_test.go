@@ -1,4 +1,5 @@
-//go:build postgres
+//go:build integration
+// +build integration
 
 package sql
 

@@ -10,34 +10,45 @@ package sql
 
 import (
 	"database/sql"
+	"example/sql_base"
 	"time"
 
 	pq "github.com/lib/pq"
 )
 
+type NoDBFieldsEntity struct {
+	OldID int32
+}
+
+type BaseEntity struct {
+	ID int32 `db:"id" pk:"" json:"id,omitempty"`
+}
+
 type Entity struct {
-	ID      int32     `db:"id" pk:"" json:"id,omitempty"`
+	BaseEntity
+	NoDBFieldsEntity
 	Name    string    `db:"name" json:"name,omitempty"`
 	Surname string    `db:"surname" json:"surname,omitempty"`
 	Values  []int32   `db:"values" json:"values,omitempty"`
 	Ts      time.Time `db:"ts" json:"ts"`
+	sql_base.VersionedEntity
 }
 
 const (
-	sqlInsert = "INSERT INTO \"tableName\" (name,surname,values,ts) VALUES ($1,$2,$3,$4) RETURNING id"
-	sqlUpsert = "INSERT INTO \"tableName\" (id,name,surname,values,ts) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (id) DO " +
-		"UPDATE SET name=$2,surname=$3,values=$4,ts=$5 RETURNING id"
-	sqlSelectByID  = "SELECT id,name,surname,values,ts FROM \"tableName\" WHERE id = $1"
-	sqlSelectByIDs = "SELECT id,name,surname,values,ts FROM \"tableName\" WHERE id = ANY($1::int[])"
+	sqlInsert = "INSERT INTO \"tableName\" (name,surname,values,ts,version) VALUES ($1,$2,$3,$4,$5) RETURNING id"
+	sqlUpsert = "INSERT INTO \"tableName\" (id,name,surname,values,ts,version) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT " +
+		"(id) DO UPDATE SET name=$2,surname=$3,values=$4,ts=$5,version=$6 RETURNING id"
+	sqlSelectByID  = "SELECT id,name,surname,values,ts,version FROM \"tableName\" WHERE id = $1"
+	sqlSelectByIDs = "SELECT id,name,surname,values,ts,version FROM \"tableName\" WHERE id = ANY($1::int[])"
 	sqlDeleteByID  = "DELETE FROM \"tableName\" WHERE id = $1"
 )
 
 func (v *Entity) insertValues() []interface{} {
-	return []interface{}{&v.Name, &v.Surname, pq.Array(&v.Values), &v.Ts}
+	return []interface{}{&v.Name, &v.Surname, pq.Array(&v.Values), &v.Ts, &v.Version}
 }
 
 func (v *Entity) values() []interface{} {
-	return []interface{}{&v.ID, &v.Name, &v.Surname, pq.Array(&v.Values), &v.Ts}
+	return []interface{}{&v.ID, &v.Name, &v.Surname, pq.Array(&v.Values), &v.Ts, &v.Version}
 }
 
 func GetByID(e RowQuerier, id int32) (*Entity, error) {
@@ -63,7 +74,7 @@ func GetByIDs(e RowsQuerier, ids ...int32) ([]*Entity, error) {
 			return nil, err
 		}
 		var entity Entity
-		if err := rows.Scan(entity.values()...); err != nil {
+		if err = rows.Scan(entity.values()...); err != nil {
 			return nil, err
 		}
 		result = append(result, &entity)

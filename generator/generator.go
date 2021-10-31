@@ -3,6 +3,9 @@ package generator
 import (
 	"bytes"
 	"fmt"
+	"github.com/m4gshm/fieldr/logger"
+	"github.com/m4gshm/fieldr/struc"
+	"github.com/pkg/errors"
 	"go/ast"
 	"go/format"
 	"go/parser"
@@ -15,11 +18,6 @@ import (
 	"strings"
 	"text/template"
 	"unicode"
-	"unicode/utf8"
-
-	"github.com/m4gshm/fieldr/logger"
-	"github.com/m4gshm/fieldr/struc"
-	"github.com/pkg/errors"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -1661,7 +1659,7 @@ func (g *Generator) getFieldArrayType(typeName string) string {
 
 func (g *Generator) isFieldExcluded(fieldName struc.FieldName) bool {
 	_, excluded := g.excludedFields[fieldName]
-	return (!*g.Conf.AllFields && isPrivate(fieldName)) || excluded
+	return (!*g.Conf.AllFields && !token.IsExported(string(fieldName))) || excluded
 }
 
 func (g *Generator) generateTagsVar(typeName string, tagNames []struc.TagName) (string, string, error) {
@@ -2490,11 +2488,6 @@ func getFieldConstName(typeName string, fieldName struc.FieldName, export bool) 
 	return goName(getFieldType(typeName, export)+"_"+string(fieldName), export)
 }
 
-func isPrivate(field struc.FieldName) bool {
-	first, _ := utf8.DecodeRuneInString(string(field))
-	return unicode.IsLower(first)
-}
-
 func isExport(fieldName struc.FieldName, export bool) bool {
-	return !isPrivate(fieldName) && export
+	return !token.IsExported(string(fieldName)) && export
 }

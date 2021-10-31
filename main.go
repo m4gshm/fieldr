@@ -45,7 +45,8 @@ func main() {
 	}
 
 	fileSet := token.NewFileSet()
-	pkg := extractPackage(fileSet, *config.BuildTags, *config.PackagePattern)
+	buildTags := *config.BuildTags
+	pkg := extractPackage(fileSet, buildTags, *config.PackagePattern)
 	packageName := pkg.Name
 	files := pkg.Syntax
 	if len(files) == 0 {
@@ -59,10 +60,8 @@ func main() {
 	}
 
 	inputs := *config.Input
-	var (
-		err error
-	)
-	files, err = loadSrcFiles(inputs, fileSet, files, filePackages)
+	var err error
+	files, err = loadSrcFiles(inputs, buildTags, fileSet, files, filePackages)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -74,12 +73,11 @@ func main() {
 	sharedConfig, err := NewFilesCommentsConfig(files, constantReplacers)
 	if err != nil {
 		log.Fatal(err)
-	}
-	if sharedConfig != nil {
+	} else if sharedConfig != nil {
 		newInputs, _ := newSet(*sharedConfig.Input, inputs...)
 		if len(newInputs) > 0 {
 			//new inputs detected
-			newFiles, err := loadSrcFiles(newInputs, fileSet, make([]*ast.File, 0), filePackages)
+			newFiles, err := loadSrcFiles(newInputs, buildTags, fileSet, make([]*ast.File, 0), filePackages)
 			if err != nil {
 				log.Fatal(err)
 			} else if additionalConfig, err := NewFilesCommentsConfig(newFiles, constantReplacers); err != nil {
@@ -168,7 +166,7 @@ func main() {
 		noExists := errors.Is(err, os.ErrNotExist)
 		if noExists {
 			dir := filepath.Dir(outputName)
-			outPkg, err = dirPackage(dir)
+			outPkg, err = dirPackage(dir, nil)
 			if err != nil {
 				log.Fatal(err)
 			} else if outPkg == nil {
@@ -181,7 +179,7 @@ func main() {
 				log.Fatal("output file is directory")
 			}
 			outFileSet := token.NewFileSet()
-			outFile, outPkg, err = loadFile(outputName, outFileSet)
+			outFile, outPkg, err = loadFile(outputName, nil, outFileSet)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -252,9 +250,9 @@ func NewConfigComment(text string) (*params.Config, error) {
 	return nil, nil
 }
 
-func loadSrcFiles(inputs []string, fileSet *token.FileSet, files []*ast.File, filePackages map[*ast.File]*packages.Package) ([]*ast.File, error) {
+func loadSrcFiles(inputs []string, buildTags []string, fileSet *token.FileSet, files []*ast.File, filePackages map[*ast.File]*packages.Package) ([]*ast.File, error) {
 	for _, srcFile := range inputs {
-		file, pkg, err := loadFile(srcFile, fileSet)
+		file, pkg, err := loadFile(srcFile, buildTags, fileSet)
 		if err != nil {
 			return nil, err
 		}
@@ -266,7 +264,7 @@ func loadSrcFiles(inputs []string, fileSet *token.FileSet, files []*ast.File, fi
 	return files, nil
 }
 
-func loadFile(srcFile string, fileSet *token.FileSet) (*ast.File, *packages.Package, error) {
+func loadFile(srcFile string, buildTags []string, fileSet *token.FileSet) (*ast.File, *packages.Package, error) {
 	isAbs := filepath.IsAbs(srcFile)
 	if !isAbs {
 		absFile, err := filepath.Abs(srcFile)
@@ -280,15 +278,15 @@ func loadFile(srcFile string, fileSet *token.FileSet) (*ast.File, *packages.Pack
 		return nil, nil, err
 	}
 	dir := filepath.Dir(srcFile)
-	pkg, err := dirPackage(dir)
+	pkg, err := dirPackage(dir, buildTags)
 	if err != nil {
 		return nil, nil, err
 	}
 	return file, pkg, err
 }
 
-func dirPackage(dir string) (*packages.Package, error) {
-	pack, err := packages.Load(&packages.Config{Mode: packages.NeedModule | packages.NeedName}, dir)
+func dirPackage(dir string, buildTags []string) (*packages.Package, error) {
+	pack, err := packages.Load(&packages.Config{Mode: packageMode, BuildFlags: buildTagsArg(buildTags)}, dir)
 	if err != nil {
 		return nil, err
 	}
@@ -335,25 +333,30 @@ func isDir(name string) bool {
 	return dir
 }
 
+//const packageMode = packages.NeedSyntax | packages.NeedModule | packages.NeedName | packages.NeedImports | packages.NeedDeps | packages.NeedTypes | packages.NeedTypesInfo
+const packageMode = packages.NeedSyntax | packages.NeedModule | packages.NeedName | packages.NeedTypesInfo | packages.NeedTypes
+
 func extractPackage(fileSet *token.FileSet, buildTags []string, patterns ...string) *packages.Package {
-	packages, err := packages.Load(&packages.Config{
-		Fset:       fileSet,
-		Mode:       packages.NeedSyntax | packages.NeedModule | packages.NeedName,
-		BuildFlags: []string{fmt.Sprintf("-tags=%s", strings.Join(buildTags, " "))},
+	_packages, err := packages.Load(&packages.Config{
+		Fset: fileSet, Mode: packageMode, BuildFlags: buildTagsArg(buildTags),
 	}, patterns...)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if len(packages) != 1 {
-		log.Fatalf("error: %d packages found", len(packages))
+	if len(_packages) != 1 {
+		log.Fatalf("error: %d packages found", len(_packages))
 	}
 
-	pack := packages[0]
+	pack := _packages[0]
 
-	errors := pack.Errors
-	if len(errors) > 0 {
-		log.Fatal(errors[0])
+	errs := pack.Errors
+	if len(errs) > 0 {
+		log.Fatal(errs[0])
 	}
 
 	return pack
+}
+
+func buildTagsArg(buildTags []string) []string {
+	return []string{fmt.Sprintf("-tags=%s", strings.Join(buildTags, " "))}
 }
