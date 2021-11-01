@@ -42,12 +42,13 @@ func NewGeneratorConfig(flagSet *flag.FlagSet) *generator.Config {
 		ExcludeFields:    MultiVal(flagSet, "excludeFields", []string{}, "exclude values from generated function result for defined fields"),
 		TransformFieldValue: MultiVal(flagSet, "transform", []string{}, "field value transform applied to generated functions; "+
 			"format - "+transformFieldValueFormat),
-		ReturnRefs:  flagSet.Bool("ref", false, "return field as refs in generated methods"),
-		Export:      flagSet.Bool("export", false, "export generated types, constant, methods"),
-		NoReceiver:  flagSet.Bool("noReceiver", false, "generate no receiver-based methods for structure type"),
-		ExportVars:  flagSet.Bool("exportVars", false, "export generated variables only"),
-		AllFields:   flagSet.Bool("allFields", false, "include all fields (not only exported) in generated content"),
-		NoEmptyTag:  flagSet.Bool("noEmptyTag", false, "exclude tags without value"),
+		ReturnRefs: flagSet.Bool("ref", false, "return field as refs in generated methods"),
+		Export:     flagSet.Bool("export", false, "export generated types, constant, methods"),
+		NoReceiver: flagSet.Bool("noReceiver", false, "generate no receiver-based methods for structure type"),
+		ExportVars: flagSet.Bool("exportVars", false, "export generated variables only"),
+		AllFields:  flagSet.Bool("allFields", false, "include all fields (not only exported) in generated content"),
+		NoEmptyTag: flagSet.Bool("noEmptyTag", false, "exclude tags without value"),
+		//Deep:        flagSet.Bool("deep", false, "apply generator to nested struct fields (AsMap and etc)"),
 		Compact:     flagSet.Bool("compact", false, "generate compact (in one line) array expressions"),
 		ConstLength: flagSet.Int("constLen", generator.DefaultConstLength, "max cons length in line"),
 		ConstReplace: MultiVal(flagSet, "constReplace", []string{}, "constant's part (ident) replacers; "+
@@ -57,8 +58,10 @@ func NewGeneratorConfig(flagSet *flag.FlagSet) *generator.Config {
 
 const ConstReplacersFormat = "replaced_ident" + struc.ReplaceableValueSeparator + "replacer_ident" + struc.ListValuesSeparator + "replaced_ident2" + struc.ReplaceableValueSeparator + "replacer_ident"
 
+const transformerTriggers = "<no condition (empty)>, " + string(generator.TransformTriggerType) + ", " + string(generator.TransformTriggerField)
+
 var transformFieldValueFormat = "trigger" + struc.KeyValueSeparator + "trigger_value" + struc.KeyValueSeparator + "engine" +
-	struc.ReplaceableValueSeparator + "engine_format" + "; supported trigger '" + string(generator.TransformTriggerField) +
+	struc.ReplaceableValueSeparator + "engine_format" + "; supported triggers '" + transformerTriggers +
 	"', engine '" + string(generator.TransformEngineFmt) + "'"
 
 func NewGeneratorContentConfig(flagSet *flag.FlagSet) *generator.ContentConfig {

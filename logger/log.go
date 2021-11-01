@@ -40,3 +40,7 @@ func init() {
 func Debugw(msg string, keysAndValues ...interface{}) {
 	logger.Debugw(msg, keysAndValues...)
 }
+
+func Debugf(template string, args ...interface{}) {
+	logger.Debugf(template, args...)
+}

@@ -117,7 +117,8 @@ func main() {
 		}
 	}
 	constants := *config.Content.Constants
-	structModel, err := struc.FindStructTags(filePackages, files, fileSet, typeName, includedTagsSet, constants, constantReplacers)
+	deep := config.Generator.Deep != nil && *config.Generator.Deep
+	structModel, err := struc.FindStructTags(filePackages, files, fileSet, typeName, includedTagsSet, constants, constantReplacers, deep)
 	if err != nil {
 		log.Fatal(err)
 	} else if structModel == nil || (len(structModel.TypeName) == 0 && len(typeName) != 0) {
@@ -351,7 +352,7 @@ func extractPackage(fileSet *token.FileSet, buildTags []string, patterns ...stri
 
 	errs := pack.Errors
 	if len(errs) > 0 {
-		log.Fatal(errs[0])
+		logger.Debugf("package error; %v", errs[0])
 	}
 
 	return pack

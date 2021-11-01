@@ -27,6 +27,7 @@ const oneLineSize = 3
 type TransformTrigger string
 
 const (
+	TransformTriggerEmpty TransformTrigger = ""
 	TransformTriggerField TransformTrigger = "field"
 	TransformTriggerType  TransformTrigger = "type"
 )
@@ -53,6 +54,7 @@ type Generator struct {
 	excludedFields             map[struc.FieldName]bool
 	transformValuesByFieldName map[struc.FieldName][]func(string) string
 	transformValuesByFieldType map[struc.FieldType][]func(string) string
+	transformValues            []func(string) string
 
 	constNames         []string
 	constValues        map[string]string
@@ -81,6 +83,7 @@ type Config struct {
 	HardcodeValues      *bool
 	NoEmptyTag          *bool
 	Compact             *bool
+	Deep                *bool
 	ConstLength         *int
 	ConstReplace        *[]string
 	OutBuildTags        *string
@@ -181,6 +184,7 @@ func (c *Config) MergeWith(src *Config, constantReplacers map[string]string) (*C
 	copyTrue(src.HardcodeValues, c.HardcodeValues)
 	copyTrue(src.NoEmptyTag, c.NoEmptyTag)
 	copyTrue(src.Compact, c.Compact)
+	copyTrue(src.Deep, c.Deep)
 
 	if len(*c.IncludeFieldTags) == 0 && len(*src.IncludeFieldTags) != 0 {
 		c.IncludeFieldTags = src.IncludeFieldTags
@@ -222,7 +226,7 @@ func (c *Config) MergeWith(src *Config, constantReplacers map[string]string) (*C
 }
 
 func copyTrue(s *bool, d *bool) {
-	if *s {
+	if s != nil && *s {
 		*d = *s
 	}
 }
@@ -338,6 +342,7 @@ func (g *Generator) GenerateFile(model *struc.StructModel, outFile *ast.File, ou
 		}
 	}
 
+	var transformValues []func(string) string
 	transformValuesByFieldName := map[struc.FieldName][]func(string) string{}
 	transformValuesByFieldType := map[struc.FieldType][]func(string) string{}
 	for _, transformValue := range *g.Conf.TransformFieldValue {
@@ -347,7 +352,11 @@ func (g *Generator) GenerateFile(model *struc.StructModel, outFile *ast.File, ou
 			var transformTrigger TransformTrigger
 			var transformTriggerValue string
 			var transformer string
-			if len(transformParts) == 2 {
+			if len(transformParts) == 1 {
+				transformTrigger = TransformTriggerEmpty
+				transformTriggerValue = transformParts[0]
+				transformer = transformTriggerValue
+			} else if len(transformParts) == 2 {
 				transformTrigger = TransformTriggerField
 				transformTriggerValue = transformParts[0]
 				transformer = transformParts[1]
@@ -382,6 +391,8 @@ func (g *Generator) GenerateFile(model *struc.StructModel, outFile *ast.File, ou
 			}
 
 			switch transformTrigger {
+			case TransformTriggerEmpty:
+				transformValues = append(transformValues, transformFunc)
 			case TransformTriggerField:
 				fieldName := struc.FieldName(transformTriggerValue)
 				fieldNameTransformEngines, ok := transformValuesByFieldName[fieldName]
@@ -401,6 +412,7 @@ func (g *Generator) GenerateFile(model *struc.StructModel, outFile *ast.File, ou
 			}
 		}
 	}
+	g.transformValues = transformValues
 	g.transformValuesByFieldName = transformValuesByFieldName
 	g.transformValuesByFieldType = transformValuesByFieldType
 
@@ -531,7 +543,8 @@ func (g *Generator) GenerateFile(model *struc.StructModel, outFile *ast.File, ou
 	}
 
 	if all || asMap {
-		if err := g.addReceiverFunc(g.generateAsMapFunc(model, structPackage)); err != nil {
+		typeLink, funcName, funcBody, err := g.generateAsMapFunc(model, structPackage)
+		if err = g.addReceiverFunc(typeLink, funcName, funcBody, err); err != nil {
 			return err
 		}
 	}
@@ -1750,10 +1763,14 @@ func (g *Generator) generateGetFieldValueFunc(model *struc.StructModel, packageN
 func (g *Generator) transform(fieldName struc.FieldName, fieldType struc.FieldType, fieldValue string) string {
 	var transforms []func(string) string
 	if t, ok := g.transformValuesByFieldName[fieldName]; ok {
-		transforms = t
-	} else if t, ok := g.transformValuesByFieldType[fieldType]; ok {
-		transforms = t
+		transforms = append(transforms, t...)
+	} else if t, ok = g.transformValuesByFieldType[fieldType]; ok {
+		transforms = append(transforms, t...)
 	} else {
+		transforms = g.transformValues[:]
+	}
+
+	if len(transforms) == 0 {
 		return fieldValue
 	}
 	for _, t := range transforms {
@@ -2046,7 +2063,7 @@ func (g *Generator) generateArrayToStringsFunc(arrayTypeName string, resultType 
 	return arrayTypeName, funcName, funcBody, nil
 }
 
-func (g *Generator) generateAsMapFunc(model *struc.StructModel, alias string) (string, string, string, error) {
+func (g *Generator) generateAsMapFunc(model *struc.StructModel, pkg string) (string, string, string, error) {
 	var (
 		typeName   = model.TypeName
 		fieldNames = model.FieldNames
@@ -2063,7 +2080,7 @@ func (g *Generator) generateAsMapFunc(model *struc.StructModel, alias string) (s
 	}
 
 	funcName := g.renameFuncByConfig(goName("AsMap", export))
-	typeLink := g.typeName(typeName, alias)
+	typeLink := g.typeName(typeName, pkg)
 	var funcBody string
 	if *g.Conf.NoReceiver {
 		funcBody = "func " + funcName + "(" + receiverVar + " *" + typeLink + ") map[" + keyType + "]interface{}"
@@ -2078,8 +2095,17 @@ func (g *Generator) generateAsMapFunc(model *struc.StructModel, alias string) (s
 			continue
 		}
 		fieldType := model.FieldsType[fieldName]
-		funcBody += g.getFieldConstName(typeName, fieldName) + ": " +
-			g.transform(fieldName, fieldType, receiverRef+"."+string(fieldName)) + ",\n"
+		fieldValue := receiverRef + "." + string(fieldName)
+		//nested := model.Nested[fieldName]
+		//if nested != nil {
+		//	if *g.Conf.NoReceiver {
+		//		fieldValue = funcName + "(" + fieldValue + ")"
+		//	} else {
+		//		fieldValue += "." + funcName + "()"
+		//	}
+		//}
+		funcBody += g.getFieldConstName(typeName, fieldName) + ": " + g.transform(fieldName, fieldType, fieldValue) + ",\n"
+
 	}
 	funcBody += "" +
 		"	}\n" +

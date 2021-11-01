@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"go/types"
 	"log"
 	"reflect"
 	"regexp"
@@ -39,12 +38,60 @@ type StructModel struct {
 	TagNames          []TagName
 	Constants         []string
 	ConstantTemplates map[string]string
+	Nested            map[FieldName]*StructModel
 }
 
-func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.File, fileSet *token.FileSet, typeName string, includedTags map[TagName]interface{}, constants []string, constantReplacers map[string]string) (*StructModel, error) {
-	var (
-		structModel = new(StructModel)
+func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.File, fileSet *token.FileSet, typeName string, includedTags map[TagName]interface{}, constants []string, constantReplacers map[string]string, deep bool) (*StructModel, error) {
+	constantNameByTemplate, constantNames, constantSubstitutes, err := extractConstantNameAndTemplates(constants, constantReplacers, typeName)
+	if err != nil {
+		return nil, err
+	}
+	constantTemplates := make(map[string]string, len(constants))
 
+	structModel := new(StructModel)
+	for _, file := range files {
+		var (
+			filePackage = filePackages[file]
+			pkg         = filePackage.Types
+			fileInfo    = fileSet.File(file.Pos())
+			filePath    = fileInfo.Name()
+		)
+		if lookup := pkg.Scope().Lookup(typeName); lookup != nil {
+			if structModel, err = newBuilder(pkg, includedTags, deep).newModel(typeName, filePath, lookup.Type()); err != nil {
+				return nil, err
+			}
+		}
+
+		for _, decl := range file.Decls {
+			if genDecl, ok := decl.(*ast.GenDecl); ok {
+				for _, spec := range genDecl.Specs {
+					if typedSpec, ok := spec.(*ast.ValueSpec); ok {
+						extractConstants(typedSpec, constantNameByTemplate, constantSubstitutes, constantTemplates)
+					}
+				}
+			}
+		}
+	}
+
+	if len(constants) != len(constantTemplates) {
+		notFound := make([]string, 0)
+		for _, constant := range constants {
+			if _, ok := constantTemplates[constant]; !ok {
+				notFound = append(notFound, constant)
+			}
+		}
+		return nil, errors.New("invalid const: " + strings.Join(notFound, ", "))
+	}
+
+	if structModel != nil {
+		structModel.Constants = constantNames
+		structModel.ConstantTemplates = constantTemplates
+	}
+	return structModel, nil
+}
+
+func extractConstantNameAndTemplates(constants []string, constantReplacers map[string]string, typeName string) (map[string][]string, []string, map[string]map[string]string, error) {
+	var (
 		constantNameByTemplate = make(map[string][]string, len(constants))
 		constantNames          = make([]string, len(constants))
 		constantSubstitutes    = make(map[string]map[string]string, len(constants))
@@ -53,7 +100,7 @@ func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.F
 	for i, c := range constants {
 		templateVar, generatingConstant, substitutes, err := splitConstantName(c)
 		if err != nil {
-			return nil, err
+			return nil, nil, nil, err
 		}
 		if substitutes == nil {
 			substitutes = map[string]string{}
@@ -65,7 +112,7 @@ func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.F
 		}
 
 		if len(templateVar) == 0 {
-			return nil, fmt.Errorf("invalid constant %s, not template var", generatingConstant)
+			return nil, nil, nil, fmt.Errorf("invalid constant %s, not template var", generatingConstant)
 		}
 
 		if len(generatingConstant) == 0 {
@@ -84,54 +131,7 @@ func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.F
 			constantNameByTemplate[templateVar] = append(namesByTemplates, generatingConstant)
 		}
 	}
-	constantTemplates := make(map[string]string, len(constants))
-
-	for _, file := range files {
-		for _, decl := range file.Decls {
-			switch dt := decl.(type) {
-			case *ast.GenDecl:
-				for _, spec := range dt.Specs {
-					switch st := spec.(type) {
-					case *ast.ValueSpec:
-						extractConstants(st, constantNameByTemplate, constantSubstitutes, constantTemplates)
-					case *ast.TypeSpec:
-						var (
-							name   = identName(st.Name)
-							stType = st.Type
-						)
-						if structType, ok := stType.(*ast.StructType); ok && name == typeName {
-							var (
-								pkg      = filePackages[file]
-								fileInfo = fileSet.File(file.Pos())
-								filePath = fileInfo.Name()
-								err      error
-							)
-							if structModel, err = handleStruct(structType, includedTags, typeName, filePath, pkg); err != nil {
-								return nil, err
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if len(constants) != len(constantTemplates) {
-		notFound := make([]string, 0)
-		for _, constant := range constants {
-			_, ok := constantTemplates[constant]
-			if !ok {
-				notFound = append(notFound, constant)
-			}
-		}
-		return nil, errors.New("invalid const: " + strings.Join(notFound, ", "))
-	}
-
-	if structModel != nil {
-		structModel.Constants = constantNames
-		structModel.ConstantTemplates = constantTemplates
-	}
-	return structModel, nil
+	return constantNameByTemplate, constantNames, constantSubstitutes, nil
 }
 
 func extractConstants(valueSpec *ast.ValueSpec, constantNameByTemplate map[string][]string, constantSubstitutes map[string]map[string]string, constantTemplates map[string]string) {
@@ -160,13 +160,6 @@ func extractConstants(valueSpec *ast.ValueSpec, constantNameByTemplate map[strin
 			break //only first
 		}
 	}
-}
-
-func identName(ident *ast.Ident) string {
-	if ident == nil {
-		return ""
-	}
-	return ident.Name
 }
 
 func splitConstantName(constant string) (string, string, map[string]string, error) {
@@ -280,114 +273,6 @@ func extractConstantValue(value ast.Expr, substitutes map[string]string) (string
 		return "", kind, fmt.Errorf("unsupported constant value part %s, type %v", value, reflect.TypeOf(value))
 	}
 	return strValue, kind, nil
-}
-
-type structModelBuilder struct {
-	tags       map[TagName]map[FieldName]TagValue
-	fields     map[FieldName]map[TagName]TagValue
-	fieldNames []FieldName
-	fieldsType map[FieldName]FieldType
-	tagNames   []TagName
-
-	includedTags map[TagName]interface{}
-}
-
-func (s *structModelBuilder) populateTags(fieldName FieldName, fieldTagName TagName, fieldTagValue TagValue) {
-	tagFields, tagFieldsOk := s.tags[fieldTagName]
-	if !tagFieldsOk {
-		tagFields = make(map[FieldName]TagValue)
-		s.tags[fieldTagName] = tagFields
-		s.tagNames = append(s.tagNames, fieldTagName)
-	}
-	tagFields[fieldName] = fieldTagValue
-}
-
-func (s *structModelBuilder) populateFields(fldName FieldName, fieldTagNames []TagName, tagValues map[TagName]TagValue) {
-	fieldTagValues := newFieldTagValues(fieldTagNames, tagValues)
-	if len(fieldTagValues) > 0 {
-		s.fields[fldName] = fieldTagValues
-	}
-}
-
-func (s *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
-	numFields := typeStruct.NumFields()
-	for i := 0; i < numFields; i++ {
-		v := typeStruct.Field(i)
-		fldName := FieldName(v.Name())
-		if v.IsField() {
-			t := v.Type()
-			if v.Embedded() {
-				if err := s.populateByType(t); err != nil {
-					return err
-				}
-			} else {
-				tag := typeStruct.Tag(i)
-				s.fieldNames = append(s.fieldNames, fldName)
-				s.fieldsType[fldName] = FieldType(t.String())
-				tagValues, fieldTagNames := parseTagValues(tag, s.includedTags)
-				s.populateFields(fldName, fieldTagNames, tagValues)
-				for _, fieldTagName := range fieldTagNames {
-					s.populateTags(fldName, fieldTagName, tagValues[fieldTagName])
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func (s *structModelBuilder) populateByExpressionType(expr ast.Expr, pkg *packages.Package) error {
-	typeAndVal := pkg.TypesInfo.Types[expr]
-	if typeAndVal.IsType() {
-		if err := s.populateByType(typeAndVal.Type); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *structModelBuilder) populateByType(t types.Type) error {
-	switch tt := t.(type) {
-	case *types.Struct:
-		return s.populateByStruct(tt)
-	case *types.Named:
-		underlying := tt.Underlying()
-		return s.populateByType(underlying)
-	default:
-		return fmt.Errorf("unsupported type %s, type %v", tt, reflect.TypeOf(tt))
-	}
-}
-func (s *structModelBuilder) newModel(typeName string, filePath string, structType *ast.StructType, pkg *packages.Package) (*StructModel, error) {
-
-	if err := s.populateByExpressionType(structType, pkg); err != nil {
-		return nil, err
-	}
-
-	return &StructModel{
-		TypeName:       typeName,
-		FilePath:       filePath,
-		PackageName:    pkg.Name,
-		PackagePath:    pkg.PkgPath,
-		FieldsTagValue: s.fields,
-		FieldNames:     s.fieldNames,
-		FieldsType:     s.fieldsType,
-		TagNames:       s.tagNames,
-	}, nil
-}
-
-func handleStruct(structType *ast.StructType, includedTags map[TagName]interface{}, typeName string, filePath string, pkg *packages.Package) (outStructModel *StructModel, err error) {
-	builder := newBuilder(includedTags)
-	return builder.newModel(typeName, filePath, structType, pkg)
-}
-
-func newBuilder(includedTags map[TagName]interface{}) structModelBuilder {
-	return structModelBuilder{
-		tags:         map[TagName]map[FieldName]TagValue{},
-		fields:       map[FieldName]map[TagName]TagValue{},
-		fieldNames:   []FieldName{},
-		fieldsType:   map[FieldName]FieldType{},
-		tagNames:     []TagName{},
-		includedTags: includedTags,
-	}
 }
 
 func newFieldTagValues(fieldTagNames []TagName, tagValues map[TagName]TagValue) map[TagName]TagValue {
