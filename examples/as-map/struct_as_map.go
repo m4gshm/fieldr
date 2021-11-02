@@ -44,11 +44,11 @@ func (v *Struct) AsTagMap(tag StructTag) map[StructTagValue]interface{} {
 	switch tag {
 	case StructTag_toMap:
 		return map[StructTagValue]interface{}{
-			structTagValue_toMap_ID:      v.ID,
-			structTagValue_toMap_TS:      v.TS,
-			structTagValue_toMap_Name:    v.Name,
-			structTagValue_toMap_Surname: v.Surname,
-			structTagValue_toMap_NoTag:   v.NoTag,
+			structTagValue_toMap_ID:      &v.ID,
+			structTagValue_toMap_TS:      &v.TS,
+			structTagValue_toMap_Name:    &v.Name,
+			structTagValue_toMap_Surname: &v.Surname,
+			structTagValue_toMap_NoTag:   &v.NoTag,
 			structTagValue_toMap_Address: v.Address.AsTagMap(EmbeddedAddressTag(tag)),
 		}
 	}
