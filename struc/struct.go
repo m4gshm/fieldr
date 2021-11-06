@@ -22,10 +22,10 @@ var (
 	ExcludeValues = map[TagName]map[TagValue]bool{}
 )
 
-type TagName string
-type TagValue string
-type FieldName string
-type FieldType string
+type TagName = string
+type TagValue = string
+type FieldName = string
+type FieldType = string
 
 type StructModel struct {
 	TypeName          string
@@ -33,6 +33,7 @@ type StructModel struct {
 	PackagePath       string
 	FilePath          string
 	FieldsTagValue    map[FieldName]map[TagName]TagValue
+	TagsFieldValue    map[TagName]map[FieldName]TagValue
 	FieldNames        []FieldName
 	FieldsType        map[FieldName]FieldType
 	TagNames          []TagName
@@ -41,7 +42,7 @@ type StructModel struct {
 	Nested            map[FieldName]*StructModel
 }
 
-func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.File, fileSet *token.FileSet, typeName string, includedTags map[TagName]interface{}, constants []string, constantReplacers map[string]string, deep bool) (*StructModel, error) {
+func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.File, fileSet *token.FileSet, typeName string, includedTags map[TagName]interface{}, constants []string, constantReplacers map[string]string) (*StructModel, error) {
 	constantNameByTemplate, constantNames, constantSubstitutes, err := extractConstantNameAndTemplates(constants, constantReplacers, typeName)
 	if err != nil {
 		return nil, err
@@ -57,7 +58,9 @@ func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.F
 			filePath    = fileInfo.Name()
 		)
 		if lookup := pkg.Scope().Lookup(typeName); lookup != nil {
-			if structModel, err = newBuilder(pkg, includedTags, deep).newModel(typeName, filePath, lookup.Type()); err != nil {
+			if builder, err := newBuilder(pkg, nil, typeName, filePath, includedTags, handledStructs{}); err != nil {
+				return nil, err
+			} else if structModel, err = builder.newModel(lookup.Type()); err != nil {
 				return nil, err
 			}
 		}

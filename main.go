@@ -117,8 +117,7 @@ func main() {
 		}
 	}
 	constants := *config.Content.Constants
-	deep := config.Generator.Deep != nil && *config.Generator.Deep
-	structModel, err := struc.FindStructTags(filePackages, files, fileSet, typeName, includedTagsSet, constants, constantReplacers, deep)
+	structModel, err := struc.FindStructTags(filePackages, files, fileSet, typeName, includedTagsSet, constants, constantReplacers)
 	if err != nil {
 		log.Fatal(err)
 	} else if structModel == nil || (len(structModel.TypeName) == 0 && len(typeName) != 0) {

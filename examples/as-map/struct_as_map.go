@@ -1,55 +1,68 @@
 package as_map
 
 type (
-	Tag            string
 	StructField    string
 	StructTag      string
 	StructTagValue string
 )
 
 const (
-	structField_ID              = StructField("ID")
-	structField_TS              = StructField("TS")
-	structField_Name            = StructField("Name")
-	structField_Surname         = StructField("Surname")
-	StructField_noExport        = StructField("noExport")
-	structField_NoTag           = StructField("NoTag")
-	structField_IgnoredInTagMap = StructField("IgnoredInTagMap")
-	structField_Address         = StructField("Address")
+	StructFieldID                  = StructField("ID")
+	StructFieldTS                  = StructField("TS")
+	StructFieldName                = StructField("Name")
+	StructFieldSurname             = StructField("Surname")
+	structFieldNoExport            = StructField("noExport") //nolint
+	StructFieldNoTag               = StructField("NoTag")
+	StructFieldIgnoredInTagMap     = StructField("IgnoredInTagMap")
+	StructFieldAddress             = StructField("Address")
+	StructFieldFlatNoPrefix        = StructField("FlatNoPrefix")
+	StructFieldFlatNoPrefixCardNum = StructField("FlatNoPrefix.CardNum")
+	StructFieldFlatNoPrefixBank    = StructField("FlatNoPrefix.Bank")
+	StructFieldFlatPrefix          = StructField("FlatPrefix")
+	StructFieldFlatPrefixCardNum   = StructField("FlatPrefix.CardNum")
+	StructFieldFlatPrefixBank      = StructField("FlatPrefix.Bank")
 
-	StructTag_toMap = StructTag("toMap")
+	StructTagToMap = StructTag("toMap")
 
-	structTagValue_toMap_ID       = StructTagValue("id")
-	structTagValue_toMap_TS       = StructTagValue("ts")
-	structTagValue_toMap_Name     = StructTagValue("name")
-	structTagValue_toMap_Surname  = StructTagValue("surname")
-	StructTagValue_toMap_noExport = StructTagValue("no_export")
-	structTagValue_toMap_NoTag    = StructTagValue("NoTag") //empty tag
-	structTagValue_toMap_Address  = StructTagValue("address")
+	StructTagValueToMapID           = StructTagValue("id")
+	StructTagValueToMapTS           = StructTagValue("ts")
+	StructTagValueToMapName         = StructTagValue("name")
+	StructTagValueToMapSurname      = StructTagValue("surname")
+	structTagValueToMapNoExport     = StructTagValue("no_export") //nolint
+	StructTagValueToMapNoTag        = StructTagValue("NoTag")     //empty tag
+	StructTagValueToMapAddress      = StructTagValue("address")
+	StructTagValueToMapFlatNoPrefix = StructTagValue("FlatNoPrefix") //empty tag
+	StructTagValueToMapFlatPrefix   = StructTagValue("flat")
 )
 
 func (v *Struct) AsMap() map[StructField]interface{} {
 	return map[StructField]interface{}{
-		structField_ID:              v.ID,
-		structField_TS:              v.TS,
-		structField_Name:            v.Name,
-		structField_Surname:         v.Surname,
-		structField_NoTag:           v.NoTag,
-		structField_IgnoredInTagMap: v.IgnoredInTagMap,
-		structField_Address:         v.Address.AsMap(),
+		StructFieldID:                  v.ID,
+		StructFieldTS:                  v.TS,
+		StructFieldName:                v.Name,
+		StructFieldSurname:             v.Surname,
+		StructFieldNoTag:               v.NoTag,
+		StructFieldIgnoredInTagMap:     v.IgnoredInTagMap,
+		StructFieldAddress:             v.Address.AsMap(),
+		StructFieldFlatNoPrefixCardNum: v.FlatNoPrefix.CardNum,
+		StructFieldFlatNoPrefixBank:    v.FlatNoPrefix.Bank,
+		StructFieldFlatPrefixCardNum:   v.FlatPrefix.CardNum,
+		StructFieldFlatPrefixBank:      v.FlatPrefix.Bank,
 	}
 }
 
 func (v *Struct) AsTagMap(tag StructTag) map[StructTagValue]interface{} {
 	switch tag {
-	case StructTag_toMap:
+	case StructTagToMap:
 		return map[StructTagValue]interface{}{
-			structTagValue_toMap_ID:      &v.ID,
-			structTagValue_toMap_TS:      &v.TS,
-			structTagValue_toMap_Name:    &v.Name,
-			structTagValue_toMap_Surname: &v.Surname,
-			structTagValue_toMap_NoTag:   &v.NoTag,
-			structTagValue_toMap_Address: v.Address.AsTagMap(EmbeddedAddressTag(tag)),
+			StructTagValueToMapID:           &v.ID,
+			StructTagValueToMapTS:           &v.TS,
+			StructTagValueToMapName:         &v.Name,
+			StructTagValueToMapSurname:      &v.Surname,
+			StructTagValueToMapNoTag:        &v.NoTag,
+			StructTagValueToMapAddress:      v.Address.AsTagMap(EmbeddedAddressTag(tag)),
+			StructTagValueToMapFlatNoPrefix: &v.FlatNoPrefix,
+			StructTagValueToMapFlatPrefix:   &v.FlatPrefix,
 		}
 	}
 	return nil

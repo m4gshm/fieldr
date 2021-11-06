@@ -9,28 +9,28 @@ type (
 )
 
 const (
-	embeddedAddressField_ZipCode     = EmbeddedAddressField("ZipCode")
-	embeddedAddressField_AddressLine = EmbeddedAddressField("AddressLine")
+	EmbeddedAddressFieldZipCode     = EmbeddedAddressField("ZipCode")
+	EmbeddedAddressFieldAddressLine = EmbeddedAddressField("AddressLine")
 
-	EmbeddedAddressTag_toMap = EmbeddedAddressTag("toMap")
+	EmbeddedAddressTagToMap = EmbeddedAddressTag("toMap")
 
-	embeddedAddressTagValue_toMap_ZipCode     = EmbeddedAddressTagValue("zip_code")
-	embeddedAddressTagValue_toMap_AddressLine = EmbeddedAddressTagValue("address_line")
+	EmbeddedAddressTagValueToMapZipCode     = EmbeddedAddressTagValue("zip_code")
+	EmbeddedAddressTagValueToMapAddressLine = EmbeddedAddressTagValue("address_line")
 )
 
 func (v *EmbeddedAddress) AsMap() map[EmbeddedAddressField]interface{} {
 	return map[EmbeddedAddressField]interface{}{
-		embeddedAddressField_ZipCode:     v.ZipCode,
-		embeddedAddressField_AddressLine: v.AddressLine,
+		EmbeddedAddressFieldZipCode:     v.ZipCode,
+		EmbeddedAddressFieldAddressLine: v.AddressLine,
 	}
 }
 
 func (v *EmbeddedAddress) AsTagMap(tag EmbeddedAddressTag) map[EmbeddedAddressTagValue]interface{} {
 	switch tag {
-	case EmbeddedAddressTag_toMap:
+	case EmbeddedAddressTagToMap:
 		return map[EmbeddedAddressTagValue]interface{}{
-			embeddedAddressTagValue_toMap_ZipCode:     v.ZipCode,
-			embeddedAddressTagValue_toMap_AddressLine: v.AddressLine,
+			EmbeddedAddressTagValueToMapZipCode:     v.ZipCode,
+			EmbeddedAddressTagValueToMapAddressLine: v.AddressLine,
 		}
 	}
 	return nil

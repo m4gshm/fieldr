@@ -4,49 +4,60 @@ import (
 	"fmt"
 	"go/types"
 	"reflect"
+
+	"github.com/m4gshm/fieldr/logger"
 )
 
-type structModelBuilder struct {
-	tags       map[TagName]map[FieldName]TagValue
-	fields     map[FieldName]map[TagName]TagValue
-	fieldNames []FieldName
-	fieldsType map[FieldName]FieldType
-	tagNames   []TagName
+type handledStructs = map[types.Type]*StructModel
 
+type structModelBuilder struct {
+	model        *StructModel
 	includedTags map[TagName]interface{}
 	deep         bool
-	nested       map[FieldName]*StructModel
 	pkg          *types.Package
+	loopControl  handledStructs
 }
 
-func newBuilder(pkg *types.Package, includedTags map[TagName]interface{}, deep bool) *structModelBuilder {
-	return &structModelBuilder{
-		tags:         map[TagName]map[FieldName]TagValue{},
-		fields:       map[FieldName]map[TagName]TagValue{},
-		fieldNames:   []FieldName{},
-		fieldsType:   map[FieldName]FieldType{},
-		tagNames:     []TagName{},
-		nested:       map[FieldName]*StructModel{},
-		includedTags: includedTags,
-		deep:         deep,
-		pkg:          pkg,
+func newBuilder(pkg *types.Package, typ types.Type, typeName string, filePath string, includedTags map[TagName]interface{}, loopControl handledStructs) (*structModelBuilder, error) {
+	if _, ok := loopControl[typ]; ok {
+		return nil, fmt.Errorf("already handled type %v", typeName)
 	}
+	model := &StructModel{
+		TypeName:       typeName,
+		FilePath:       filePath,
+		PackageName:    pkg.Name(),
+		PackagePath:    pkg.Path(),
+		FieldsTagValue: map[FieldName]map[TagName]TagValue{},
+		TagsFieldValue: map[TagName]map[FieldName]TagValue{},
+		FieldNames:     []FieldName{},
+		FieldsType:     map[FieldName]FieldType{},
+		TagNames:       []TagName{},
+		Nested:         map[FieldName]*StructModel{},
+	}
+	loopControl[typ] = model
+	return &structModelBuilder{
+		model:        model,
+		includedTags: includedTags,
+		deep:         true,
+		pkg:          pkg,
+		loopControl:  loopControl,
+	}, nil
 }
 
-func (b *structModelBuilder) populateTags(fieldName FieldName, fieldTagName TagName, fieldTagValue TagValue) {
-	tagFields, tagFieldsOk := b.tags[fieldTagName]
+func (b *structModelBuilder) populateTags(fieldName FieldName, tagName TagName, tagValue TagValue) {
+	tagFields, tagFieldsOk := b.model.TagsFieldValue[tagName]
 	if !tagFieldsOk {
 		tagFields = make(map[FieldName]TagValue)
-		b.tags[fieldTagName] = tagFields
-		b.tagNames = append(b.tagNames, fieldTagName)
+		b.model.TagsFieldValue[tagName] = tagFields
+		b.model.TagNames = append(b.model.TagNames, tagName)
 	}
-	tagFields[fieldName] = fieldTagValue
+	tagFields[fieldName] = tagValue
 }
 
 func (b *structModelBuilder) populateFields(fldName FieldName, fieldTagNames []TagName, tagValues map[TagName]TagValue) {
 	fieldTagValues := newFieldTagValues(fieldTagNames, tagValues)
 	if len(fieldTagValues) > 0 {
-		b.fields[fldName] = fieldTagValues
+		b.model.FieldsTagValue[fldName] = fieldTagValues
 	}
 }
 
@@ -63,7 +74,7 @@ func (b *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
 				}
 			} else {
 				tag := typeStruct.Tag(i)
-				b.fieldNames = append(b.fieldNames, fldName)
+				b.model.FieldNames = append(b.model.FieldNames, fldName)
 
 				tagValues, fieldTagNames := parseTagValues(tag, b.includedTags)
 				b.populateFields(fldName, fieldTagNames, tagValues)
@@ -86,16 +97,21 @@ func (b *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
 						fieldTypeStr = pkg.Name() + "." + typeName
 					}
 					if b.deep {
-						nestedBuilder := newBuilder(pkg, b.includedTags, b.deep)
-						if err := nestedBuilder.populateByType(fieldTypeNamed); err != nil {
+						if model, ok := b.loopControl[fieldTypeNamed]; ok {
+							logger.Debugf("found handled type %v", typeName)
+							b.model.Nested[fldName] = model
+						} else if nestedBuilder, err := newBuilder(pkg, fieldTypeNamed, typeName, "", b.includedTags, b.loopControl); err != nil {
+							return err
+						} else if err = nestedBuilder.populateByType(fieldTypeNamed); err != nil {
 							return fmt.Errorf("nested field %v.%v; %w", typeName, fldName, err)
+						} else {
+							model := nestedBuilder.getModel()
+							b.model.Nested[fldName] = model
 						}
-						model := nestedBuilder.getModel(typeName, "")
-						b.nested[fldName] = model
 					}
 				}
 
-				b.fieldsType[fldName] = FieldType(fieldTypeStr)
+				b.model.FieldsType[fldName] = FieldType(fieldTypeStr)
 			}
 		} else {
 			return fmt.Errorf("unexpected struct element, must be field, value %v, type %v", fieldVar, reflect.TypeOf(fieldVar))
@@ -130,23 +146,13 @@ func (b *structModelBuilder) populateByType(t types.Type) error {
 	}
 }
 
-func (b *structModelBuilder) newModel(typeName string, filePath string, t types.Type) (*StructModel, error) {
+func (b *structModelBuilder) newModel(t types.Type) (*StructModel, error) {
 	if err := b.populateByType(t); err != nil {
 		return nil, err
 	}
-	return b.getModel(typeName, filePath), nil
+	return b.getModel(), nil
 }
 
-func (b *structModelBuilder) getModel(typeName string, filePath string) *StructModel {
-	return &StructModel{
-		TypeName:       typeName,
-		FilePath:       filePath,
-		PackageName:    b.pkg.Name(),
-		PackagePath:    b.pkg.Path(),
-		FieldsTagValue: b.fields,
-		FieldNames:     b.fieldNames,
-		FieldsType:     b.fieldsType,
-		TagNames:       b.tagNames,
-		Nested:         b.nested,
-	}
+func (b *structModelBuilder) getModel() *StructModel {
+	return b.model
 }

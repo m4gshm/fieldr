@@ -3,86 +3,86 @@
 package noarg
 
 const (
-	structField_ID              = "ID"
-	structField_Name            = "Name"
-	structField_Surname         = "Surname"
-	structField_noExport        = "noExport"
-	structField_NoTag           = "NoTag"
-	structField_IgnoredInTagMap = "IgnoredInTagMap"
+	structFieldID              = "ID"
+	structFieldName            = "Name"
+	structFieldSurname         = "Surname"
+	structFieldNoExport        = "noExport"
+	structFieldNoTag           = "NoTag"
+	structFieldIgnoredInTagMap = "IgnoredInTagMap"
 
-	structTag_toMap = "toMap"
+	structTagToMap = "toMap"
 
-	structTagValue_toMap_ID       = "id"
-	structTagValue_toMap_Name     = "name"
-	structTagValue_toMap_Surname  = "surname"
-	structTagValue_toMap_noExport = "no_export"
-	structTagValue_toMap_NoTag    = "NoTag" //empty tag
+	structTagValueToMapID       = "id"
+	structTagValueToMapName     = "name"
+	structTagValueToMapSurname  = "surname"
+	structTagValueToMapNoExport = "no_export"
+	structTagValueToMapNoTag    = "NoTag" //empty tag
 )
 
 var (
-	struct_Fields = []string{
-		structField_ID,
-		structField_Name,
-		structField_Surname,
-		structField_NoTag,
-		structField_IgnoredInTagMap,
+	structFields = []string{
+		structFieldID,
+		structFieldName,
+		structFieldSurname,
+		structFieldNoTag,
+		structFieldIgnoredInTagMap,
 	}
 
-	struct_Tags = []string{structTag_toMap}
+	structTags = []string{structTagToMap}
 
-	struct_FieldTags = map[string][]string{
-		structField_ID:              []string{structTag_toMap},
-		structField_Name:            []string{structTag_toMap},
-		structField_Surname:         []string{structTag_toMap},
-		structField_NoTag:           []string{structTag_toMap},
-		structField_IgnoredInTagMap: []string{},
+	structFieldTags = map[string][]string{
+		structFieldID:              []string{structTagToMap},
+		structFieldName:            []string{structTagToMap},
+		structFieldSurname:         []string{structTagToMap},
+		structFieldNoTag:           []string{structTagToMap},
+		structFieldIgnoredInTagMap: []string{},
 	}
 
-	struct_TagValues_toMap = []string{
-		structTagValue_toMap_ID,
-		structTagValue_toMap_Name,
-		structTagValue_toMap_Surname,
-		structTagValue_toMap_NoTag,
+	structTagValuesToMap = []string{
+		structTagValueToMapID,
+		structTagValueToMapName,
+		structTagValueToMapSurname,
+		structTagValueToMapNoTag,
 	}
 
-	struct_TagValues = map[string][]string{
-		structTag_toMap: []string{
-			structTagValue_toMap_ID,
-			structTagValue_toMap_Name,
-			structTagValue_toMap_Surname,
-			structTagValue_toMap_NoTag,
+	structTagValues = map[string][]string{
+		structTagToMap: []string{
+			structTagValueToMapID,
+			structTagValueToMapName,
+			structTagValueToMapSurname,
+			structTagValueToMapNoTag,
 		},
 	}
 
-	struct_TagFields = map[string][]string{
-		structTag_toMap: []string{
-			structField_ID,
-			structField_Name,
-			structField_Surname,
-			structField_NoTag,
+	structTagFields = map[string][]string{
+		structTagToMap: []string{
+			structFieldID,
+			structFieldName,
+			structFieldSurname,
+			structFieldNoTag,
 		},
 	}
 
-	struct_FieldTagValue = map[string]map[string]string{
-		structField_ID:              map[string]string{structTag_toMap: structTagValue_toMap_ID},
-		structField_Name:            map[string]string{structTag_toMap: structTagValue_toMap_Name},
-		structField_Surname:         map[string]string{structTag_toMap: structTagValue_toMap_Surname},
-		structField_NoTag:           map[string]string{structTag_toMap: structTagValue_toMap_NoTag},
-		structField_IgnoredInTagMap: map[string]string{},
+	structFieldTagValue = map[string]map[string]string{
+		structFieldID:              map[string]string{structTagToMap: structTagValueToMapID},
+		structFieldName:            map[string]string{structTagToMap: structTagValueToMapName},
+		structFieldSurname:         map[string]string{structTagToMap: structTagValueToMapSurname},
+		structFieldNoTag:           map[string]string{structTagToMap: structTagValueToMapNoTag},
+		structFieldIgnoredInTagMap: map[string]string{},
 	}
 )
 
 func (v *Struct) getFieldValue(field string) interface{} {
 	switch field {
-	case structField_ID:
+	case structFieldID:
 		return v.ID
-	case structField_Name:
+	case structFieldName:
 		return v.Name
-	case structField_Surname:
+	case structFieldSurname:
 		return v.Surname
-	case structField_NoTag:
+	case structFieldNoTag:
 		return v.NoTag
-	case structField_IgnoredInTagMap:
+	case structFieldIgnoredInTagMap:
 		return v.IgnoredInTagMap
 	}
 	return nil
@@ -90,13 +90,13 @@ func (v *Struct) getFieldValue(field string) interface{} {
 
 func (v *Struct) getFieldValueByTagValue(tag string) interface{} {
 	switch tag {
-	case structTagValue_toMap_ID:
+	case structTagValueToMapID:
 		return v.ID
-	case structTagValue_toMap_Name:
+	case structTagValueToMapName:
 		return v.Name
-	case structTagValue_toMap_Surname:
+	case structTagValueToMapSurname:
 		return v.Surname
-	case structTagValue_toMap_NoTag:
+	case structTagValueToMapNoTag:
 		return v.NoTag
 	}
 	return nil
@@ -104,7 +104,7 @@ func (v *Struct) getFieldValueByTagValue(tag string) interface{} {
 
 func (v *Struct) getFieldValuesByTag(tag string) []interface{} {
 	switch tag {
-	case structTag_toMap:
+	case structTagToMap:
 		return []interface{}{
 			v.ID,
 			v.Name,
@@ -126,22 +126,22 @@ func (v *Struct) getFieldValuesByTagToMap() []interface{} {
 
 func (v *Struct) asMap() map[string]interface{} {
 	return map[string]interface{}{
-		structField_ID:              v.ID,
-		structField_Name:            v.Name,
-		structField_Surname:         v.Surname,
-		structField_NoTag:           v.NoTag,
-		structField_IgnoredInTagMap: v.IgnoredInTagMap,
+		structFieldID:              v.ID,
+		structFieldName:            v.Name,
+		structFieldSurname:         v.Surname,
+		structFieldNoTag:           v.NoTag,
+		structFieldIgnoredInTagMap: v.IgnoredInTagMap,
 	}
 }
 
 func (v *Struct) asTagMap(tag string) map[string]interface{} {
 	switch tag {
-	case structTag_toMap:
+	case structTagToMap:
 		return map[string]interface{}{
-			structTagValue_toMap_ID:      v.ID,
-			structTagValue_toMap_Name:    v.Name,
-			structTagValue_toMap_Surname: v.Surname,
-			structTagValue_toMap_NoTag:   v.NoTag,
+			structTagValueToMapID:      v.ID,
+			structTagValueToMapName:    v.Name,
+			structTagValueToMapSurname: v.Surname,
+			structTagValueToMapNoTag:   v.NoTag,
 		}
 	}
 	return nil

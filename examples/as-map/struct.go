@@ -3,7 +3,7 @@ package as_map
 import "time"
 
 //go:generate fieldr -type EmbeddedAddress -out address_as_map.go -wrap -export -AsMap -AsTagMap
-//go:generate fieldr -type Struct -out struct_as_map.go -wrap -export -AsMap -transform type:EmbeddedAddress:fmt=%v.AsMap()
+//go:generate fieldr -type Struct -out struct_as_map.go -wrap -export -AsMap -transform type:EmbeddedAddress:fmt=%v.AsMap() -flat FlatPrefix -flat FlatNoPrefix
 //go:generate fieldr -type Struct -out struct_as_map.go -wrap -export -AsTagMap -transform fmt=&%v -transform type:EmbeddedAddress:fmt=%v.AsTagMap(EmbeddedAddressTag(tag))
 
 type BaseStruct struct {
@@ -16,6 +16,11 @@ type EmbeddedAddress struct {
 	AddressLine string `toMap:"address_line"`
 }
 
+type FlatPart struct {
+	CardNum string `toMap:"card_num"`
+	Bank    string `toMap:"bank"`
+}
+
 type Struct struct {
 	BaseStruct
 	Name            string `toMap:"name"`
@@ -24,4 +29,6 @@ type Struct struct {
 	NoTag           string `toMap:""`
 	IgnoredInTagMap string
 	Address         *EmbeddedAddress `toMap:"address"`
+	FlatNoPrefix    FlatPart         `toMap:""`
+	FlatPrefix      FlatPart         `toMap:"flat"`
 }

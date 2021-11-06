@@ -3,27 +3,27 @@
 package squirrel
 
 type (
-	entityTag       string
-	entityTagValue  string
-	entityTagValues []entityTagValue
+	entityTag          string
+	entityTagValue     string
+	entityTagValueList []entityTagValue
 )
 
 const (
-	entityTag_db = entityTag("db")
+	entityTagDb = entityTag("db")
 
-	entityTagValue_db_ID      = entityTagValue("ID")
-	entityTagValue_db_Name    = entityTagValue("NAME")
-	entityTagValue_db_Surname = entityTagValue("SURNAME")
-	entityTagValue_db_ts      = entityTagValue("TS")
+	entityTagValueDbID      = entityTagValue("ID")
+	entityTagValueDbName    = entityTagValue("NAME")
+	entityTagValueDbSurname = entityTagValue("SURNAME")
+	entityTagValueDbTs      = entityTagValue("TS")
 )
 
 var (
-	entity_TagValues_db = entityTagValues{entityTagValue_db_ID, entityTagValue_db_Name, entityTagValue_db_Surname}
+	entityTagValuesDb = entityTagValueList{entityTagValueDbID, entityTagValueDbName, entityTagValueDbSurname}
 )
 
 func (v *Entity) getFieldValuesByTag(tag entityTag) []interface{} {
 	switch tag {
-	case entityTag_db:
+	case entityTagDb:
 		return []interface{}{v.ID, v.Name, v.Surname}
 	}
 	return nil
@@ -33,7 +33,7 @@ func (v *Entity) getFieldValuesByTagDb() []interface{} {
 	return []interface{}{v.ID, v.Name, v.Surname}
 }
 
-func (v entityTagValues) strings() []string {
+func (v entityTagValueList) strings() []string {
 	strings := make([]string, len(v))
 	for i, val := range v {
 		strings[i] = string(val)

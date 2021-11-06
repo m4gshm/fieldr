@@ -9,14 +9,14 @@ import (
 )
 
 var (
-	jsonFields     = make([]string, 0, len(struct_Fields))
-	jsonFieldNames = make([]string, 0, len(struct_Fields))
-	jsonOmitEmpty  = make([]bool, 0, len(struct_Fields))
+	jsonFields     = make([]string, 0, len(structFields))
+	jsonFieldNames = make([]string, 0, len(structFields))
+	jsonOmitEmpty  = make([]bool, 0, len(structFields))
 )
 
 func init() {
-	for _, field := range struct_Fields {
-		tag, ok := struct_FieldTagValue[field][StructTag_json]
+	for _, field := range structFields {
+		tag, ok := structFieldTagValue[field][StructTagJson]
 
 		jsonFieldName := field
 		include := true
@@ -68,7 +68,7 @@ func isEmpty(v interface{}) bool {
 func (s *Struct) MarshalJSON() ([]byte, error) {
 	var builder strings.Builder
 
-	builder.Grow(len(struct_Fields) * 16)
+	builder.Grow(len(structFields) * 16)
 
 	err := s.MarshalJSONToBuilder(&builder)
 	if err != nil {

@@ -3,51 +3,51 @@
 package json
 
 const (
-	structField_ID       = "ID"
-	structField_Name     = "Name"
-	structField_Surname  = "Surname"
-	structField_NoJson   = "NoJson"
-	StructField_noExport = "noExport"
-	structField_NoTag    = "NoTag"
+	StructFieldID       = "ID"
+	StructFieldName     = "Name"
+	StructFieldSurname  = "Surname"
+	StructFieldNoJson   = "NoJson"
+	structFieldNoExport = "noExport"
+	StructFieldNoTag    = "NoTag"
 
-	StructTag_json = "json"
+	StructTagJson = "json"
 
-	structTagValue_json_ID       = "id"
-	structTagValue_json_Name     = "name,omitempty"
-	structTagValue_json_Surname  = "surname,omitempty"
-	structTagValue_json_NoJson   = "-"
-	StructTagValue_json_noExport = "no_export"
+	StructTagValueJsonID       = "id"
+	StructTagValueJsonName     = "name,omitempty"
+	StructTagValueJsonSurname  = "surname,omitempty"
+	StructTagValueJsonNoJson   = "-"
+	structTagValueJsonNoExport = "no_export"
 )
 
 var (
-	struct_Fields = []string{
-		structField_ID,
-		structField_Name,
-		structField_Surname,
-		structField_NoJson,
-		structField_NoTag,
+	structFields = []string{
+		StructFieldID,
+		StructFieldName,
+		StructFieldSurname,
+		StructFieldNoJson,
+		StructFieldNoTag,
 	}
 
-	struct_FieldTagValue = map[string]map[string]string{
-		structField_ID:      map[string]string{StructTag_json: structTagValue_json_ID},
-		structField_Name:    map[string]string{StructTag_json: structTagValue_json_Name},
-		structField_Surname: map[string]string{StructTag_json: structTagValue_json_Surname},
-		structField_NoJson:  map[string]string{StructTag_json: structTagValue_json_NoJson},
-		structField_NoTag:   map[string]string{},
+	structFieldTagValue = map[string]map[string]string{
+		StructFieldID:      map[string]string{StructTagJson: StructTagValueJsonID},
+		StructFieldName:    map[string]string{StructTagJson: StructTagValueJsonName},
+		StructFieldSurname: map[string]string{StructTagJson: StructTagValueJsonSurname},
+		StructFieldNoJson:  map[string]string{StructTagJson: StructTagValueJsonNoJson},
+		StructFieldNoTag:   map[string]string{},
 	}
 )
 
 func (v *Struct) GetFieldValue(field string) interface{} {
 	switch field {
-	case structField_ID:
+	case StructFieldID:
 		return v.ID
-	case structField_Name:
+	case StructFieldName:
 		return v.Name
-	case structField_Surname:
+	case StructFieldSurname:
 		return v.Surname
-	case structField_NoJson:
+	case StructFieldNoJson:
 		return v.NoJson
-	case structField_NoTag:
+	case StructFieldNoTag:
 		return v.NoTag
 	}
 	return nil

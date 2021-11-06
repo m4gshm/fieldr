@@ -5,9 +5,9 @@ import (
 )
 
 var (
-	pkColumn      = entityTagValue_db_ID
-	dbTag         = entityTag_db
-	dbColumnNames = entity_TagValues_db.strings()
+	pkColumn      = entityTagValueDbID
+	dbTag         = entityTagDb
+	dbColumnNames = entityTagValuesDb.strings()
 )
 
 func getSqlSelectById(table string, id int) sq.Sqlizer {
@@ -23,5 +23,5 @@ func (e *Entity) getSqlDelete(table string) sq.Sqlizer {
 }
 
 func idEqualTo(id int) sq.Eq {
-	return sq.Eq{string(entityTagValue_db_ID): id}
+	return sq.Eq{string(entityTagValueDbID): id}
 }
