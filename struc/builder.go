@@ -8,10 +8,10 @@ import (
 	"github.com/m4gshm/fieldr/logger"
 )
 
-type handledStructs = map[types.Type]*StructModel
+type handledStructs = map[types.Type]*HierarchicalModel
 
 type structModelBuilder struct {
-	model        *StructModel
+	model        *HierarchicalModel
 	includedTags map[TagName]interface{}
 	deep         bool
 	pkg          *types.Package
@@ -22,17 +22,18 @@ func newBuilder(pkg *types.Package, typ types.Type, typeName string, filePath st
 	if _, ok := loopControl[typ]; ok {
 		return nil, fmt.Errorf("already handled type %v", typeName)
 	}
-	model := &StructModel{
-		TypeName:       typeName,
-		FilePath:       filePath,
-		PackageName:    pkg.Name(),
-		PackagePath:    pkg.Path(),
-		FieldsTagValue: map[FieldName]map[TagName]TagValue{},
-		TagsFieldValue: map[TagName]map[FieldName]TagValue{},
-		FieldNames:     []FieldName{},
-		FieldsType:     map[FieldName]FieldType{},
-		TagNames:       []TagName{},
-		Nested:         map[FieldName]*StructModel{},
+	model := &HierarchicalModel{
+		Model: &Model{
+			TypeName:       typeName,
+			FilePath:       filePath,
+			PackageName:    pkg.Name(),
+			PackagePath:    pkg.Path(),
+			FieldsTagValue: map[FieldName]map[TagName]TagValue{},
+			TagsFieldValue: map[TagName]map[FieldName]TagValue{},
+			FieldNames:     []FieldName{},
+			FieldsType:     map[FieldName]FieldType{},
+			TagNames:       []TagName{}},
+		Nested: map[FieldName]*HierarchicalModel{},
 	}
 	loopControl[typ] = model
 	return &structModelBuilder{
@@ -65,7 +66,7 @@ func (b *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
 	numFields := typeStruct.NumFields()
 	for i := 0; i < numFields; i++ {
 		fieldVar := typeStruct.Field(i)
-		fldName := FieldName(fieldVar.Name())
+		fldName := fieldVar.Name()
 		if fieldVar.IsField() {
 			fieldType := fieldVar.Type()
 			if fieldVar.Embedded() {
@@ -105,8 +106,7 @@ func (b *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
 						} else if err = nestedBuilder.populateByType(fieldTypeNamed); err != nil {
 							return fmt.Errorf("nested field %v.%v; %w", typeName, fldName, err)
 						} else {
-							model := nestedBuilder.getModel()
-							b.model.Nested[fldName] = model
+							b.model.Nested[fldName] = nestedBuilder.getModel()
 						}
 					}
 				}
@@ -146,13 +146,13 @@ func (b *structModelBuilder) populateByType(t types.Type) error {
 	}
 }
 
-func (b *structModelBuilder) newModel(t types.Type) (*StructModel, error) {
+func (b *structModelBuilder) newModel(t types.Type) (*HierarchicalModel, error) {
 	if err := b.populateByType(t); err != nil {
 		return nil, err
 	}
 	return b.getModel(), nil
 }
 
-func (b *structModelBuilder) getModel() *StructModel {
+func (b *structModelBuilder) getModel() *HierarchicalModel {
 	return b.model
 }

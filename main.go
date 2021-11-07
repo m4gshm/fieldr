@@ -117,18 +117,18 @@ func main() {
 		}
 	}
 	constants := *config.Content.Constants
-	structModel, err := struc.FindStructTags(filePackages, files, fileSet, typeName, includedTagsSet, constants, constantReplacers)
+	hierarchicalModel, err := struc.FindStructTags(filePackages, files, fileSet, typeName, includedTagsSet, constants, constantReplacers)
 	if err != nil {
 		log.Fatal(err)
-	} else if structModel == nil || (len(structModel.TypeName) == 0 && len(typeName) != 0) {
+	} else if hierarchicalModel == nil || (len(hierarchicalModel.TypeName) == 0 && len(typeName) != 0) {
 		log.Printf("type not found, %s", typeName)
 		return
-	} else if len(structModel.FieldNames) == 0 {
+	} else if len(hierarchicalModel.FieldNames) == 0 {
 		log.Printf("no fields in %s", typeName)
 		return
 	}
 
-	logger.Debugw("base generating data", "model", structModel)
+	logger.Debugw("base generating data", "model", hierarchicalModel)
 
 	outputName := *config.Output
 	if outputName == "" {
@@ -193,7 +193,80 @@ func main() {
 		}
 	}
 
-	if err = g.GenerateFile(structModel, outFile, outFileInfo, outPkg); err != nil {
+	flatFields := make(map[struc.FieldName]interface{})
+	flat := g.Conf.Flat
+	if flat != nil {
+		for _, flatField := range *flat {
+			flatFields[flatField] = nil
+		}
+	}
+	existsFlatFields := make(map[struc.FieldName]interface{})
+	for _, fieldName := range hierarchicalModel.FieldNames {
+		if _, nested := flatFields[fieldName]; nested {
+			existsFlatFields[fieldName] = nil
+		}
+	}
+
+	var model *struc.Model
+	if len(existsFlatFields) > 0 {
+		//make flat model
+		var (
+			flatFieldNames     []struc.FieldName
+			flatFieldsType     = map[struc.FieldName]struc.FieldType{}
+			flatFieldsTagValue = map[struc.FieldName]map[struc.TagName]struc.TagValue{}
+		)
+		for _, fieldName := range hierarchicalModel.FieldNames {
+			if _, ok := existsFlatFields[fieldName]; ok {
+				if nestedHierarchicalModel := hierarchicalModel.Nested[fieldName]; nestedHierarchicalModel != nil {
+					nestedModel := nestedHierarchicalModel.Model
+					for _, nestedFieldName := range nestedModel.FieldNames {
+						nestedFieldRef := struc.GetFieldRef(fieldName, nestedFieldName)
+
+						flatFieldsType[nestedFieldRef] = nestedHierarchicalModel.FieldsType[nestedFieldName]
+						flatFieldsTagValue[nestedFieldRef] = nestedHierarchicalModel.FieldsTagValue[nestedFieldName]
+
+						flatFieldNames = append(flatFieldNames, nestedFieldRef)
+					}
+				} else {
+					flatFieldNames = append(flatFieldNames, fieldName)
+				}
+			} else {
+				flatFieldNames = append(flatFieldNames, fieldName)
+			}
+			flatFieldsType[fieldName] = hierarchicalModel.FieldsType[fieldName]
+			flatFieldsTagValue[fieldName] = hierarchicalModel.FieldsTagValue[fieldName]
+		}
+
+		tagsFieldValue := map[struc.TagName]map[struc.FieldName]struc.TagValue{}
+		for fieldName, tagNameValues := range flatFieldsTagValue {
+			for tagName, tagValue := range tagNameValues {
+				fieldTagValues, ok := tagsFieldValue[tagName]
+				if !ok {
+					fieldTagValues = map[struc.FieldName]struc.TagValue{}
+				}
+				fieldTagValues[fieldName] = tagValue
+				tagsFieldValue[tagName] = fieldTagValues
+			}
+		}
+
+		model = &struc.Model{
+			TypeName:          hierarchicalModel.TypeName,
+			PackageName:       hierarchicalModel.PackageName,
+			PackagePath:       hierarchicalModel.PackagePath,
+			FilePath:          hierarchicalModel.FilePath,
+			FieldsTagValue:    flatFieldsTagValue,
+			TagsFieldValue:    tagsFieldValue,
+			FieldNames:        flatFieldNames,
+			FieldsType:        flatFieldsType,
+			TagNames:          hierarchicalModel.TagNames,
+			Constants:         hierarchicalModel.Constants,
+			ConstantTemplates: hierarchicalModel.ConstantTemplates,
+		}
+	} else {
+		model = hierarchicalModel.Model
+	}
+
+	if err = g.GenerateFile(model, outFile, outFileInfo, outPkg); err != nil {
 		log.Fatalf("generate file error: %s", err)
 	}
 	src, fmtErr := g.FormatSrc()

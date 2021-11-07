@@ -27,7 +27,12 @@ type TagValue = string
 type FieldName = string
 type FieldType = string
 
-type StructModel struct {
+type HierarchicalModel struct {
+	*Model
+	Nested map[FieldName]*HierarchicalModel
+}
+
+type Model struct {
 	TypeName          string
 	PackageName       string
 	PackagePath       string
@@ -39,17 +44,16 @@ type StructModel struct {
 	TagNames          []TagName
 	Constants         []string
 	ConstantTemplates map[string]string
-	Nested            map[FieldName]*StructModel
 }
 
-func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.File, fileSet *token.FileSet, typeName string, includedTags map[TagName]interface{}, constants []string, constantReplacers map[string]string) (*StructModel, error) {
+func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.File, fileSet *token.FileSet, typeName string, includedTags map[TagName]interface{}, constants []string, constantReplacers map[string]string) (*HierarchicalModel, error) {
 	constantNameByTemplate, constantNames, constantSubstitutes, err := extractConstantNameAndTemplates(constants, constantReplacers, typeName)
 	if err != nil {
 		return nil, err
 	}
 	constantTemplates := make(map[string]string, len(constants))
 
-	structModel := new(StructModel)
+	structModel := new(HierarchicalModel)
 	for _, file := range files {
 		var (
 			filePackage = filePackages[file]
@@ -382,4 +386,15 @@ func extractTagValue(value string, template *regexp.Regexp) string {
 		}
 	}
 	return value
+}
+
+func GetFieldRef(fields ...FieldName) FieldName {
+	result := ""
+	for _, field := range fields {
+		if len(result) > 0 {
+			result += "."
+		}
+		result += field
+	}
+	return result
 }

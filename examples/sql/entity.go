@@ -1,6 +1,6 @@
 package sql
 
-//go:fieldr -in ../sql_util/postgres.go -out entity.go -type Entity
+//go:fieldr -in ../sql_util/postgres.go -out entity.go -type Entity -flat Versioned
 //go:fieldr -constLen 100 -constReplace tableName="tableName"
 
 //go:generate fieldr -GetFieldValuesByTag db -ref -excludeFields ID -name insertValues -compact
@@ -27,11 +27,11 @@ type BaseEntity struct {
 type Entity struct {
 	BaseEntity
 	NoDBFieldsEntity
-	Name    string    `db:"name" json:"name,omitempty"`
-	Surname string    `db:"surname" json:"surname,omitempty"`
-	Values  []int32   `db:"values" json:"values,omitempty"`
-	Ts      time.Time `db:"ts" json:"ts"`
-	sql_base.VersionedEntity
+	Name      string    `db:"name" json:"name,omitempty"`
+	Surname   string    `db:"surname" json:"surname,omitempty"`
+	Values    []int32   `db:"values" json:"values,omitempty"`
+	Ts        time.Time `db:"ts" json:"ts"`
+	Versioned sql_base.VersionedEntity
 }
 
 const (
@@ -44,11 +44,11 @@ const (
 )
 
 func (v *Entity) insertValues() []interface{} {
-	return []interface{}{&v.Name, &v.Surname, pq.Array(&v.Values), &v.Ts, &v.Version}
+	return []interface{}{&v.Name, &v.Surname, pq.Array(&v.Values), &v.Ts, &v.Versioned.Version}
 }
 
 func (v *Entity) values() []interface{} {
-	return []interface{}{&v.ID, &v.Name, &v.Surname, pq.Array(&v.Values), &v.Ts, &v.Version}
+	return []interface{}{&v.ID, &v.Name, &v.Surname, pq.Array(&v.Values), &v.Ts, &v.Versioned.Version}
 }
 
 func GetByID(e RowQuerier, id int32) (*Entity, error) {
