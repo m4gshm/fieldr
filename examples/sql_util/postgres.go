@@ -23,4 +23,28 @@ const (
 
 	_deleteByID  = "DELETE FROM \"" + tableName + "\" WHERE {{.FieldTagValue.ID.db}} = $1"
 	_deleteByIDs = "DELETE FROM \"" + tableName + "\" WHERE {{.FieldTagValue.ID.db}} in ($1::int[])"
+
+	_createTableSql = `
+{{$dbTypes:=newMap 
+	"string" "text" 
+	"[]int32" "int[]"
+	"int64" "bigint"
+	"time.Time" "timestamp"
+}}
+{{$out:=.}}{{$i:=0}}
+create table "` + tableName + `"\n
+(\n
+{{range $field := .Fields}}
+
+{{$type:=index $out.FieldTypes $field}}
+{{$dbType:=index $dbTypes $type}}
+{{$tag:=index $out.FieldTagValue $field "db"}}
+{{$tagPK := hasValue $out.FieldTagValue $field "pk"}}
+{{if $tag}}
+		{{if gt $i 0}},\n{{end}}\t{{$tag}}
+		 {{if $tagPK}}serial constraint ` + tableName + `_pk primary key{{else}}{{if $dbType}}{{$dbType}}{{else}}{{$type}}{{end}}{{end}}
+		{{$i = inc $i}}
+{{end}}
+{{end}}
+\n)`
 )

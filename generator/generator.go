@@ -2218,7 +2218,7 @@ func (g *Generator) getUsedTagConstName(typeName string, tag struc.TagName) stri
 }
 
 func (g *Generator) getTagConstName(typeName string, tag struc.TagName) string {
-	return goName(g.getTagType(typeName)+g.getIdentPart(string(tag)), *g.Conf.Export)
+	return goName(g.getTagType(typeName)+g.getIdentPart(tag), *g.Conf.Export)
 }
 
 func (g *Generator) getUsedTagValueConstName(typeName string, tag struc.TagName, fieldName struc.FieldName, tagVal struc.TagValue) string {
@@ -2273,12 +2273,16 @@ func (g *Generator) NewTemplateDataObject(str *struc.Model) (*TemplateDataObject
 	if len(str.Constants) == 0 {
 		return nil, nil
 	}
-	fields := make([]string, len(str.FieldNames))
-	tags := make([]string, len(str.TagNames))
-	fieldTags := make(map[string][]string)
-	tagFields := make(map[string][]string)
-	tagValues := make(map[string][]string)
-	ftv := make(map[string]map[string]string)
+	var (
+		fieldsAmount = len(str.FieldNames)
+		fields       = make([]string, fieldsAmount)
+		tags         = make([]string, len(str.TagNames))
+		fieldTypes   = make(map[string]string, fieldsAmount)
+		fieldTags    = make(map[string][]string)
+		tagFields    = make(map[string][]string)
+		tagValues    = make(map[string][]string)
+		ftv          = make(map[string]map[string]string)
+	)
 
 	for i, tagName := range str.TagNames {
 		s := tagName
@@ -2300,8 +2304,9 @@ func (g *Generator) NewTemplateDataObject(str *struc.Model) (*TemplateDataObject
 	}
 
 	for i, fieldName := range str.FieldNames {
-		fld := string(fieldName)
+		fld := fieldName
 		fields[i] = fld
+		fieldTypes[fieldName] = str.FieldsType[fieldName]
 		if g.isFieldExcluded(fieldName) {
 			continue
 		}
@@ -2329,6 +2334,7 @@ func (g *Generator) NewTemplateDataObject(str *struc.Model) (*TemplateDataObject
 	return &TemplateDataObject{
 		Fields:        fields,
 		Tags:          tags,
+		FieldTypes:    fieldTypes,
 		FieldTags:     fieldTags,
 		TagValues:     tagValues,
 		TagFields:     tagFields,
@@ -2346,17 +2352,40 @@ func (g *Generator) generateConst(constName string, constTemplate string, data *
 	dec := func(value int) int {
 		return add(value, -1)
 	}
-	tmpl, err := template.New(constName).Funcs(template.FuncMap{"add": add, "inc": inc, "dec": dec}).Parse(constTemplate)
+
+	newMap := func(keyValues ...interface{}) (map[interface{}]interface{}, error) {
+		if len(keyValues)%2 > 0 {
+			return nil, errors.New("newMap has odd args amount")
+		}
+		m := map[interface{}]interface{}{}
+		for i := 0; i < len(keyValues); i = i + 2 {
+			m[keyValues[i]] = keyValues[i+1]
+		}
+		return m, nil
+	}
+
+	tmpl, err := template.New(constName).Funcs(template.FuncMap{"add": add, "inc": inc, "dec": dec, "hasValue": hasValue, "newMap": newMap}).Parse(constTemplate)
 	if err != nil {
 		return "", errors.Wrapf(err, "const: %s", constName)
 	}
 
 	buf := bytes.Buffer{}
 	if err = tmpl.Execute(&buf, data); err != nil {
-		return "", err
+		return "", fmt.Errorf("%v; context %v", err, data)
 	}
 
-	return g.splitLines(buf.String())
+	s := buf.String()
+	if len(s) > 0 && s[0] == '`' {
+		replaces := []map[string]string{{"\n": ""}, {"\t": ""}, {"\\t": "\t"}, {"\\n": "\n"}}
+		for _, replace := range replaces {
+			for replaceable, replacer := range replace {
+				s = strings.ReplaceAll(s, replaceable, replacer)
+			}
+		}
+	} else if s, err = g.splitLines(s); err != nil {
+		return "", err
+	}
+	return s, nil
 }
 
 func (g *Generator) filterInjected() {

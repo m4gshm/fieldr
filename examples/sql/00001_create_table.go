@@ -6,21 +6,24 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-func init() {
-	goose.AddMigration(Up00001, Down00002)
-}
-
-func Up00001(tx *sql.Tx) error {
-	query := `create table "tableName"
+const (
+	createTableSql = `create table "tableName"
 (
-	id serial constraint table_name_pk primary key,
+	id serial constraint tableName_pk primary key,
 	name text,
 	surname text,
 	values int[],
 	ts timestamp,
 	version bigint
-);`
-	if _, err := tx.Exec(query); err != nil {
+)`
+)
+
+func init() {
+	goose.AddMigration(Up00001, Down00002)
+}
+
+func Up00001(tx *sql.Tx) error {
+	if _, err := tx.Exec(createTableSql); err != nil {
 		return err
 	}
 	return nil

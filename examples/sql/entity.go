@@ -7,6 +7,7 @@ package sql
 //go:generate fieldr -GetFieldValuesByTag db -ref -name values -compact
 //go:generate fieldr -const sqlUpsert:_upsert -const sqlInsert:_insert -const sqlSelectByID:_selectByID
 //go:generate fieldr -const sqlSelectByIDs:_selectByIDs -const sqlDeleteByID:_deleteByID
+//go:generate fieldr -out 00001_create_table.go -const createTableSql:_createTableSql
 
 import (
 	"database/sql"
