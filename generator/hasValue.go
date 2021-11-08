@@ -7,7 +7,7 @@ import (
 
 var reflectValueType = reflect.TypeOf((*reflect.Value)(nil)).Elem()
 
-func hasValue(item reflect.Value, indexes ...reflect.Value) (bool, error) {
+func contains(item reflect.Value, indexes ...reflect.Value) (bool, error) {
 	item = indirectInterface(item)
 	if !item.IsValid() {
 		return false, nil

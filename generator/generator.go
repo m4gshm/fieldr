@@ -3,9 +3,6 @@ package generator
 import (
 	"bytes"
 	"fmt"
-	"github.com/m4gshm/fieldr/logger"
-	"github.com/m4gshm/fieldr/struc"
-	"github.com/pkg/errors"
 	"go/ast"
 	"go/format"
 	"go/parser"
@@ -18,6 +15,10 @@ import (
 	"strings"
 	"text/template"
 	"unicode"
+
+	"github.com/m4gshm/fieldr/logger"
+	"github.com/m4gshm/fieldr/struc"
+	"github.com/pkg/errors"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -2364,7 +2365,7 @@ func (g *Generator) generateConst(constName string, constTemplate string, data *
 		return m, nil
 	}
 
-	tmpl, err := template.New(constName).Funcs(template.FuncMap{"add": add, "inc": inc, "dec": dec, "hasValue": hasValue, "newMap": newMap}).Parse(constTemplate)
+	tmpl, err := template.New(constName).Funcs(template.FuncMap{"add": add, "inc": inc, "dec": dec, "contains": contains, "newMap": newMap}).Parse(constTemplate)
 	if err != nil {
 		return "", errors.Wrapf(err, "const: %s", constName)
 	}
