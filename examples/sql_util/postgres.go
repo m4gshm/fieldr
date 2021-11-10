@@ -22,7 +22,7 @@ const (
 	_updateByID = "{{$pk:=.FieldTagValue.ID.db}}UPDATE \"" + tableName + "\" SET {{$comma:=false}}{{range $i, $tag := .TagValues.db}}{{if ne $tag $pk}}{{if $comma}},{{end}}{{$tag}}=${{inc $i}}{{$comma = true}}{{end}}{{end}} WHERE {{$pk}} = $1"
 
 	_deleteByID  = "DELETE FROM \"" + tableName + "\" WHERE {{.FieldTagValue.ID.db}} = $1"
-	_deleteByIDs = "DELETE FROM \"" + tableName + "\" WHERE {{.FieldTagValue.ID.db}} in ($1::int[])"
+	_deleteByIDs = "DELETE FROM \"" + tableName + "\" WHERE {{.FieldTagValue.ID.db}} = ANY($1::int[])"
 
 	_createTableSql = `
 {{$dbTypes:=(newMap 
