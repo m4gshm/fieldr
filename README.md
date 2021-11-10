@@ -22,6 +22,6 @@ See [examples](./examples/)
 * TagValuesMap
 * Tags
 
-###Template based content:
-* const
+### Template based content:
+* const (sql [example](./examples/sql/entity.go), postgres dialect [templates](./examples/sql_util/postgres.go))
 
