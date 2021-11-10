@@ -1,4 +1,27 @@
 # Fieldr
-Generate util constants, vars, methods based on fields, field tag values of structs
 
-see [examples](./examples/)
+Helps to reduce boilerplate code that used struct fields like SQL expressions, mapper functions and so on.
+
+See [examples](./examples/)
+
+###Map convert methods:
+* AsMap
+* AsTagMap
+
+###Array convert methods:
+* GetFieldValue
+* GetFieldValueByTagValue
+* GetFieldValuesByTag
+
+###Variables and constants:
+* FieldTagValueMap
+* FieldTagsMap
+* Fields
+* TagFieldsMap
+* TagValues
+* TagValuesMap
+* Tags
+
+###Template based content:
+* const
+
