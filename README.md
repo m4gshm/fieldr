@@ -4,16 +4,16 @@ Helps to reduce boilerplate code that used struct fields like SQL expressions, m
 
 See [examples](./examples/)
 
-###Map convert methods:
+### Map convert methods:
 * AsMap
 * AsTagMap
 
-###Array convert methods:
+### Array convert methods:
 * GetFieldValue
 * GetFieldValueByTagValue
 * GetFieldValuesByTag
 
-###Variables and constants:
+### Variables and constants:
 * FieldTagValueMap
 * FieldTagsMap
 * Fields
