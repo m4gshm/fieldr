@@ -8,9 +8,9 @@ import (
 )
 
 var testStruct = Struct{
-	BaseStruct: BaseStruct{ID: 1},
-	Name:       "NameValue",
-	NoJson:     "NoJsonValue",
+	MiddleStruct: &MiddleStruct{BaseStruct{&IDAware{ID: 1}}},
+	Name:         "NameValue",
+	NoJson:       "NoJsonValue",
 }
 
 func TestStruct_MarshalJSON(t *testing.T) {

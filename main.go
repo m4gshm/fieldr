@@ -12,46 +12,85 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
+	"golang.org/x/tools/go/packages"
+
+	"github.com/m4gshm/fieldr/command"
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/params"
-	"github.com/m4gshm/fieldr/struc"
-	"golang.org/x/tools/go/packages"
+	"github.com/m4gshm/fieldr/use"
 )
 
-func usage() {
-	fmt.Fprintf(os.Stderr, "Usage of "+params.Name+":\n")
-	fmt.Fprintf(os.Stderr, "\t"+params.Name+" [flags] -type T [directory]\n")
-	fmt.Fprintf(os.Stderr, "Flags:\n")
-	flag.PrintDefaults()
+func usage(commandLine *flag.FlagSet) func() {
+	return func() {
+		out := commandLine.Output()
+		_, _ = fmt.Fprintf(out, params.Name+" is a tool for generating constants, variables, functions and methods"+
+			" based on a structure model: name, fields, tags\n")
+		_, _ = fmt.Fprintf(out, "Usage of "+params.Name+":\n")
+		_, _ = fmt.Fprintf(out, "\t"+params.Name+" [flags] command1 [command-flags] command2 [command-flags]... command [command-flags]\n")
+		_, _ = fmt.Fprintf(out, "Use \"command --help\" to get help of this one\n")
+		_, _ = fmt.Fprintf(out, "Flags:\n")
+		commandLine.PrintDefaults()
+		_, _ = fmt.Fprintf(out, "  --help\n")
+		_, _ = fmt.Fprintf(out, "\tshow this message\n")
+		command.PrintUsage()
+	}
 }
 
 func main() {
-	log.SetPrefix(params.Name + ": ")
-
-	config := params.NewConfig(flag.CommandLine)
-
-	flag.Usage = usage
-	flag.Parse()
-
-	args := flag.Args()
-	outputDir := outDir(args)
-	if len(outputDir) > 0 {
-		if err := os.Chdir(outputDir); err != nil {
-			log.Fatalf("out dir error: %v", err)
+	if err := run(); err != nil {
+		var uErr *use.Error
+		if errors.As(err, &uErr) {
+			fmt.Fprintf(os.Stderr, "err: "+uErr.Error()+"\n")
+			// if uErr.cmd != nil {
+			// uErr.cmd.PrintUsage()
+			// } else {
+			flag.CommandLine.Usage()
+			// }
+		} else {
+			log.Fatal(err.Error())
 		}
+	}
+}
+
+func run() error {
+	cmdLine := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	flag.CommandLine = cmdLine
+	cmdLine.Usage = usage(flag.CommandLine)
+	debugFlag := flag.Bool("debug", false, "enable debug logging")
+	config := params.NewConfig(cmdLine)
+
+	if err := cmdLine.Parse(os.Args[1:]); err != nil {
+		return err
+	}
+
+	logger.Init(*debugFlag)
+
+	commands, args, err := parseCommands(cmdLine.Args())
+	if err != nil {
+		return err
+	}
+	if len(commands) == 0 {
+		logger.Debugf("no command line generator commands")
+	}
+	if len(args) > 0 {
+		logger.Debugf("unspent command line args %v\n", args)
 	}
 
 	fileSet := token.NewFileSet()
 	buildTags := *config.BuildTags
-	pkg := extractPackage(fileSet, buildTags, *config.PackagePattern)
+	pkg, err := extractPackage(fileSet, buildTags, *config.PackagePattern)
+	if err != nil {
+		return err
+	}
 	packageName := pkg.Name
 	files := pkg.Syntax
 	if len(files) == 0 {
 		log.Printf("no src files in package %s", packageName)
-		return
+		return nil
 	}
 
 	filePackages := make(map[*ast.File]*packages.Package)
@@ -60,84 +99,55 @@ func main() {
 	}
 
 	inputs := *config.Input
-	var err error
+
 	files, err = loadSrcFiles(inputs, buildTags, fileSet, files, filePackages)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	constantReplacers, err := struc.ExtractReplacers(*config.Generator.ConstReplace...)
+	filesCmdArgs, err := newFilesCommentsConfig(files)
 	if err != nil {
-		log.Fatal(err)
-	}
-	sharedConfig, err := NewFilesCommentsConfig(files, constantReplacers)
-	if err != nil {
-		log.Fatal(err)
-	} else if sharedConfig != nil {
-		newInputs, _ := newSet(*sharedConfig.Input, inputs...)
-		if len(newInputs) > 0 {
-			//new inputs detected
-			newFiles, err := loadSrcFiles(newInputs, buildTags, fileSet, make([]*ast.File, 0), filePackages)
-			if err != nil {
-				log.Fatal(err)
-			} else if additionalConfig, err := NewFilesCommentsConfig(newFiles, constantReplacers); err != nil {
-				log.Fatal(err)
-			} else if additionalConfig != nil {
-				if sharedConfig, err = sharedConfig.MergeWith(additionalConfig, constantReplacers); err != nil {
-					log.Fatal(err)
+		return err
+	} else if len(filesCmdArgs) > 0 {
+		for _, f := range filesCmdArgs {
+			for _, cmt := range f.commentArgs {
+				cmtCommands, cmtArgs, err := parseCommands(cmt.args)
+				if err != nil {
+					var uErr *use.Error
+					if errors.As(err, &uErr) {
+						return use.FileCommentErr(uErr.Error(), f.file, cmt.comment)
+					}
+					return err
+				} else if len(cmtCommands) == 0 {
+					logger.Debugf("no comment generator commands: file %s, line: %d args %v\n", f.file.Name, cmt.comment.Pos(), cmtArgs)
+				} else if len(cmtArgs) > 0 {
+					logger.Debugf("unspent comment line args: %v\n", cmtArgs)
 				}
+				commands = append(commands, cmtCommands...)
 			}
-			files = append(files, newFiles...)
 		}
 	}
-	if config, err = config.MergeWith(sharedConfig, constantReplacers); err != nil {
-		log.Fatal(err)
+
+	if len(commands) == 0 {
+		return use.Err("no generator commands")
 	}
 
 	logger.Debugw("using", "config", config)
 
-	typeName := *config.Type
-	if len(typeName) == 0 {
-		log.Print("no type arg")
-		flag.Usage()
-		os.Exit(2)
-	}
-
-	var (
-		includedTagArg  = *config.Generator.IncludeFieldTags
-		includedTagsSet = make(map[struc.TagName]interface{})
-		includedTags    = make([]struc.TagName, 0)
-	)
-	if len(includedTagArg) > 0 {
-		includedTagNames := strings.Split(includedTagArg, ",")
-		for _, includedTag := range includedTagNames {
-			name := struc.TagName(includedTag)
-			includedTagsSet[name] = nil
-			includedTags = append(includedTags, name)
-		}
-	}
-	constants := *config.Content.Constants
-	hierarchicalModel, err := struc.FindStructTags(filePackages, files, fileSet, typeName, includedTagsSet, constants, constantReplacers)
-	if err != nil {
-		log.Fatal(err)
-	} else if hierarchicalModel == nil || (len(hierarchicalModel.TypeName) == 0 && len(typeName) != 0) {
-		log.Printf("type not found, %s", typeName)
-		return
-	} else if len(hierarchicalModel.FieldNames) == 0 {
-		log.Printf("no fields in %s", typeName)
-		return
-	}
-
-	logger.Debugw("base generating data", "model", hierarchicalModel)
-
 	outputName := *config.Output
 	if outputName == "" {
+
+		typeName := *config.Type
+		if len(typeName) == 0 {
+			return use.Err("no type arg")
+		}
+
 		baseName := typeName + params.DefaultFileSuffix
 		outputName = strings.ToLower(baseName)
 	}
 
 	if outputName, err = filepath.Abs(outputName); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	var outFile *ast.File
@@ -148,13 +158,6 @@ func main() {
 			outFile = file
 			break
 		}
-	}
-
-	g := &generator.Generator{
-		IncludedTags: includedTags,
-		Name:         params.Name,
-		Conf:         config.Generator,
-		Content:      config.Content,
 	}
 
 	var outPkg *packages.Package
@@ -168,159 +171,173 @@ func main() {
 			dir := filepath.Dir(outputName)
 			outPkg, err = dirPackage(dir, nil)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			} else if outPkg == nil {
-				log.Fatalf("canot detenrime output package, path '%v'", dir)
+				return fmt.Errorf("canot detenrime output package, path '%v'", dir)
 			}
 		} else if err != nil {
-			log.Fatal(err)
+			return err
 		} else {
 			if stat.IsDir() {
-				log.Fatal("output file is directory")
+				return fmt.Errorf("output file is directory")
 			}
 			outFileSet := token.NewFileSet()
 			outFile, outPkg, err = loadFile(outputName, nil, outFileSet)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 			if outFile != nil {
 				pos := outFile.Pos()
 				outFileInfo = outFileSet.File(pos)
 				if outFileInfo == nil {
-					log.Fatalf("error of reading metadata of output file %v", outputName)
+					return fmt.Errorf("error of reading metadata of output file %v", outputName)
 				}
 			}
 		}
 	}
 
-	flatFields := make(map[struc.FieldName]interface{})
-	flat := g.Conf.Flat
-	if flat != nil {
-		for _, flatField := range *flat {
-			flatFields[flatField] = nil
-		}
-	}
-	existsFlatFields := make(map[struc.FieldName]interface{})
-	for _, fieldName := range hierarchicalModel.FieldNames {
-		if _, nested := flatFields[fieldName]; nested {
-			existsFlatFields[fieldName] = nil
+	g := generator.New(params.Name, *config.OutBuildTags, outFile, outFileInfo, outPkg)
+
+	ctx := &command.Context{Config: config, Generator: g, FilePackages: filePackages, Files: files, FileSet: fileSet}
+	for _, c := range commands {
+		if err := c.Run(ctx); err != nil {
+			return err
 		}
 	}
 
-	var model *struc.Model
-	if len(existsFlatFields) > 0 {
-		//make flat model
-		var (
-			flatFieldNames     []struc.FieldName
-			flatFieldsType     = map[struc.FieldName]struc.FieldType{}
-			flatFieldsTagValue = map[struc.FieldName]map[struc.TagName]struc.TagValue{}
-		)
-		for _, fieldName := range hierarchicalModel.FieldNames {
-			if _, ok := existsFlatFields[fieldName]; ok {
-				if nestedHierarchicalModel := hierarchicalModel.Nested[fieldName]; nestedHierarchicalModel != nil {
-					nestedModel := nestedHierarchicalModel.Model
-					for _, nestedFieldName := range nestedModel.FieldNames {
-						nestedFieldRef := struc.GetFieldRef(fieldName, nestedFieldName)
-
-						flatFieldsType[nestedFieldRef] = nestedHierarchicalModel.FieldsType[nestedFieldName]
-						flatFieldsTagValue[nestedFieldRef] = nestedHierarchicalModel.FieldsTagValue[nestedFieldName]
-
-						flatFieldNames = append(flatFieldNames, nestedFieldRef)
-					}
-				} else {
-					flatFieldNames = append(flatFieldNames, fieldName)
-				}
-			} else {
-				flatFieldNames = append(flatFieldNames, fieldName)
-			}
-			flatFieldsType[fieldName] = hierarchicalModel.FieldsType[fieldName]
-			flatFieldsTagValue[fieldName] = hierarchicalModel.FieldsTagValue[fieldName]
-		}
-
-		tagsFieldValue := map[struc.TagName]map[struc.FieldName]struc.TagValue{}
-		for fieldName, tagNameValues := range flatFieldsTagValue {
-			for tagName, tagValue := range tagNameValues {
-				fieldTagValues, ok := tagsFieldValue[tagName]
-				if !ok {
-					fieldTagValues = map[struc.FieldName]struc.TagValue{}
-				}
-				fieldTagValues[fieldName] = tagValue
-				tagsFieldValue[tagName] = fieldTagValues
-			}
-		}
-
-		model = &struc.Model{
-			TypeName:          hierarchicalModel.TypeName,
-			PackageName:       hierarchicalModel.PackageName,
-			PackagePath:       hierarchicalModel.PackagePath,
-			FilePath:          hierarchicalModel.FilePath,
-			FieldsTagValue:    flatFieldsTagValue,
-			TagsFieldValue:    tagsFieldValue,
-			FieldNames:        flatFieldNames,
-			FieldsType:        flatFieldsType,
-			TagNames:          hierarchicalModel.TagNames,
-			Constants:         hierarchicalModel.Constants,
-			ConstantTemplates: hierarchicalModel.ConstantTemplates,
-		}
-	} else {
-		model = hierarchicalModel.Model
+	outPackageName := generator.OutPackageName(*config.OutPackage, outPkg)
+	if err := g.WriteBody(outPackageName); err != nil {
+		return err
 	}
 
-	if err = g.GenerateFile(model, outFile, outFileInfo, outPkg); err != nil {
-		log.Fatalf("generate file error: %s", err)
-	}
 	src, fmtErr := g.FormatSrc()
 
 	const userWriteOtherRead = fs.FileMode(0644)
 	if writeErr := ioutil.WriteFile(outputName, src, userWriteOtherRead); writeErr != nil {
-		log.Fatalf("writing output: %s", writeErr)
+		return fmt.Errorf("writing output: %s", writeErr)
 	} else if fmtErr != nil {
-		log.Fatalf("go src code formatting error: %s", fmtErr)
+		return fmt.Errorf("go src code formatting error: %s", fmtErr)
 	}
+	return nil
 }
 
-func NewFilesCommentsConfig(files []*ast.File, constantReplacers map[string]string) (config *params.Config, err error) {
-	for _, file := range files {
-		if config, err = NewFileCommentConfig(file, config, constantReplacers); err != nil {
-			return nil, err
+func parseCommands(args []string) ([]*command.Command, []string, error) {
+	commands := []*command.Command{}
+	for len(args) > 0 {
+		cmd := args[0]
+		args = args[1:]
+
+		if c := command.Get(cmd); c == nil {
+			return nil, args, use.Err("unknowd command '" + cmd + "'")
+		} else if a, err := c.Parse(args); err != nil {
+			return nil, nil, err
+		} else {
+			args = a
+			commands = append(commands, c)
 		}
 	}
-	return config, err
+	return commands, args, nil
 }
 
-func NewFileCommentConfig(file *ast.File, sharedConfig *params.Config, constantReplacers map[string]string) (*params.Config, error) {
+type fileCmdArgs struct {
+	file        *ast.File
+	commentArgs []commentCmdArgs
+}
+
+func newFilesCommentsConfig(files []*ast.File) ([]fileCmdArgs, error) {
+	result := []fileCmdArgs{}
+	for _, file := range files {
+		if args, err := getFileCommentCmdArgs(file); err != nil {
+			return nil, err
+		} else if len(args) > 0 {
+			result = append(result, fileCmdArgs{file: file, commentArgs: args})
+		}
+	}
+	return result, nil
+}
+
+type commentCmdArgs struct {
+	comment *ast.Comment
+	args    []string
+}
+
+func getFileCommentCmdArgs(file *ast.File) ([]commentCmdArgs, error) {
+	result := []commentCmdArgs{}
 	for _, commentGroup := range file.Comments {
 		for _, comment := range commentGroup.List {
-			commentConfig, err := NewConfigComment(comment.Text)
-			if err != nil {
+			if args, err := getCommentCmdArgs(comment.Text); err != nil {
 				return nil, err
-			} else if sharedConfig == nil {
-				sharedConfig = commentConfig
-				continue
-			} else if sharedConfig, err = sharedConfig.MergeWith(commentConfig, constantReplacers); err != nil {
-				return nil, err
+			} else if len(args) > 0 {
+				result = append(result, commentCmdArgs{comment: comment, args: args})
 			}
 		}
 	}
-	return sharedConfig, nil
+	return result, nil
 }
 
-func NewConfigComment(text string) (*params.Config, error) {
+func getCommentCmdArgs(text string) ([]string, error) {
 	prefix := "//" + params.CommentConfigPrefix
 	if len(text) > 0 && strings.HasPrefix(text, prefix) {
 		configComment := text[len(prefix)+1:]
 		if len(configComment) > 0 {
-			flagSet := flag.NewFlagSet(params.CommentConfigPrefix, flag.ExitOnError)
-			commentConfig := params.NewConfig(flagSet)
-			var err error
-			if err = flagSet.Parse(strings.Split(configComment, " ")); err != nil {
-				return nil, fmt.Errorf("parsing cofig comment %v; %w", text, err)
+			logger.Debugf("split comment args '%s'", configComment)
+			if args, err := splitArgs(configComment); err != nil {
+				return nil, fmt.Errorf("split cofig comment %v; %w", text, err)
+			} else {
+				logger.Debugf("comment args count %d, '%s'", len(args), strings.Join(args, ","))
+				return args, nil
 			}
-
-			return commentConfig, nil
 		}
 	}
 	return nil, nil
+}
+
+func splitArgs(rawArgs string) ([]string, error) {
+	var args []string
+	for {
+		rawArgs = strings.TrimLeft(rawArgs, " ")
+		if len(rawArgs) == 0 {
+			break
+		}
+		symbols := []rune(rawArgs)
+		if symbols[0] == '"' {
+			finished := false
+			//start parsing quoted string
+		quoted:
+			for i := 1; i < len(symbols); i++ {
+				c := symbols[i]
+				switch c {
+				case '\\':
+					if i+1 == len(symbols) {
+						return nil, errors.New("unexpected backslash at the end")
+					}
+					i++
+				case '"':
+					part := rawArgs[0 : i+1]
+					arg, err := strconv.Unquote(part)
+					if err != nil {
+						return nil, fmt.Errorf("unquote string: %s: %w", part, err)
+					}
+					args = append(args, arg)
+					rawArgs = string(symbols[i+1:])
+					//finish parsing quoted string
+					finished = true
+					break quoted
+				}
+			}
+			if !finished {
+				return nil, errors.New("unclosed quoted string")
+			}
+		} else {
+			i := strings.Index(rawArgs, " ")
+			if i < 0 {
+				i = len(rawArgs)
+			}
+			args = append(args, rawArgs[0:i])
+			rawArgs = rawArgs[i:]
+		}
+	}
+	return args, nil
 }
 
 func loadSrcFiles(inputs []string, buildTags []string, fileSet *token.FileSet, files []*ast.File, filePackages map[*ast.File]*packages.Package) ([]*ast.File, error) {
@@ -390,44 +407,42 @@ func newSet(values []string, excludes ...string) ([]string, map[string]int) {
 	return uniques, set
 }
 
-func outDir(args []string) string {
-	if len(args) > 0 && isDir(args[len(args)-1]) {
-		return args[len(args)-1]
+func outDir(args []string) (string, error) {
+	if len(args) > 0 {
+		if dir, err := isDir(args[len(args)-1]); err != nil {
+			return "", fmt.Errorf("outDir: %w", err)
+		} else if dir {
+			return args[len(args)-1], nil
+		}
 	}
-	return ""
+	return "", nil
 }
 
-func isDir(name string) bool {
+func isDir(name string) (bool, error) {
 	info, err := os.Stat(name)
 	if err != nil {
-		log.Fatal(err)
+		return false, err
 	}
-	dir := info.IsDir()
-	return dir
+	return info.IsDir(), nil
 }
 
-//const packageMode = packages.NeedSyntax | packages.NeedModule | packages.NeedName | packages.NeedImports | packages.NeedDeps | packages.NeedTypes | packages.NeedTypesInfo
 const packageMode = packages.NeedSyntax | packages.NeedModule | packages.NeedName | packages.NeedTypesInfo | packages.NeedTypes
 
-func extractPackage(fileSet *token.FileSet, buildTags []string, patterns ...string) *packages.Package {
+func extractPackage(fileSet *token.FileSet, buildTags []string, patterns ...string) (*packages.Package, error) {
 	_packages, err := packages.Load(&packages.Config{
 		Fset: fileSet, Mode: packageMode, BuildFlags: buildTagsArg(buildTags),
 	}, patterns...)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	if len(_packages) != 1 {
-		log.Fatalf("error: %d packages found", len(_packages))
+		return nil, fmt.Errorf("%d packages found", len(_packages))
 	}
-
 	pack := _packages[0]
-
-	errs := pack.Errors
-	if len(errs) > 0 {
+	if errs := pack.Errors; len(errs) > 0 {
 		logger.Debugf("package error; %v", errs[0])
 	}
-
-	return pack
+	return pack, nil
 }
 
 func buildTagsArg(buildTags []string) []string {

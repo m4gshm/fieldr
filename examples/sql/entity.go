@@ -1,18 +1,14 @@
 package sql
 
-//go:fieldr -in ../sql_util/postgres.go -out entity.go -type Entity -flat Versioned
-//go:fieldr -constLen 100 -constReplace tableName="tableName"
-
-//go:generate fieldr -GetFieldValuesByTag db -ref -excludeFields ID -name insertValues -compact
-//go:generate fieldr -GetFieldValuesByTag db -ref -name values -compact
-//go:generate fieldr -const sqlUpsert:_upsert -const sqlInsert:_insert -const sqlSelectByID:_selectByID
-//go:generate fieldr -const sqlSelectByIDs:_selectByIDs -const sqlDeleteByID:_deleteByID
-//go:generate fieldr -out 00001_create_table.go -const createTableSql:_createTableSql
+//go:fieldr enum-const -name "{{ join \"col\" field.name }}" -val "tag.db" -type col -list . -val-access -ref-access -flat NoDBFieldsEntity -flat Versioned
 
 import (
 	"database/sql"
-	"example/sql_base"
+	"strconv"
+	"strings"
 	"time"
+
+	"example/sql_base"
 
 	pq "github.com/lib/pq"
 )
@@ -26,8 +22,8 @@ type BaseEntity struct {
 }
 
 type Entity struct {
-	BaseEntity
-	NoDBFieldsEntity
+	*BaseEntity
+	NoDB      NoDBFieldsEntity
 	Name      string    `db:"name" json:"name,omitempty"`
 	Surname   string    `db:"surname" json:"surname,omitempty"`
 	Values    []int32   `db:"values" json:"values,omitempty"`
@@ -35,21 +31,105 @@ type Entity struct {
 	Versioned sql_base.VersionedEntity
 }
 
-const (
-	sqlInsert = "INSERT INTO \"tableName\" (name,surname,values,ts,version) VALUES ($1,$2,$3,$4,$5) RETURNING id"
-	sqlUpsert = "INSERT INTO \"tableName\" (id,name,surname,values,ts,version) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT " +
-		"(id) DO UPDATE SET name=$2,surname=$3,values=$4,ts=$5,version=$6 RETURNING id"
-	sqlSelectByID  = "SELECT id,name,surname,values,ts,version FROM \"tableName\" WHERE id = $1"
-	sqlSelectByIDs = "SELECT id,name,surname,values,ts,version FROM \"tableName\" WHERE id = ANY($1::int[])"
-	sqlDeleteByID  = "DELETE FROM \"tableName\" WHERE id = $1"
+const tableName = "tableName"
+
+var (
+	sqlInsert      = initSqlInsert(tableName)
+	sqlUpsert      = initSqlUpsert(tableName)
+	sqlSelectByID  = initSqlSelectBy(tableName, string(colID)+"=$1")
+	sqlSelectByIDs = initSqlSelectBy(tableName, string(colID)+"=ANY($1::int[])")
+	sqlDeleteByID  = "DELETE FROM \"" + tableName + "\" WHERE " + string(colID) + " = $1"
 )
 
-func (v *Entity) insertValues() []interface{} {
-	return []interface{}{&v.Name, &v.Surname, pq.Array(&v.Values), &v.Ts, &v.Versioned.Version}
+func initSqlSelectBy(tableName, whereCondition string) string {
+	columns := strings.Builder{}
+	for i, c := range cols() {
+		colName := string(c)
+		if i > 0 {
+			columns.WriteString(",")
+		}
+		columns.WriteString(colName)
+	}
+	return "SELECT " + columns.String() + " FROM \"" + tableName + "\" WHERE " + whereCondition
+}
+
+func initSqlInsert(tableName string) string {
+	id := string(colID)
+
+	columns := strings.Builder{}
+	indexes := strings.Builder{}
+
+	i := 0
+	for _, c := range cols() {
+		if c == colID {
+			continue
+		}
+		colName := string(c)
+		colIndex := strconv.Itoa(i + 1)
+		if i > 0 {
+			columns.WriteString(",")
+			indexes.WriteString(",")
+		}
+		columns.WriteString(colName)
+		indexes.WriteString("$" + colIndex)
+		i++
+	}
+	return "INSERT INTO \"" + tableName + "\" (" + columns.String() + ") VALUES (" + indexes.String() + ") RETURNING " + id
+}
+
+func initSqlUpsert(tableName string) string {
+	id := string(colID)
+
+	columns := strings.Builder{}
+	indexes := strings.Builder{}
+	updatePairs := strings.Builder{}
+
+	u := 1
+	for i, c := range cols() {
+		colName := string(c)
+		colIndex := strconv.Itoa(i + 1)
+		if i > 0 {
+			columns.WriteString(",")
+			indexes.WriteString(",")
+		}
+		columns.WriteString(colName)
+		indexes.WriteString("$" + colIndex)
+
+		if c != colID {
+			if u > 1 {
+				updatePairs.WriteString(",")
+			}
+			updatePairs.WriteString(colName + "=$" + colIndex)
+			u++
+		}
+	}
+	return "INSERT INTO \"" + tableName + "\" (" + columns.String() + ") VALUES (" + indexes.String() + ") ON CONFLICT (" + id + ") DO UPDATE SET " + updatePairs.String() + " RETURNING " + id
 }
 
 func (v *Entity) values() []interface{} {
-	return []interface{}{&v.ID, &v.Name, &v.Surname, pq.Array(&v.Values), &v.Ts, &v.Versioned.Version}
+	return v.valuesExcept()
+}
+
+func (v *Entity) valuesExcept(excepts ...col) []interface{} {
+	exceptSet := map[col]struct{}{}
+	for _, c := range excepts {
+		exceptSet[c] = struct{}{}
+	}
+
+	cols := cols()
+	r := make([]interface{}, 0, len(cols)-len(exceptSet))
+
+	for _, c := range cols {
+		if _, except := exceptSet[c]; !except {
+			ref := c.ref(v)
+			if c == colValues {
+				ref = pq.Array(ref)
+			}
+			r = append(r, ref)
+		}
+	}
+
+	return r
 }
 
 func GetByID(e RowQuerier, id int32) (*Entity, error) {
@@ -84,17 +164,13 @@ func GetByIDs(e RowsQuerier, ids ...int32) ([]*Entity, error) {
 }
 
 func (v *Entity) Store(e RowQuerier) (int32, error) {
-	var (
-		columns []interface{}
-		sqlOp   string
-	)
+	sqlOp := sqlUpsert
+	columns := v.values()
 	if v.ID == 0 {
 		sqlOp = sqlInsert
-		columns = v.insertValues()
-	} else {
-		sqlOp = sqlUpsert
-		columns = v.values()
+		columns = v.valuesExcept(colID)
 	}
+
 	row := e.QueryRow(sqlOp, columns...)
 	if err := row.Err(); err != nil {
 		return -1, err

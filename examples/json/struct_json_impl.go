@@ -1,7 +1,7 @@
 package json
 
 import (
-	"encoding/json"
+	json "encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -9,42 +9,36 @@ import (
 )
 
 var (
-	jsonFields     = make([]string, 0, len(structFields))
-	jsonFieldNames = make([]string, 0, len(structFields))
-	jsonOmitEmpty  = make([]bool, 0, len(structFields))
+	jsonFields     = structJsons()
+	jsonFieldNames = make([]string, 0)
+	jsonOmitEmpty  = make([]bool, 0)
 )
 
 func init() {
-	for _, field := range structFields {
-		tag, ok := structFieldTagValue[field][StructTagJson]
-
-		jsonFieldName := field
-		include := true
+	for _, tag := range jsonFields {
+		jsonFieldName := tag.field()
 		omitEmpty := false
-		if ok {
-			include = tag != "-"
-			strTag := tag
-			if include {
-				const omitEmptySuffix = ",omitempty"
-				if strings.HasSuffix(strTag, omitEmptySuffix) {
-					strTag = strTag[0 : len(strTag)-len(omitEmptySuffix)]
-					omitEmpty = true
-				}
 
-				if strTag != "" {
-					jsonFieldName = strTag
-				}
-			}
+		strTag := string(tag)
+		const omitEmptySuffix = ",omitempty"
+		if strings.HasSuffix(strTag, omitEmptySuffix) {
+			strTag = strTag[0 : len(strTag)-len(omitEmptySuffix)]
+			omitEmpty = true
 		}
-		if include {
-			jsonFields = append(jsonFields, field)
-			jsonFieldNames = append(jsonFieldNames, jsonFieldName)
-			jsonOmitEmpty = append(jsonOmitEmpty, omitEmpty)
+
+		if strTag != "" {
+			jsonFieldName = strTag
 		}
+
+		jsonFieldNames = append(jsonFieldNames, jsonFieldName)
+		jsonOmitEmpty = append(jsonOmitEmpty, omitEmpty)
 	}
 }
 
 func isEmpty(v interface{}) bool {
+	if v == nil || (reflect.ValueOf(v).Kind() == reflect.Ptr && reflect.ValueOf(v).IsNil()) {
+		return true
+	}
 	switch vk := v.(type) {
 	case string:
 		return len(vk) == 0
@@ -68,7 +62,7 @@ func isEmpty(v interface{}) bool {
 func (s *Struct) MarshalJSON() ([]byte, error) {
 	var builder strings.Builder
 
-	builder.Grow(len(structFields) * 16)
+	builder.Grow(len(jsonFields) * 16)
 
 	err := s.MarshalJSONToBuilder(&builder)
 	if err != nil {
@@ -88,15 +82,23 @@ func (s *Struct) MarshalJSONToBuilder(builder *strings.Builder) error {
 
 func (s *Struct) writeJson(builder *strings.Builder) error {
 	builder.WriteString("{")
-
+	j := 0
 	for i, field := range jsonFields {
-		fieldValue := s.GetFieldValue(field)
+		fieldValue := field.val(s)
 
 		if jsonOmitEmpty[i] && isEmpty(fieldValue) {
 			continue
 		}
 
-		if i > 0 {
+		jsonValue, err := toJsonValue(fieldValue)
+		if err != nil {
+			return err
+		}
+		if len(jsonValue) == 0 {
+			continue
+		}
+
+		if j > 0 {
 			builder.WriteString(",")
 		}
 
@@ -104,11 +106,8 @@ func (s *Struct) writeJson(builder *strings.Builder) error {
 		builder.WriteString(jsonFieldNames[i])
 		builder.WriteString("\":")
 
-		jsonValue, err := toJsonValue(fieldValue)
-		if err != nil {
-			return err
-		}
 		builder.WriteString(jsonValue)
+		j++
 	}
 
 	builder.WriteString("}")
@@ -116,6 +115,9 @@ func (s *Struct) writeJson(builder *strings.Builder) error {
 }
 
 func toJsonValue(v interface{}) (string, error) {
+	if v == nil || (reflect.ValueOf(v).Kind() == reflect.Ptr && reflect.ValueOf(v).IsNil()) {
+		return "", nil
+	}
 	switch vt := v.(type) {
 	case string:
 		return "\"" + vt + "\"", nil
@@ -133,7 +135,9 @@ func toJsonValue(v interface{}) (string, error) {
 			return "", err
 		}
 		return string(marshalJSON), nil
+
 	default:
-		return "", fmt.Errorf("unsipported value %v, type %s", v, reflect.TypeOf(v))
+
+		return fmt.Sprintf("\"%v\"", v), nil
 	}
 }

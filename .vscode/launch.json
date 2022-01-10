@@ -5,15 +5,81 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch sql example",
+            "name": "Debug sql example",
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            // "program": "${file}",
             "program": "main.go",
             "cwd": "examples/sql",
-            "args": ["-type", "Entity", "-in", "../util/const_template.go", "-out", "entity_sql.go", "-GetFieldValuesByTag", "db", "-const", "_upsert", "-const", "_selectByID", "-const", "_deleteByID", "-const", "_pk"]
+            "args": ["-type", "Entity", "-in", "../sql_util/postgres.go", "-out", "entity_sql.go", "-GetFieldValuesByTag", "db", "-const", "_upsert", "-const", "_selectByID", "-const", "_deleteByID", "-const", "_pk"]
         },
+        {
+            "name": "Debug squirrel example",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "examples/squirrel",
+            "args": ["-type", "Entity", "-out", "entity_fields.go", "-Strings", "-TagValues", "db", "-GetFieldValuesByTag_", "-GetFieldValuesByTag", "db"]
+        },
+        {
+            "name": "Debug gorm example",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "examples/gorm",
+            "args": ["-type", "Entity", "-out", "entity_fields.go", "-debug", "enum-const", "-name", "{{(join struct.name \"Col\" field.name) | snake | toUpper}}", "-val", "{{.gorm | rexp \"column:(\\\\w+),?\" | or field.name | snake | toUpper}}", "-type", "COL"]
+        },        
+        {
+            "name": "Debug json example",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "examples/json",
+            "args": ["-type", "Struct", "-out", "struct_util.go"]
+        },        
+        {
+            "name": "Debug multiply_tags example",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "examples/multiply_tags",
+            "args": ["-type", "Entity", "-out", "entity_fields.go"]
+        },           
+        {
+            "name": "Debug as map example",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "examples/asmap",
+            "args": [
+                "-type",
+                "Struct",
+                "-out",
+                "struct_as_map.go",
+                "as-map",
+                "-export",
+                "-rewrite",
+                "type:*EmbeddedAddress:fmt=%v.AsMap()",
+                "-flat",
+                "FlatOne",
+                "-flat",
+                "FlatTwo"
+            ]
+        },
+        {
+            "name": "Debug builder example",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "examples/builder",
+            "args": ["-type", "Entity", "builder"]
+        },               
         {
             "name": "Launch Package",
             "type": "go",
@@ -21,5 +87,5 @@
             "mode": "auto",
             "program": "${fileDirname}"
         }
-    ]
+    ] 
 }

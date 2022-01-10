@@ -2,53 +2,58 @@
 
 package json
 
+type structJson string
+
 const (
-	StructFieldID       = "ID"
-	StructFieldName     = "Name"
-	StructFieldSurname  = "Surname"
-	StructFieldNoJson   = "NoJson"
-	structFieldNoExport = "noExport"
-	StructFieldNoTag    = "NoTag"
-
-	StructTagJson = "json"
-
-	StructTagValueJsonID       = "id"
-	StructTagValueJsonName     = "name,omitempty"
-	StructTagValueJsonSurname  = "surname,omitempty"
-	StructTagValueJsonNoJson   = "-"
-	structTagValueJsonNoExport = "no_export"
+	structJsonID      structJson = "id"
+	structJsonName    structJson = "name,omitempty"
+	structJsonSurname structJson = "surname,omitempty"
+	structJsonNoTag   structJson = "NoTag"
+	structJsonAddress structJson = "address,omitempty"
 )
 
-var (
-	structFields = []string{
-		StructFieldID,
-		StructFieldName,
-		StructFieldSurname,
-		StructFieldNoJson,
-		StructFieldNoTag,
+func structJsons() []structJson {
+	return []structJson{
+		structJsonID,
+		structJsonName,
+		structJsonSurname,
+		structJsonNoTag,
+		structJsonAddress,
 	}
+}
 
-	structFieldTagValue = map[string]map[string]string{
-		StructFieldID:      map[string]string{StructTagJson: StructTagValueJsonID},
-		StructFieldName:    map[string]string{StructTagJson: StructTagValueJsonName},
-		StructFieldSurname: map[string]string{StructTagJson: StructTagValueJsonSurname},
-		StructFieldNoJson:  map[string]string{StructTagJson: StructTagValueJsonNoJson},
-		StructFieldNoTag:   map[string]string{},
+func (c structJson) field() string {
+	switch c {
+	case structJsonID:
+		return "MiddleStruct.BaseStruct.IDAware.ID"
+	case structJsonName:
+		return "Name"
+	case structJsonSurname:
+		return "Surname"
+	case structJsonNoTag:
+		return "NoTag"
+	case structJsonAddress:
+		return "Address"
 	}
-)
+	return ""
+}
 
-func (v *Struct) GetFieldValue(field string) interface{} {
-	switch field {
-	case StructFieldID:
-		return v.ID
-	case StructFieldName:
-		return v.Name
-	case StructFieldSurname:
-		return v.Surname
-	case StructFieldNoJson:
-		return v.NoJson
-	case StructFieldNoTag:
-		return v.NoTag
+func (c structJson) val(s *Struct) interface{} {
+	switch c {
+	case structJsonID:
+		if s.MiddleStruct != nil && s.MiddleStruct.BaseStruct.IDAware != nil {
+			return s.MiddleStruct.BaseStruct.IDAware.ID
+		}
+	case structJsonName:
+		return s.Name
+	case structJsonSurname:
+		return s.Surname
+	case structJsonNoTag:
+		return s.NoTag
+	case structJsonAddress:
+		if s.Address != nil {
+			return s.Address
+		}
 	}
 	return nil
 }

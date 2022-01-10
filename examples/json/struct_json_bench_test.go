@@ -7,9 +7,9 @@ import (
 )
 
 var benchStruct = Struct{
-	BaseStruct: BaseStruct{ID: 1},
-	Name:       "Name",
-	NoJson:     "NoJson",
+	MiddleStruct: &MiddleStruct{BaseStruct{&IDAware{ID: 1}}},
+	Name:         "Name",
+	NoJson:       "NoJson",
 }
 
 func Benchmark_TestStruct_MarshalJSON(b *testing.B) {

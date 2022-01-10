@@ -2,41 +2,62 @@
 
 package squirrel
 
-type (
-	entityTag          string
-	entityTagValue     string
-	entityTagValueList []entityTagValue
-)
+type Col string
 
 const (
-	entityTagDb = entityTag("db")
-
-	entityTagValueDbID      = entityTagValue("ID")
-	entityTagValueDbName    = entityTagValue("NAME")
-	entityTagValueDbSurname = entityTagValue("SURNAME")
-	entityTagValueDbTs      = entityTagValue("TS")
+	colID      Col = "ID"
+	colName    Col = "NAME"
+	colSurname Col = "SURNAME"
+	colVersion Col = "version"
 )
 
-var (
-	entityTagValuesDb = entityTagValueList{entityTagValueDbID, entityTagValueDbName, entityTagValueDbSurname}
-)
+func cols() []Col {
+	return []Col{
+		colID,
+		colName,
+		colSurname,
+		colVersion,
+	}
+}
 
-func (v *Entity) getFieldValuesByTag(tag entityTag) []interface{} {
-	switch tag {
-	case entityTagDb:
-		return []interface{}{v.ID, v.Name, v.Surname}
+func (c Col) field() string {
+	switch c {
+	case colID:
+		return "ID"
+	case colName:
+		return "Name"
+	case colSurname:
+		return "Surname"
+	case colVersion:
+		return "Versioned.Version"
+	}
+	return ""
+}
+
+func (c Col) val(s *Entity) interface{} {
+	switch c {
+	case colID:
+		return s.ID
+	case colName:
+		return s.Name
+	case colSurname:
+		return s.Surname
+	case colVersion:
+		return s.Versioned.Version
 	}
 	return nil
 }
 
-func (v *Entity) getFieldValuesByTagDb() []interface{} {
-	return []interface{}{v.ID, v.Name, v.Surname}
-}
-
-func (v entityTagValueList) strings() []string {
-	strings := make([]string, len(v))
-	for i, val := range v {
-		strings[i] = string(val)
+func (c Col) ref(s *Entity) interface{} {
+	switch c {
+	case colID:
+		return &s.ID
+	case colName:
+		return &s.Name
+	case colSurname:
+		return &s.Surname
+	case colVersion:
+		return &s.Versioned.Version
 	}
-	return strings
+	return nil
 }
