@@ -19,6 +19,10 @@ const (
 
 	_upsert = "{{$pk:=.FieldTagValue.ID.db}}INSERT INTO \"" + tableName + "\" ({{range $i,$tag := .TagValues.db}}{{if gt $i 0}},{{end}}{{$tag}}{{end}}) " +
 		"VALUES ({{range $i, $tag := .TagValues.db}}{{if gt $i 0}},{{end}}${{inc $i}}{{end}}) ON CONFLICT ({{$pk}}) DO UPDATE SET {{$comma:=false}}{{range $i, $tag := .TagValues.db}}{{if ne $tag $pk}}{{if $comma}},{{end}}{{$tag}}=${{inc $i}}{{$comma = true}}{{end}}{{end}} RETURNING {{$pk}}"
+
+	_upsertWithoutIDReturn = "{{$pk:=.FieldTagValue.ID.db}}INSERT INTO \"" + tableName + "\" ({{range $i,$tag := .TagValues.db}}{{if gt $i 0}},{{end}}{{$tag}}{{end}}) " +
+		"VALUES ({{range $i, $tag := .TagValues.db}}{{if gt $i 0}},{{end}}${{inc $i}}{{end}}) ON CONFLICT ({{$pk}}) DO UPDATE SET {{$comma:=false}}{{range $i, $tag := .TagValues.db}}{{if ne $tag $pk}}{{if $comma}},{{end}}{{$tag}}=${{inc $i}}{{$comma = true}}{{end}}{{end}}"
+
 	_updateByID = "{{$pk:=.FieldTagValue.ID.db}}UPDATE \"" + tableName + "\" SET {{$comma:=false}}{{range $i, $tag := .TagValues.db}}{{if ne $tag $pk}}{{if $comma}},{{end}}{{$tag}}=${{inc $i}}{{$comma = true}}{{end}}{{end}} WHERE {{$pk}} = $1"
 
 	_deleteByID  = "DELETE FROM \"" + tableName + "\" WHERE {{.FieldTagValue.ID.db}} = $1"

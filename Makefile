@@ -4,10 +4,11 @@ all: build test lint
 .PHONY: test
 test:
 	$(info #Running tests...)
+	go clean -testcache
 	go test
 
 .PHONY: build
-build:
+build: gofmt govet
 	$(info #Building...)
 	go install
 
@@ -19,3 +20,11 @@ lint-install:
 lint: lint-install
 	$(info #Lint...)
 	golangci-lint run
+
+.PHONY: gofmt
+gofmt:
+	go fmt ./...
+
+.PHONY: govet
+govet:
+	go vet ./...

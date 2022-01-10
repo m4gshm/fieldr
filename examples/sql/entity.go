@@ -11,8 +11,9 @@ package sql
 
 import (
 	"database/sql"
-	"example/sql_base"
 	"time"
+
+	"example/sql_base"
 
 	pq "github.com/lib/pq"
 )

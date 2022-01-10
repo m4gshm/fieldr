@@ -138,11 +138,14 @@ func (b *structModelBuilder) populateByType(t types.Type) error {
 	switch tt := t.(type) {
 	case *types.Struct:
 		return b.populateByStruct(tt)
-	case *types.Named:
+	case types.Type:
 		underlying := tt.Underlying()
+		if underlying == t {
+			return nil
+		}
 		return b.populateByType(underlying)
 	default:
-		return fmt.Errorf("unsupported type %s, type %v", tt, reflect.TypeOf(tt))
+		return nil
 	}
 }
 
