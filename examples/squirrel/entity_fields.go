@@ -2,6 +2,10 @@
 
 package squirrel
 
+import (
+	"unsafe"
+)
+
 type (
 	entityTag          string
 	entityTagValue     string
@@ -34,9 +38,5 @@ func (v *Entity) getFieldValuesByTagDb() []interface{} {
 }
 
 func (v entityTagValueList) strings() []string {
-	strings := make([]string, len(v))
-	for i, val := range v {
-		strings[i] = string(val)
-	}
-	return strings
+	return *(*[]string)(unsafe.Pointer(&v))
 }

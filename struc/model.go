@@ -18,8 +18,8 @@ const KeyValueSeparator = ":"
 const ListValuesSeparator = ","
 
 var (
-	TagParsers    = TagValueParsers{}
-	ExcludeValues = map[TagName]map[TagValue]bool{}
+	tagParsers    = TagValueParsers{}
+	excludeValues = map[TagName]map[TagValue]bool{}
 )
 
 type TagName = string
@@ -28,7 +28,7 @@ type FieldName = string
 type FieldType = string
 
 type HierarchicalModel struct {
-	*Model
+	Model
 	Nested map[FieldName]*HierarchicalModel
 }
 
@@ -350,14 +350,14 @@ func ParseTags(tags string) (map[TagName]TagValue, []TagName) {
 			tagContent := tags[pos:endValuePos]
 
 			var parsedValue TagValue
-			if parser, ok := TagParsers[_tagName]; ok {
-				parsedValue = parser(tagContent)
+			if parse, ok := tagParsers[_tagName]; ok {
+				parsedValue = parse(tagContent)
 			} else {
-				parsedValue = TagValue(tagContent)
+				parsedValue = tagContent
 			}
 
 			var excluded bool
-			if excludedValues, ok := ExcludeValues[_tagName]; ok {
+			if excludedValues, ok := excludeValues[_tagName]; ok {
 				excluded, ok = excludedValues[parsedValue]
 				excluded = excluded && ok
 			}

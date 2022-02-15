@@ -5,15 +5,23 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch sql example",
+            "name": "Debug sql example",
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            // "program": "${file}",
             "program": "main.go",
             "cwd": "examples/sql",
             "args": ["-type", "Entity", "-in", "../util/const_template.go", "-out", "entity_sql.go", "-GetFieldValuesByTag", "db", "-const", "_upsert", "-const", "_selectByID", "-const", "_deleteByID", "-const", "_pk"]
         },
+        {
+            "name": "Debug squirrel example",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "examples/squirrel",
+            "args": ["-type", "Entity", "-out", "entity_fields.go", "-wrap", "-Strings", "-TagValues", "db", "-GetFieldValuesByTag_", "-GetFieldValuesByTag", "db"]
+        },        
         {
             "name": "Launch Package",
             "type": "go",

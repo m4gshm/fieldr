@@ -69,6 +69,8 @@ type Generator struct {
 	receiverNames      []string
 	receiverFuncs      map[string][]string
 	receiverFuncValues map[string]map[string]string
+
+	imports map[string]string
 }
 
 const DefaultConstLength = 80
@@ -322,6 +324,14 @@ func (g *Generator) GenerateFile(model *struc.Model, outFile *ast.File, outFileI
 		}
 	}
 
+	if needImport {
+		importAlias := structPackage
+		if name := packagePathToName(model.PackagePath); name == structPackage {
+			importAlias = ""
+		}
+		g.imports[model.PackagePath] = importAlias
+	}
+
 	g.excludedTagValues = make(map[string]bool)
 	if *g.Conf.NoEmptyTag {
 		for fieldName, _tagNames := range model.FieldsTagValue {
@@ -458,8 +468,7 @@ func (g *Generator) GenerateFile(model *struc.Model, outFile *ast.File, outFileI
 
 	if all || *g.Content.FieldTagsMap {
 		g.addVarDelim()
-		if err := g.addVar(
-			g.generateFieldTagsMapVar(model.TypeName, model.TagNames, model.FieldNames, model.FieldsTagValue)); err != nil {
+		if err := g.addVar(g.generateFieldTagsMapVar(model.TypeName, model.TagNames, model.FieldNames, model.FieldsTagValue)); err != nil {
 			return err
 		}
 	}
@@ -567,8 +576,7 @@ func (g *Generator) GenerateFile(model *struc.Model, outFile *ast.File, outFileI
 
 	if isRewrite {
 		g.body = &bytes.Buffer{}
-		g.writeHead(model, outPackageName, needImport)
-
+		g.writeHead(outPackageName)
 		g.writeTypes()
 		g.writeConstants()
 		g.writeVars()
@@ -576,7 +584,7 @@ func (g *Generator) GenerateFile(model *struc.Model, outFile *ast.File, outFileI
 		g.writeFunctions()
 	} else {
 		//injects
-		chunks, err := g.getInjectChunks(model, outFile, outFileInfo.Base(), needImport, structPackage)
+		chunks, err := g.getInjectChunks(outFile, outFileInfo.Base())
 		if err != nil {
 			return err
 		}
@@ -679,7 +687,7 @@ func (g *Generator) hasDuplicatedPackage(outFile *ast.File, packageName string) 
 	return false, nil
 }
 
-func (g *Generator) getInjectChunks(model *struc.Model, outFile *ast.File, base int, needImport bool, structPackage string) (map[int]map[int]string, error) {
+func (g *Generator) getInjectChunks(outFile *ast.File, base int) (map[int]map[int]string, error) {
 	noReceiver := g.Conf.NoReceiver != nil && *g.Conf.NoReceiver
 	chunks := make(map[int]map[int]string)
 
@@ -687,8 +695,7 @@ func (g *Generator) getInjectChunks(model *struc.Model, outFile *ast.File, base 
 	for _, decl := range outFile.Decls {
 		switch dt := decl.(type) {
 		case *ast.GenDecl:
-			if needImport && dt.Tok == token.IMPORT {
-				expr := g.importExpr(model, structPackage, false)
+			if dt.Tok == token.IMPORT {
 				var start int
 				var end int
 				if len(dt.Specs) == 0 {
@@ -698,16 +705,19 @@ func (g *Generator) getInjectChunks(model *struc.Model, outFile *ast.File, base 
 					if dt.Rparen != token.NoPos {
 						start = int(dt.Rparen) - base
 						end = start
-						expr = "\n" + g.importExpr(model, structPackage, true)
 					}
 				}
-				chunks[start] = map[int]string{end: expr}
+				if expr := g.getImportsExpr(); len(expr) > 0 {
+					chunks[start] = map[int]string{end: expr}
+				}
 				importInjected = true
 			} else {
 				for _, spec := range dt.Specs {
 					switch st := spec.(type) {
 					case *ast.TypeSpec:
-						if _, ok := st.Type.(*ast.Ident); !ok {
+						switch st.Type.(type) {
+						case *ast.Ident, *ast.ArrayType:
+						default:
 							continue
 						}
 
@@ -775,25 +785,14 @@ func (g *Generator) getInjectChunks(model *struc.Model, outFile *ast.File, base 
 		}
 	}
 
-	if needImport && !importInjected {
-		start := int(outFile.Name.End()) - base
-		end := start
-		chunks[start] = map[int]string{end: g.importExpr(model, structPackage, false)}
+	if !importInjected {
+		if expr := g.getImportsExpr(); len(expr) > 0 {
+			start := int(outFile.Name.End()) - base
+			end := start
+			chunks[start] = map[int]string{end: expr}
+		}
 	}
 	return chunks, nil
-}
-
-func (g *Generator) importExpr(model *struc.Model, packageName string, forMultiline bool) string {
-	path := model.PackagePath
-	name := packagePathToName(path)
-	quoted := "\"" + path + "\"\n"
-	if name != packageName {
-		quoted = packageName + " " + quoted
-	}
-	if forMultiline {
-		return "\n" + quoted
-	}
-	return "\nimport " + quoted
 }
 
 func (g *Generator) addReceiveFuncOnRewrite(list []*ast.Field, name string, chunks map[int]map[int]string, start int, end int) (bool, error) {
@@ -894,14 +893,30 @@ func getSortedChunks(chunkVals map[int]map[int]string) []int {
 	return chunkPos
 }
 
-func (g *Generator) writeHead(str *struc.Model, packageName string, needImport bool) {
+func (g *Generator) writeHead(packageName string) {
 	g.writeBody("// %s'; DO NOT EDIT.\n\n", g.generatedMarker())
 	g.writeBody(*g.Conf.OutBuildTags)
 	g.writeBody("package %s\n", packageName)
+	g.writeBody(g.getImportsExpr())
+}
 
-	if needImport {
-		g.writeBody(g.importExpr(str, "", false))
+func (g *Generator) getImportsExpr() string {
+	if len(g.imports) > 0 {
+		return "\nimport (" + g.importsExprList() + "\n)\n"
 	}
+	return ""
+}
+
+func (g *Generator) importsExprList() string {
+	imps := ""
+	for pack, alias := range g.imports {
+		if len(alias) == 0 {
+			imps += "\n" + "\"" + pack + "\""
+		} else {
+			imps += "\n" + alias + "\"" + pack + "\""
+		}
+	}
+	return imps
 }
 
 func (g *Generator) writeConstants() {
@@ -929,21 +944,19 @@ func (g *Generator) writeConstants() {
 }
 
 func (g *Generator) writeVars() {
-	names := g.varNames
-	values := g.varValues
-	if len(names) > 0 {
+	if len(g.varNames) > 0 {
 		g.writeBody("var(\n")
 	}
-	for _, name := range names {
+	for _, name := range g.varNames {
 		if len(name) == 0 {
 			g.writeBody("\n")
 			continue
 		}
-		value := values[name]
+		value := g.varValues[name]
 		g.writeBody("%v=%v", name, value)
 		g.writeBody("\n")
 	}
-	if len(names) > 0 {
+	if len(g.varNames) > 0 {
 		g.writeBody(")\n")
 	}
 }
@@ -1056,19 +1069,19 @@ func (g *Generator) generateHead(model *struc.Model, all bool) error {
 	if wrapType {
 		if all || *g.Content.Strings {
 			if g.used.fieldArrayType {
-				if err := g.addReceiverFunc(g.generateArrayToStringsFunc(arrayType(fieldType), baseType)); err != nil {
+				if err := g.addReceiverFuncWithImports(g.generateArrayToStringsFunc(arrayType(fieldType), baseType)); err != nil {
 					return err
 				}
 			}
 
 			if g.used.tagArrayType {
-				if err := g.addReceiverFunc(g.generateArrayToStringsFunc(arrayType(tagType), baseType)); err != nil {
+				if err := g.addReceiverFuncWithImports(g.generateArrayToStringsFunc(arrayType(tagType), baseType)); err != nil {
 					return err
 				}
 			}
 
 			if g.used.tagValueArrayType {
-				if err := g.addReceiverFunc(g.generateArrayToStringsFunc(arrayType(tagValType), baseType)); err != nil {
+				if err := g.addReceiverFuncWithImports(g.generateArrayToStringsFunc(arrayType(tagValType), baseType)); err != nil {
 					return err
 				}
 			}
@@ -1502,7 +1515,6 @@ func (g *Generator) generateTagFieldsMapVar(model *struc.Model) (string, string,
 }
 
 func (g *Generator) generateTagFieldConstants(model *struc.Model, tagValueType string) error {
-
 	if len(model.TagNames) == 0 {
 		return g.noTagsError("Tag Fields Constants")
 	}
@@ -1564,7 +1576,6 @@ func (g *Generator) generateTagConstants(typeName string, tagType string, tagNam
 		}
 	}
 	return nil
-
 }
 
 func (g *Generator) addConstDelim() {
@@ -1619,7 +1630,7 @@ func (g *Generator) addFunc(funcName, funcValue string) error {
 	return nil
 }
 
-func (g *Generator) addReceiverFunc(receiverName, funcName, funcValue string, err error) error {
+func (g *Generator) addReceiverFuncWithImports(receiverName, funcName, funcValue string, imports map[string]string, err error) error {
 	if err != nil {
 		return err
 	}
@@ -1639,7 +1650,17 @@ func (g *Generator) addReceiverFunc(receiverName, funcName, funcValue string, er
 	g.receiverFuncs[receiverName] = append(functions, funcName)
 	g.receiverFuncValues[receiverName][funcName] = funcValue
 
+	if g.imports == nil {
+		g.imports = map[string]string{}
+	}
+	for pack, alias := range imports {
+		g.imports[pack] = alias
+	}
 	return nil
+}
+
+func (g *Generator) addReceiverFunc(receiverName, funcName, funcValue string, err error) error {
+	return g.addReceiverFuncWithImports(receiverName, funcName, funcValue, nil, err)
 }
 
 func (g *Generator) generateFieldsVar(model *struc.Model, fieldNames []struc.FieldName) (string, string, error) {
@@ -2065,18 +2086,14 @@ func (g *Generator) generateArrayToExcludesFunc(receiver bool, typeName, arrayTy
 	return funcName, funcBody
 }
 
-func (g *Generator) generateArrayToStringsFunc(arrayTypeName string, resultType string) (string, string, string, error) {
+func (g *Generator) generateArrayToStringsFunc(arrayTypeName string, resultType string) (string, string, string, map[string]string, error) {
 	funcName := goName("Strings", *g.Conf.Export)
 	receiverVar := "v"
 	funcBody := "" +
 		"func (" + receiverVar + " " + arrayTypeName + ") " + funcName + "() []" + resultType + " {" + g.noLint() + "\n" +
-		"	strings := make([]" + resultType + ", len(v))\n" +
-		"	for i, val := range " + receiverVar + " {\n" +
-		"		strings[i] = string(val)\n" +
-		"		}\n" +
-		"		return strings\n" +
+		"		return *(*[]string)(unsafe.Pointer(&" + receiverVar + "))\n" +
 		"	}\n"
-	return arrayTypeName, funcName, funcBody, nil
+	return arrayTypeName, funcName, funcBody, map[string]string{"unsafe": ""}, nil
 }
 
 func (g *Generator) generateAsMapFunc(model *struc.Model, pkg string) (string, string, string, error) {

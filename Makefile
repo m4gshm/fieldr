@@ -8,23 +8,21 @@ test:
 	go test
 
 .PHONY: build
-build: gofmt govet
+build:
 	$(info #Building...)
 	go install
 
-.PHONY: lint-install
-lint-install:
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint
-
 .PHONY: lint
-lint: lint-install
-	$(info #Lint...)
-	golangci-lint run
-
-.PHONY: gofmt
-gofmt:
-	go fmt ./...
-
-.PHONY: govet
-govet:
+lint:
+	$(info #Lints...)
+	go install golang.org/x/tools/cmd/goimports@latest
+	goimports -w .
 	go vet ./...
+	# go install github.com/tetafro/godot/cmd/godot@latest
+	# godot ./:
+	go install github.com/kisielk/errcheck@latest
+	errcheck ./...
+	go install github.com/alexkohler/nakedret@latest
+	nakedret ./...
+	go install golang.org/x/lint/golint@latest
+	golint ./...

@@ -23,7 +23,7 @@ func newBuilder(pkg *types.Package, typ types.Type, typeName string, filePath st
 		return nil, fmt.Errorf("already handled type %v", typeName)
 	}
 	model := &HierarchicalModel{
-		Model: &Model{
+		Model: Model{
 			TypeName:       typeName,
 			FilePath:       filePath,
 			PackageName:    pkg.Name(),

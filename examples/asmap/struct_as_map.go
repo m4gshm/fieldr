@@ -1,4 +1,4 @@
-package as_map
+package asmap
 
 type (
 	StructField    string

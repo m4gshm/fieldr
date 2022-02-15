@@ -2,6 +2,10 @@
 
 package noarg
 
+import (
+	"unsafe"
+)
+
 type (
 	structWrapField        string
 	structWrapFieldList    []structWrapField
@@ -126,25 +130,13 @@ func (v *StructWrap) asTagMap(tag structWrapTag) map[structWrapTagValue]interfac
 }
 
 func (v structWrapFieldList) strings() []string {
-	strings := make([]string, len(v))
-	for i, val := range v {
-		strings[i] = string(val)
-	}
-	return strings
+	return *(*[]string)(unsafe.Pointer(&v))
 }
 
 func (v structWrapTagList) strings() []string {
-	strings := make([]string, len(v))
-	for i, val := range v {
-		strings[i] = string(val)
-	}
-	return strings
+	return *(*[]string)(unsafe.Pointer(&v))
 }
 
 func (v structWrapTagValueList) strings() []string {
-	strings := make([]string, len(v))
-	for i, val := range v {
-		strings[i] = string(val)
-	}
-	return strings
+	return *(*[]string)(unsafe.Pointer(&v))
 }

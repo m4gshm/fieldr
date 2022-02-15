@@ -29,6 +29,12 @@ func usage() {
 }
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err.Error())
+	}
+}
+
+func run() error {
 	log.SetPrefix(params.Name + ": ")
 
 	config := params.NewConfig(flag.CommandLine)
@@ -37,21 +43,25 @@ func main() {
 	flag.Parse()
 
 	args := flag.Args()
-	outputDir := outDir(args)
-	if len(outputDir) > 0 {
+	if outputDir, err := outDir(args); err != nil {
+		return err
+	} else if len(outputDir) > 0 {
 		if err := os.Chdir(outputDir); err != nil {
-			log.Fatalf("out dir error: %v", err)
+			return fmt.Errorf("out chdir: %w", err)
 		}
 	}
 
 	fileSet := token.NewFileSet()
 	buildTags := *config.BuildTags
-	pkg := extractPackage(fileSet, buildTags, *config.PackagePattern)
+	pkg, err := extractPackage(fileSet, buildTags, *config.PackagePattern)
+	if err != nil {
+		return err
+	}
 	packageName := pkg.Name
 	files := pkg.Syntax
 	if len(files) == 0 {
 		log.Printf("no src files in package %s", packageName)
-		return
+		return nil
 	}
 
 	filePackages := make(map[*ast.File]*packages.Package)
@@ -60,38 +70,38 @@ func main() {
 	}
 
 	inputs := *config.Input
-	var err error
+
 	files, err = loadSrcFiles(inputs, buildTags, fileSet, files, filePackages)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	constantReplacers, err := struc.ExtractReplacers(*config.Generator.ConstReplace...)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	sharedConfig, err := NewFilesCommentsConfig(files, constantReplacers)
+	sharedConfig, err := newFilesCommentsConfig(files, constantReplacers)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	} else if sharedConfig != nil {
 		newInputs, _ := newSet(*sharedConfig.Input, inputs...)
 		if len(newInputs) > 0 {
 			//new inputs detected
 			newFiles, err := loadSrcFiles(newInputs, buildTags, fileSet, make([]*ast.File, 0), filePackages)
 			if err != nil {
-				log.Fatal(err)
-			} else if additionalConfig, err := NewFilesCommentsConfig(newFiles, constantReplacers); err != nil {
-				log.Fatal(err)
+				return err
+			} else if additionalConfig, err := newFilesCommentsConfig(newFiles, constantReplacers); err != nil {
+				return err
 			} else if additionalConfig != nil {
 				if sharedConfig, err = sharedConfig.MergeWith(additionalConfig, constantReplacers); err != nil {
-					log.Fatal(err)
+					return err
 				}
 			}
 			files = append(files, newFiles...)
 		}
 	}
 	if config, err = config.MergeWith(sharedConfig, constantReplacers); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	logger.Debugw("using", "config", config)
@@ -119,13 +129,13 @@ func main() {
 	constants := *config.Content.Constants
 	hierarchicalModel, err := struc.FindStructTags(filePackages, files, fileSet, typeName, includedTagsSet, constants, constantReplacers)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	} else if hierarchicalModel == nil || (len(hierarchicalModel.TypeName) == 0 && len(typeName) != 0) {
 		log.Printf("type not found, %s", typeName)
-		return
+		return nil
 	} else if len(hierarchicalModel.FieldNames) == 0 {
 		log.Printf("no fields in %s", typeName)
-		return
+		return nil
 	}
 
 	logger.Debugw("base generating data", "model", hierarchicalModel)
@@ -137,7 +147,7 @@ func main() {
 	}
 
 	if outputName, err = filepath.Abs(outputName); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	var outFile *ast.File
@@ -168,26 +178,26 @@ func main() {
 			dir := filepath.Dir(outputName)
 			outPkg, err = dirPackage(dir, nil)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			} else if outPkg == nil {
-				log.Fatalf("canot detenrime output package, path '%v'", dir)
+				return fmt.Errorf("canot detenrime output package, path '%v'", dir)
 			}
 		} else if err != nil {
-			log.Fatal(err)
+			return err
 		} else {
 			if stat.IsDir() {
-				log.Fatal("output file is directory")
+				return fmt.Errorf("output file is directory")
 			}
 			outFileSet := token.NewFileSet()
 			outFile, outPkg, err = loadFile(outputName, nil, outFileSet)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 			if outFile != nil {
 				pos := outFile.Pos()
 				outFileInfo = outFileSet.File(pos)
 				if outFileInfo == nil {
-					log.Fatalf("error of reading metadata of output file %v", outputName)
+					return fmt.Errorf("error of reading metadata of output file %v", outputName)
 				}
 			}
 		}
@@ -263,35 +273,36 @@ func main() {
 			ConstantTemplates: hierarchicalModel.ConstantTemplates,
 		}
 	} else {
-		model = hierarchicalModel.Model
+		model = &hierarchicalModel.Model
 	}
 
 	if err = g.GenerateFile(model, outFile, outFileInfo, outPkg); err != nil {
-		log.Fatalf("generate file error: %s", err)
+		return fmt.Errorf("generate file error: %s", err)
 	}
 	src, fmtErr := g.FormatSrc()
 
 	const userWriteOtherRead = fs.FileMode(0644)
 	if writeErr := ioutil.WriteFile(outputName, src, userWriteOtherRead); writeErr != nil {
-		log.Fatalf("writing output: %s", writeErr)
+		return fmt.Errorf("writing output: %s", writeErr)
 	} else if fmtErr != nil {
-		log.Fatalf("go src code formatting error: %s", fmtErr)
+		return fmt.Errorf("go src code formatting error: %s", fmtErr)
 	}
+	return nil
 }
 
-func NewFilesCommentsConfig(files []*ast.File, constantReplacers map[string]string) (config *params.Config, err error) {
+func newFilesCommentsConfig(files []*ast.File, constantReplacers map[string]string) (config *params.Config, err error) {
 	for _, file := range files {
-		if config, err = NewFileCommentConfig(file, config, constantReplacers); err != nil {
+		if config, err = newFileCommentConfig(file, config, constantReplacers); err != nil {
 			return nil, err
 		}
 	}
 	return config, err
 }
 
-func NewFileCommentConfig(file *ast.File, sharedConfig *params.Config, constantReplacers map[string]string) (*params.Config, error) {
+func newFileCommentConfig(file *ast.File, sharedConfig *params.Config, constantReplacers map[string]string) (*params.Config, error) {
 	for _, commentGroup := range file.Comments {
 		for _, comment := range commentGroup.List {
-			commentConfig, err := NewConfigComment(comment.Text)
+			commentConfig, err := newConfigComment(comment.Text)
 			if err != nil {
 				return nil, err
 			} else if sharedConfig == nil {
@@ -305,7 +316,7 @@ func NewFileCommentConfig(file *ast.File, sharedConfig *params.Config, constantR
 	return sharedConfig, nil
 }
 
-func NewConfigComment(text string) (*params.Config, error) {
+func newConfigComment(text string) (*params.Config, error) {
 	prefix := "//" + params.CommentConfigPrefix
 	if len(text) > 0 && strings.HasPrefix(text, prefix) {
 		configComment := text[len(prefix)+1:]
@@ -390,44 +401,43 @@ func newSet(values []string, excludes ...string) ([]string, map[string]int) {
 	return uniques, set
 }
 
-func outDir(args []string) string {
-	if len(args) > 0 && isDir(args[len(args)-1]) {
-		return args[len(args)-1]
+func outDir(args []string) (string, error) {
+	if len(args) > 0 {
+		if dir, err := isDir(args[len(args)-1]); err != nil {
+			return "", fmt.Errorf("outDir: %w", err)
+		} else if dir {
+			return args[len(args)-1], nil
+		}
 	}
-	return ""
+	return "", nil
 }
 
-func isDir(name string) bool {
+func isDir(name string) (bool, error) {
 	info, err := os.Stat(name)
 	if err != nil {
-		log.Fatal(err)
+		return false, err
 	}
-	dir := info.IsDir()
-	return dir
+	return info.IsDir(), nil
 }
 
 //const packageMode = packages.NeedSyntax | packages.NeedModule | packages.NeedName | packages.NeedImports | packages.NeedDeps | packages.NeedTypes | packages.NeedTypesInfo
 const packageMode = packages.NeedSyntax | packages.NeedModule | packages.NeedName | packages.NeedTypesInfo | packages.NeedTypes
 
-func extractPackage(fileSet *token.FileSet, buildTags []string, patterns ...string) *packages.Package {
+func extractPackage(fileSet *token.FileSet, buildTags []string, patterns ...string) (*packages.Package, error) {
 	_packages, err := packages.Load(&packages.Config{
 		Fset: fileSet, Mode: packageMode, BuildFlags: buildTagsArg(buildTags),
 	}, patterns...)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	if len(_packages) != 1 {
-		log.Fatalf("error: %d packages found", len(_packages))
+		return nil, fmt.Errorf("%d packages found", len(_packages))
 	}
-
 	pack := _packages[0]
-
-	errs := pack.Errors
-	if len(errs) > 0 {
+	if errs := pack.Errors; len(errs) > 0 {
 		logger.Debugf("package error; %v", errs[0])
 	}
-
-	return pack
+	return pack, nil
 }
 
 func buildTagsArg(buildTags []string) []string {

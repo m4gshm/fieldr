@@ -1,30 +1,54 @@
 package as_map_no_empty_tag_dest
 
 import (
-	as_map1 "example/as-map"
 	as_map "fmt"
+	"unsafe"
+
+	as_map1 "example/asmap"
 )
 
 type (
-	StructField    string
-	StructTag      string
-	StructTagValue string
+	StructField     string
+	StructFieldList []StructField
+	StructTag       string
+	StructTagValue  string
 )
 
 const (
-	StructField_ID              = StructField("ID")
-	StructField_Name            = StructField("Name")
-	StructField_Surname         = StructField("Surname")
-	structField_noExport        = StructField("noExport") //nolint
-	StructField_NoTag           = StructField("NoTag")
-	StructField_IgnoredInTagMap = StructField("IgnoredInTagMap")
+	StructFieldID              = StructField("ID")
+	StructFieldTS              = StructField("TS")
+	StructFieldName            = StructField("Name")
+	StructFieldSurname         = StructField("Surname")
+	structFieldNoExport        = StructField("noExport")
+	StructFieldNoTag           = StructField("NoTag")
+	StructFieldIgnoredInTagMap = StructField("IgnoredInTagMap")
+	StructFieldAddress         = StructField("Address")
+	StructFieldFlatNoPrefix    = StructField("FlatNoPrefix")
+	StructFieldFlatPrefix      = StructField("FlatPrefix")
 
-	StructTag_toMap = StructTag("toMap")
+	StructTagToMap = StructTag("toMap")
 
-	StructTagValue_toMap_ID       = StructTagValue("id")
-	StructTagValue_toMap_Name     = StructTagValue("name")
-	StructTagValue_toMap_Surname  = StructTagValue("surname")
-	structTagValue_toMap_noExport = StructTagValue("no_export") //nolint
+	StructTagValueToMapID         = StructTagValue("id")
+	StructTagValueToMapTS         = StructTagValue("ts")
+	StructTagValueToMapName       = StructTagValue("name")
+	StructTagValueToMapSurname    = StructTagValue("surname")
+	structTagValueToMapNoExport   = StructTagValue("no_export")
+	StructTagValueToMapAddress    = StructTagValue("address")
+	StructTagValueToMapFlatPrefix = StructTagValue("flat")
+)
+
+var (
+	structFields = StructFieldList{
+		StructFieldID,
+		StructFieldTS,
+		StructFieldName,
+		StructFieldSurname,
+		StructFieldNoTag,
+		StructFieldIgnoredInTagMap,
+		StructFieldAddress,
+		StructFieldFlatNoPrefix,
+		StructFieldFlatPrefix,
+	}
 )
 
 func init() {
@@ -33,22 +57,33 @@ func init() {
 
 func AsMap(v *as_map1.Struct) map[StructField]interface{} {
 	return map[StructField]interface{}{
-		StructField_ID:              v.ID,
-		StructField_Name:            v.Name,
-		StructField_Surname:         v.Surname,
-		StructField_NoTag:           v.NoTag,
-		StructField_IgnoredInTagMap: v.IgnoredInTagMap,
+		StructFieldID:              v.ID,
+		StructFieldTS:              v.TS,
+		StructFieldName:            v.Name,
+		StructFieldSurname:         v.Surname,
+		StructFieldNoTag:           v.NoTag,
+		StructFieldIgnoredInTagMap: v.IgnoredInTagMap,
+		StructFieldAddress:         v.Address,
+		StructFieldFlatNoPrefix:    v.FlatNoPrefix,
+		StructFieldFlatPrefix:      v.FlatPrefix,
 	}
 }
 
 func AsTagMap(v *as_map1.Struct, tag StructTag) map[StructTagValue]interface{} {
 	switch tag {
-	case StructTag_toMap:
+	case StructTagToMap:
 		return map[StructTagValue]interface{}{
-			StructTagValue_toMap_ID:      v.ID,
-			StructTagValue_toMap_Name:    v.Name,
-			StructTagValue_toMap_Surname: v.Surname,
+			StructTagValueToMapID:         v.ID,
+			StructTagValueToMapTS:         v.TS,
+			StructTagValueToMapName:       v.Name,
+			StructTagValueToMapSurname:    v.Surname,
+			StructTagValueToMapAddress:    v.Address,
+			StructTagValueToMapFlatPrefix: v.FlatPrefix,
 		}
 	}
 	return nil
+}
+
+func (v StructFieldList) Strings() []string {
+	return *(*[]string)(unsafe.Pointer(&v))
 }
