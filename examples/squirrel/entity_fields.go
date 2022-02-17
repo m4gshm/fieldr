@@ -7,14 +7,11 @@ import (
 )
 
 type (
-	entityTag          string
 	entityTagValue     string
 	entityTagValueList []entityTagValue
 )
 
 const (
-	entityTagDb = entityTag("db")
-
 	entityTagValueDbID      = entityTagValue("ID")
 	entityTagValueDbName    = entityTagValue("NAME")
 	entityTagValueDbSurname = entityTagValue("SURNAME")
@@ -24,14 +21,6 @@ const (
 var (
 	entityTagValuesDb = entityTagValueList{entityTagValueDbID, entityTagValueDbName, entityTagValueDbSurname}
 )
-
-func (v *Entity) getFieldValuesByTag(tag entityTag) []interface{} {
-	switch tag {
-	case entityTagDb:
-		return []interface{}{v.ID, v.Name, v.Surname}
-	}
-	return nil
-}
 
 func (v *Entity) getFieldValuesByTagDb() []interface{} {
 	return []interface{}{v.ID, v.Name, v.Surname}

@@ -22,29 +22,31 @@ var (
 	excludeValues = map[TagName]map[TagValue]bool{}
 )
 
-type TagName = string
-type TagValue = string
-type FieldName = string
-type FieldType = string
+type (
+	TagName   = string
+	TagValue  = string
+	FieldName = string
+	FieldType = string
 
-type HierarchicalModel struct {
-	Model
-	Nested map[FieldName]*HierarchicalModel
-}
+	HierarchicalModel struct {
+		Model
+		Nested map[FieldName]*HierarchicalModel
+	}
 
-type Model struct {
-	TypeName          string
-	PackageName       string
-	PackagePath       string
-	FilePath          string
-	FieldsTagValue    map[FieldName]map[TagName]TagValue
-	TagsFieldValue    map[TagName]map[FieldName]TagValue
-	FieldNames        []FieldName
-	FieldsType        map[FieldName]FieldType
-	TagNames          []TagName
-	Constants         []string
-	ConstantTemplates map[string]string
-}
+	Model struct {
+		TypeName          string
+		PackageName       string
+		PackagePath       string
+		FilePath          string
+		FieldsTagValue    map[FieldName]map[TagName]TagValue
+		TagsFieldValue    map[TagName]map[FieldName]TagValue
+		FieldNames        []FieldName
+		FieldsType        map[FieldName]FieldType
+		TagNames          []TagName
+		Constants         []string
+		ConstantTemplates map[string]string
+	}
+)
 
 func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.File, fileSet *token.FileSet, typeName string, includedTags map[TagName]interface{}, constants []string, constantReplacers map[string]string) (*HierarchicalModel, error) {
 	constantNameByTemplate, constantNames, constantSubstitutes, err := extractConstantNameAndTemplates(constants, constantReplacers, typeName)

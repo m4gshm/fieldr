@@ -25,18 +25,18 @@ import (
 
 const oneLineSize = 3
 
-type TransformTrigger string
+type RewriteTrigger string
 
 const (
-	TransformTriggerEmpty TransformTrigger = ""
-	TransformTriggerField TransformTrigger = "field"
-	TransformTriggerType  TransformTrigger = "type"
+	RewriteTriggerEmpty RewriteTrigger = ""
+	RewriteTriggerField RewriteTrigger = "field"
+	RewriteTriggerType  RewriteTrigger = "type"
 )
 
-type TransformEngine string
+type RewriteEngine string
 
 const (
-	TransformEngineFmt TransformEngine = "fmt"
+	RewriteEngineFmt RewriteEngine = "fmt"
 )
 
 type Generator struct {
@@ -51,11 +51,14 @@ type Generator struct {
 	body *bytes.Buffer
 	used Used
 
-	excludedTagValues          map[string]bool
-	excludedFields             map[struc.FieldName]interface{}
-	transformValuesByFieldName map[struc.FieldName][]func(string) string
-	transformValuesByFieldType map[struc.FieldType][]func(string) string
-	transformValues            []func(string) string
+	excludedTagValues map[string]bool
+	excludedFields    map[struc.FieldName]interface{}
+
+	rewrite struct {
+		byFieldName map[struc.FieldName][]func(string) string
+		byFieldType map[struc.FieldType][]func(string) string
+		all         []func(string) string
+	}
 
 	constNames         []string
 	constValues        map[string]string
@@ -95,7 +98,7 @@ type Config struct {
 	OutPackage          *string
 	Name                *string
 	ExcludeFields       *[]string
-	TransformFieldValue *[]string
+	FieldValueRewriters *[]string
 }
 
 type ContentConfig struct {
@@ -223,8 +226,8 @@ func (c *Config) MergeWith(src *Config, constantReplacers map[string]string) (*C
 		c.ExcludeFields = src.ExcludeFields
 	}
 
-	if len(*c.TransformFieldValue) == 0 && len(*src.TransformFieldValue) != 0 {
-		c.TransformFieldValue = src.TransformFieldValue
+	if len(*c.FieldValueRewriters) == 0 && len(*src.FieldValueRewriters) != 0 {
+		c.FieldValueRewriters = src.FieldValueRewriters
 	}
 
 	if len(*c.Flat) == 0 && len(*src.Flat) != 0 {
@@ -359,79 +362,71 @@ func (g *Generator) GenerateFile(model *struc.Model, outFile *ast.File, outFileI
 		}
 	}
 
-	var transformValues []func(string) string
-	transformValuesByFieldName := map[struc.FieldName][]func(string) string{}
-	transformValuesByFieldType := map[struc.FieldType][]func(string) string{}
-	for _, transformValue := range *g.Conf.TransformFieldValue {
-		transforms := strings.Split(transformValue, struc.ListValuesSeparator)
-		for _, transform := range transforms {
-			transformParts := strings.Split(transform, struc.KeyValueSeparator)
-			var transformTrigger TransformTrigger
-			var transformTriggerValue string
-			var transformer string
-			if len(transformParts) == 1 {
-				transformTrigger = TransformTriggerEmpty
-				transformTriggerValue = transformParts[0]
-				transformer = transformTriggerValue
-			} else if len(transformParts) == 2 {
-				transformTrigger = TransformTriggerField
-				transformTriggerValue = transformParts[0]
-				transformer = transformParts[1]
-			} else if len(transformParts) == 3 {
-				transformTrigger = TransformTrigger(transformParts[0])
-				transformTriggerValue = transformParts[1]
-				transformer = transformParts[2]
+	g.rewrite.all = []func(string) string{}
+	g.rewrite.byFieldName = map[struc.FieldName][]func(string) string{}
+	g.rewrite.byFieldType = map[struc.FieldType][]func(string) string{}
+
+	for _, rewList := range *g.Conf.FieldValueRewriters {
+		rewritersCfg := strings.Split(rewList, struc.ListValuesSeparator)
+		for _, rewriterCfg := range rewritersCfg {
+			var (
+				rewParts        = strings.Split(rewriterCfg, struc.KeyValueSeparator)
+				rewTrigger      RewriteTrigger
+				rewTriggerValue string
+				rewEngingCfg    string
+			)
+			if len(rewParts) == 1 {
+				rewTrigger = RewriteTriggerEmpty
+				rewTriggerValue = rewParts[0]
+				rewEngingCfg = rewTriggerValue
+			} else if len(rewParts) == 2 {
+				rewTrigger = RewriteTriggerField
+				rewTriggerValue = rewParts[0]
+				rewEngingCfg = rewParts[1]
+			} else if len(rewParts) == 3 {
+				rewTrigger = RewriteTrigger(rewParts[0])
+				rewTriggerValue = rewParts[1]
+				rewEngingCfg = rewParts[2]
 			} else {
-				return errors.Errorf("Unsupported transformValue format '%v'", transform)
+				return errors.Errorf("Unsupported transformValue format '%v'", rewriterCfg)
 			}
 
-			var transformerEngine TransformEngine
-			var transformerEngineData string
-			transformerParts := strings.Split(transformer, struc.ReplaceableValueSeparator)
-			if len(transformerParts) == 0 {
-				return errors.Errorf("Undefined transformer value '%v'", transform)
-			} else if len(transformerParts) == 2 {
-				transformerEngine = TransformEngine(transformerParts[0])
-				transformerEngineData = transformerParts[1]
+			var (
+				rewEngineParts = strings.Split(rewEngingCfg, struc.ReplaceableValueSeparator)
+				rewEngine      RewriteEngine
+				rewEngineData  string
+			)
+			if len(rewEngineParts) == 0 {
+				return errors.Errorf("Undefined rewriter value '%v'", rewriterCfg)
+			} else if len(rewEngineParts) == 2 {
+				rewEngine = RewriteEngine(rewEngineParts[0])
+				rewEngineData = rewEngineParts[1]
 			} else {
-				return errors.Errorf("Unsupported transformer value '%v' from '%v'", transformerParts[0], transformer)
+				return errors.Errorf("Unsupported rewriter value '%v' from '%v'", rewEngineParts[0], rewEngingCfg)
 			}
 
-			var transformFunc func(string) string
-			switch transformerEngine {
-			case TransformEngineFmt:
-				transformFunc = func(fieldValue string) string {
-					return fmt.Sprintf(transformerEngineData, fieldValue)
+			var rewFunc func(string) string
+			switch rewEngine {
+			case RewriteEngineFmt:
+				rewFunc = func(fieldValue string) string {
+					return fmt.Sprintf(rewEngineData, fieldValue)
 				}
 			default:
-				return errors.Errorf("Unsupported transform engine '%v' from '%v'", transformerEngine, transform)
+				return errors.Errorf("Unsupported transform engine '%v' from '%v'", rewEngine, rewriterCfg)
 			}
 
-			switch transformTrigger {
-			case TransformTriggerEmpty:
-				transformValues = append(transformValues, transformFunc)
-			case TransformTriggerField:
-				fieldName := transformTriggerValue
-				fieldNameTransformEngines, ok := transformValuesByFieldName[fieldName]
-				if !ok {
-					fieldNameTransformEngines = []func(string) string{}
-				}
-				transformValuesByFieldName[fieldName] = append(fieldNameTransformEngines, transformFunc)
-			case TransformTriggerType:
-				fieldType := transformTriggerValue
-				fieldNameTransformEngines, ok := transformValuesByFieldType[fieldType]
-				if !ok {
-					fieldNameTransformEngines = []func(string) string{}
-				}
-				transformValuesByFieldType[fieldType] = append(fieldNameTransformEngines, transformFunc)
+			switch rewTrigger {
+			case RewriteTriggerEmpty:
+				g.rewrite.all = append(g.rewrite.all, rewFunc)
+			case RewriteTriggerField:
+				g.rewrite.byFieldName[rewTriggerValue] = append(g.rewrite.byFieldName[rewTriggerValue], rewFunc)
+			case RewriteTriggerType:
+				g.rewrite.byFieldType[rewTriggerValue] = append(g.rewrite.byFieldType[rewTriggerValue], rewFunc)
 			default:
-				return errors.Errorf("Unsupported transform trigger '%v' from '%v'", transformTrigger, transform)
+				return errors.Errorf("Unsupported transform trigger '%v' from '%v'", rewTrigger, rewriterCfg)
 			}
 		}
 	}
-	g.transformValues = transformValues
-	g.transformValuesByFieldName = transformValuesByFieldName
-	g.transformValuesByFieldType = transformValuesByFieldType
 
 	g.constNames = make([]string, 0)
 	g.constValues = make(map[string]string)
@@ -1798,19 +1793,19 @@ func (g *Generator) generateGetFieldValueFunc(model *struc.Model, packageName st
 }
 
 func (g *Generator) transform(fieldName struc.FieldName, fieldType struc.FieldType, fieldRef string) string {
-	var transforms []func(string) string
-	if t, ok := g.transformValuesByFieldName[fieldName]; ok {
-		transforms = append(transforms, t...)
-	} else if t, ok = g.transformValuesByFieldType[fieldType]; ok {
-		transforms = append(transforms, t...)
+	var rewriters []func(string) string
+	if t, ok := g.rewrite.byFieldName[fieldName]; ok {
+		rewriters = append(rewriters, t...)
+	} else if t, ok = g.rewrite.byFieldType[fieldType]; ok {
+		rewriters = append(rewriters, t...)
 	} else {
-		transforms = g.transformValues[:]
+		rewriters = g.rewrite.all[:]
 	}
 
-	if len(transforms) == 0 {
+	if len(rewriters) == 0 {
 		return fieldRef
 	}
-	for _, t := range transforms {
+	for _, t := range rewriters {
 		before := fieldRef
 		fieldRef = t(fieldRef)
 		logger.Debugw("transforming field value: field %v, value before %v, after", fieldName, before, fieldRef)

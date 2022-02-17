@@ -37,10 +37,12 @@ func init() {
 	logger = zap.S()
 }
 
+//Debugw writes a debug message to the output.
 func Debugw(msg string, keysAndValues ...interface{}) {
 	logger.Debugw(msg, keysAndValues...)
 }
 
+//Debugf writes a debug message to the output.
 func Debugf(template string, args ...interface{}) {
 	logger.Debugf(template, args...)
 }

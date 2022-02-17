@@ -1,7 +1,7 @@
 //go:build fieldr_const_template
 // +build fieldr_const_template
 
-//go:fieldr -transform type:[]int32:fmt=pq.Array(%v)
+//go:fieldr -rewrite type:[]int32:fmt=pq.Array(%v)
 
 package util
 

@@ -5,8 +5,7 @@ import (
 )
 
 var (
-	pkColumn      = entityTagValueDbID
-	dbTag         = entityTagDb
+	pkColumn      = string(entityTagValueDbID)
 	dbColumnNames = entityTagValuesDb.strings()
 )
 
@@ -15,7 +14,7 @@ func getSqlSelectById(table string, id int) sq.Sqlizer {
 }
 
 func (e *Entity) getSqlUpsert(table string) sq.Sqlizer {
-	return sqlUpsert(table, string(pkColumn), dbColumnNames, e.getFieldValuesByTag(dbTag))
+	return sqlUpsert(table, pkColumn, dbColumnNames, e.getFieldValuesByTagDb())
 }
 
 func (e *Entity) getSqlDelete(table string) sq.Sqlizer {

@@ -3,8 +3,8 @@ package asmap
 import "time"
 
 //go:generate fieldr -type EmbeddedAddress -out address_as_map.go -wrap -export -AsMap -AsTagMap
-//go:generate fieldr -type Struct -out struct_as_map.go -wrap -export -AsMap -transform type:EmbeddedAddress:fmt=%v.AsMap() -flat FlatPrefix -flat FlatNoPrefix
-//go:generate fieldr -type Struct -out struct_as_map.go -wrap -export -AsTagMap -transform fmt=&%v -transform type:EmbeddedAddress:fmt=%v.AsTagMap(EmbeddedAddressTag(tag))
+//go:generate fieldr -type Struct -out struct_as_map.go -wrap -export -AsMap -rewrite type:EmbeddedAddress:fmt=%v.AsMap() -flat FlatPrefix -flat FlatNoPrefix
+//go:generate fieldr -type Struct -out struct_as_map.go -wrap -export -AsTagMap -rewrite fmt=&%v -rewrite type:EmbeddedAddress:fmt=%v.AsTagMap(EmbeddedAddressTag(tag))
 
 type BaseStruct struct {
 	ID int       `toMap:"id"`
