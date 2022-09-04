@@ -49,7 +49,7 @@ func multiVal(flagSet *flag.FlagSet, name string, defValues []string, usage stri
 func checkDuplicated(value string, duplicateControl map[string]interface{}, name string) error {
 	_, ok := duplicateControl[value]
 	if ok {
-		return fmt.Errorf("Duplicated value %v of parameter %v ", value, name)
+		return fmt.Errorf("duplicated value %v of parameter %v ", value, name)
 	}
 	return nil
 }

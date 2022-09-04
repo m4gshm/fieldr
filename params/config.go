@@ -77,6 +77,7 @@ func newGeneratorContentConfig(flagSet *flag.FlagSet) *generator.ContentConfig {
 		FieldTagsMap:     flagSet.Bool("FieldTagsMap", false, "generate FieldTags map var"),
 		TagValuesMap:     flagSet.Bool("TagValuesMap", false, "generate TagValues map var"),
 		TagValues:        multiVal(flagSet, "TagValues", []string{}, "generate TagValues var per tag"),
+		EnumFieldConsts:  multiVal(flagSet, "enum-field-const", []string{}, "generate constants based on formula applied to struct fields"),
 		TagFieldsMap:     flagSet.Bool("TagFieldsMap", false, "generate TagFields map var"),
 		FieldTagValueMap: flagSet.Bool("FieldTagValueMap", false, "generate FieldTagValue map var"),
 

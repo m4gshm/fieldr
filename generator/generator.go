@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"log"
 	"reflect"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -102,7 +103,8 @@ type Config struct {
 }
 
 type ContentConfig struct {
-	Constants *[]string
+	Constants       *[]string
+	EnumFieldConsts *[]string
 
 	Fields           *bool
 	Tags             *bool
@@ -1061,6 +1063,10 @@ func (g *Generator) generateHead(model *struc.Model, all bool) error {
 		}
 	}
 
+	if err := g.generateLookupConstants(model); err != nil {
+		return err
+	}
+
 	if wrapType {
 		if all || *g.Content.Strings {
 			if g.used.fieldArrayType {
@@ -1537,6 +1543,148 @@ func (g *Generator) generateTagFieldConstants(model *struc.Model, tagValueType s
 				}
 			}
 		}
+	}
+	return nil
+}
+
+type cnst struct {
+	val      string
+	callback func()
+}
+
+func (c *cnst) String() string {
+	c.callback()
+	return c.val
+}
+
+func (g *Generator) generateLookupConstants(model *struc.Model) error {
+
+	rexp := func(expr string, value interface{}) (string, error) {
+		str := ""
+		switch vt := value.(type) {
+		case string:
+			str = vt
+		case fmt.Stringer:
+			str = vt.String()
+		case fmt.GoStringer:
+			str = vt.GoString()
+		default:
+			return "", nil
+		}
+		if r, err := regexp.Compile(expr); err != nil {
+			return "", err
+		} else {
+			submatches := r.FindStringSubmatch(str)
+			names := r.SubexpNames()
+			if len(names) <= len(submatches) {
+				for i, groupName := range names {
+					if groupName == "v" {
+						submatch := submatches[i]
+						if len(submatch) == 0 {
+							return submatch, nil
+						}
+					}
+				}
+			}
+			if len(submatches) > 0 {
+				s := submatches[len(submatches)-1]
+				return s, nil
+			} else {
+				return "", nil
+			}
+		}
+	}
+
+	snake := func(val string) string {
+		if len(val) == 0 {
+			return ""
+		}
+		last := len(val) - 1
+		symbols := []rune(val)
+		result := make([]rune, 0)
+		for i := 0; i < len(symbols); i++ {
+			cur := symbols[i]
+			result = append(result, cur)
+			if i < last {
+				next := symbols[i+1]
+				if unicode.IsLower(cur) && unicode.IsUpper(next) {
+					result = append(result, '_', unicode.ToLower(next))
+					i++
+				}
+			}
+		}
+		return string(result)
+	}
+
+	toUpper := func(val string) string {
+		return strings.ToUpper(val)
+	}
+
+	toLower := func(val string) string {
+		return strings.ToLower(val)
+	}
+
+	for i, rawText := range *g.Content.EnumFieldConsts {
+		text := rawText
+		if !strings.HasPrefix(text, "{{") {
+			text = "{{" + strings.ReplaceAll(text, "\\", "\\\\") + "}}"
+		}
+
+		firstUsedTag := ""
+		for _, fieldName := range model.FieldNames {
+			fieldMeta := map[string]interface{}{"name": fieldName}
+			field := func() map[string]interface{} { return fieldMeta }
+			typeMeta := map[string]interface{}{"name": model.TypeName}
+			typ := func() map[string]interface{} { return typeMeta }
+			tmpl, err := template.New(rawText).Option("missingkey=zero").Funcs(template.FuncMap{
+				"rexp":    rexp,
+				"field":   field,
+				"type":    typ,
+				"snake":   snake,
+				"toUpper": toUpper,
+				"toLower": toLower,
+			}).Parse(text)
+			if err != nil {
+				return fmt.Errorf("const lookup parse: template=%s: %w", text, err)
+			}
+			tmplCtx := map[string]interface{}{}
+			if tv := model.FieldsTagValue[fieldName]; tv != nil {
+				for k, v := range model.FieldsTagValue[fieldName] {
+					tmplCtx[k] = &cnst{val: v, callback: func() {
+						if len(firstUsedTag) == 0 {
+							firstUsedTag = k
+						}
+					}}
+				}
+			}
+
+			buf := bytes.Buffer{}
+			if err = tmpl.Execute(&buf, tmplCtx); err != nil {
+				return fmt.Errorf("const lookup compile: field=%s, template='%s': %w", fieldName, text, err)
+			}
+
+			tagName := fmt.Sprintf("lookup%d", i)
+			if len(firstUsedTag) != 0 {
+				tagName = firstUsedTag
+			}
+
+			constName := g.getTagValueConstName(model.TypeName, tagName, fieldName)
+			cmpVal := buf.String()
+			parts := strings.Split(cmpVal, "=")
+			val := cmpVal
+			if len(parts) > 1 {
+				constName = parts[0]
+				val = parts[1]
+			}
+
+			if len(val) != 0 {
+				constVal := g.getConstValue(baseType, val)
+				if err := g.addConst(constName, constVal); err != nil {
+					return err
+				}
+			}
+		}
+
 	}
 	return nil
 }
