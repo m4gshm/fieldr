@@ -202,7 +202,7 @@ func (c *Config) MergeWith(src *Config, constantReplacers map[string]string) (*C
 	if c.ConstLength == nil || *c.ConstLength == DefaultConstLength {
 		c.ConstLength = src.ConstLength
 	}
-
+	
 	if len(*src.ConstReplace) > 0 {
 		newElems, err := struc.ExtractReplacers(*src.ConstReplace...)
 		if err != nil {
@@ -1547,21 +1547,22 @@ func (g *Generator) generateTagFieldConstants(model *struc.Model, tagValueType s
 	return nil
 }
 
-type cnst struct {
+type stringer struct {
 	val      string
 	callback func()
 }
 
-func (c *cnst) String() string {
+func (c *stringer) String() string {
 	c.callback()
 	return c.val
 }
 
-func (g *Generator) generateLookupConstants(model *struc.Model) error {
+var _ fmt.Stringer = (*stringer)(nil)
 
-	rexp := func(expr string, value interface{}) (string, error) {
+func (g *Generator) generateLookupConstants(model *struc.Model) error {
+	toString := func(val interface{}) string {
 		str := ""
-		switch vt := value.(type) {
+		switch vt := val.(type) {
 		case string:
 			str = vt
 		case fmt.Stringer:
@@ -1569,9 +1570,25 @@ func (g *Generator) generateLookupConstants(model *struc.Model) error {
 		case fmt.GoStringer:
 			str = vt.GoString()
 		default:
-			return "", nil
+			str = fmt.Sprint(val)
+			logger.Debugf("toString: val '%v', result '%s'", val, str)
 		}
-		if r, err := regexp.Compile(expr); err != nil {
+		return str
+	}
+	toStrings := func(vals []interface{}) []string {
+		results := make([]string, len(vals))
+		for i, val := range vals {
+			results[i] = toString(val)
+		}
+		return results
+	}
+	rexp := func(expr interface{}, val interface{}) (string, error) {
+		sexpr := toString(expr)
+		str := toString(val)
+		if len(sexpr) == 0 {
+			return "", errors.New("empty regexp: val '" + str + "'")
+		}
+		if r, err := regexp.Compile(sexpr); err != nil {
 			return "", err
 		} else {
 			submatches := r.FindStringSubmatch(str)
@@ -1595,12 +1612,13 @@ func (g *Generator) generateLookupConstants(model *struc.Model) error {
 		}
 	}
 
-	snake := func(val string) string {
-		if len(val) == 0 {
+	snake := func(val interface{}) string {
+		sval := toString(val)
+		if len(sval) == 0 {
 			return ""
 		}
-		last := len(val) - 1
-		symbols := []rune(val)
+		last := len(sval) - 1
+		symbols := []rune(sval)
 		result := make([]rune, 0)
 		for i := 0; i < len(symbols); i++ {
 			cur := symbols[i]
@@ -1616,18 +1634,24 @@ func (g *Generator) generateLookupConstants(model *struc.Model) error {
 		return string(result)
 	}
 
-	toUpper := func(val string) string {
-		return strings.ToUpper(val)
+	toUpper := func(val interface{}) string {
+		return strings.ToUpper(toString(val))
 	}
 
-	toLower := func(val string) string {
-		return strings.ToLower(val)
+	toLower := func(val interface{}) string {
+		return strings.ToLower(toString(val))
+	}
+
+	join := func(val ...interface{}) string {
+		result := strings.Join(toStrings(val), "")
+		return result
 	}
 
 	for i, rawText := range *g.Content.EnumFieldConsts {
 		text := rawText
 		if !strings.Contains(text, "{{") {
 			text = "{{" + strings.ReplaceAll(text, "\\", "\\\\") + "}}"
+			logger.Debugf("constant template transformed to '%s'", text)
 		}
 
 		firstUsedTag := ""
@@ -1637,12 +1661,16 @@ func (g *Generator) generateLookupConstants(model *struc.Model) error {
 			typeMeta := map[string]interface{}{"name": model.TypeName}
 			typ := func() map[string]interface{} { return typeMeta }
 			tmpl, err := template.New(rawText).Option("missingkey=zero").Funcs(template.FuncMap{
-				"rexp":    rexp,
-				"field":   field,
-				"type":    typ,
-				"snake":   snake,
-				"toUpper": toUpper,
-				"toLower": toLower,
+				"conc":        join,
+				"concatenate": join,
+				"join":        join,
+				"regexp":      rexp,
+				"rexp":        rexp,
+				"field":       field,
+				"type":        typ,
+				"snake":       snake,
+				"toUpper":     toUpper,
+				"toLower":     toLower,
 			}).Parse(text)
 			if err != nil {
 				return fmt.Errorf("const lookup parse: template=%s: %w", text, err)
@@ -1650,7 +1678,7 @@ func (g *Generator) generateLookupConstants(model *struc.Model) error {
 			tmplCtx := map[string]interface{}{}
 			if tv := model.FieldsTagValue[fieldName]; tv != nil {
 				for k, v := range model.FieldsTagValue[fieldName] {
-					tmplCtx[k] = &cnst{val: v, callback: func() {
+					tmplCtx[k] = &stringer{val: v, callback: func() {
 						if len(firstUsedTag) == 0 {
 							firstUsedTag = k
 						}

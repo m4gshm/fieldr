@@ -29,8 +29,17 @@
             "mode": "debug",
             "program": "main.go",
             "cwd": "examples/gorm",
-            "args": ["-type", "Entity", "-out", "entity_fields.go", "-enum-field-const", "COLUMN_{{field.name | snake | toUpper}}={{.gorm | rexp \"column:(\\\\w+),?\" | or field.name | snake | toUpper}}"]
-        },                  
+            "args": ["-type", "Entity", "-out", "entity_fields.go", "-enum-field-const", "{{(join type.name field.name) | snake | toUpper}}={{.gorm | rexp \"column:(\\\\w+),?\" | or field.name | snake | toUpper}}"]
+        },        
+        {
+            "name": "Debug gorm json example",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "examples/gorm",
+            "args": ["-type", "Entity", "-out", "entity_fields.go", "-enum-field-const", "rexp \"(?P<v>\\w+),\" .json"]
+        },                            
         {
             "name": "Launch Package",
             "type": "go",

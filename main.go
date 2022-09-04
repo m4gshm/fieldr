@@ -321,10 +321,11 @@ func newConfigComment(text string) (*params.Config, error) {
 	if len(text) > 0 && strings.HasPrefix(text, prefix) {
 		configComment := text[len(prefix)+1:]
 		if len(configComment) > 0 {
+			logger.Debugf("parse command config '%s'", configComment)
 			flagSet := flag.NewFlagSet(params.CommentConfigPrefix, flag.ExitOnError)
 			commentConfig := params.NewConfig(flagSet)
 			var err error
-			if err = flagSet.Parse(strings.Split(configComment, " ")); err != nil {
+			if err = flagSet.Parse(toOsArgs(configComment)); err != nil {
 				return nil, fmt.Errorf("parsing cofig comment %v; %w", text, err)
 			}
 
@@ -332,6 +333,10 @@ func newConfigComment(text string) (*params.Config, error) {
 		}
 	}
 	return nil, nil
+}
+
+func toOsArgs(cmd string) []string {
+	return strings.Split(cmd, " ")
 }
 
 func loadSrcFiles(inputs []string, buildTags []string, fileSet *token.FileSet, files []*ast.File, filePackages map[*ast.File]*packages.Package) ([]*ast.File, error) {

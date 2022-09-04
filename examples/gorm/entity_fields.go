@@ -3,8 +3,12 @@
 package gorm
 
 const (
-	COLUMN_ID         = "ID"
-	COLUMN_NAME       = "NAME"
-	COLUMN_SURNAME    = "SURNAME"
-	COLUMN_UPDATED_AT = "UPDATED_AT"
+	ENTITY_COL_ID               = "ID"
+	ENTITY_COL_NAME             = "NAME"
+	ENTITY_COL_SURNAME          = "SURNAME"
+	ENTITY_COL_UPDATED_AT       = "UPDATED_AT"
+	EntityTagValueJsonID        = "id"
+	EntityTagValueJsonName      = "name"
+	EntityTagValueJsonSurname   = "surname"
+	EntityTagValueJsonUpdatedAt = "updateAt"
 )

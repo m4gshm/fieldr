@@ -65,19 +65,28 @@ var transformFieldValueFormat = "trigger" + struc.KeyValueSeparator + "trigger_v
 	struc.ReplaceableValueSeparator + "engine_format" + "; supported triggers '" + transformerTriggers +
 	"', engine '" + string(generator.RewriteEngineFmt) + "'"
 
+const enum_field_const = "enum-field-const"
+
 func newGeneratorContentConfig(flagSet *flag.FlagSet) *generator.ContentConfig {
 	return &generator.ContentConfig{
 		Constants: multiVal(flagSet, "const", []string{}, "generate constant based on template constant; "+
 			"format - consName"+struc.KeyValueSeparator+"constTemplateName"+struc.KeyValueSeparator+constReplacersFormat),
-		EnumFields:       flagSet.Bool("EnumFields", false, "force to generate field constants"),
-		EnumTags:         flagSet.Bool("EnumTags", false, "force to generate tag constants"),
-		EnumTagValues:    flagSet.Bool("EnumTagValues", false, "force to generate tag value constants"),
-		Fields:           flagSet.Bool("Fields", false, "generate Fields list var"),
-		Tags:             flagSet.Bool("Tags", false, "generate Tags list var"),
-		FieldTagsMap:     flagSet.Bool("FieldTagsMap", false, "generate FieldTags map var"),
-		TagValuesMap:     flagSet.Bool("TagValuesMap", false, "generate TagValues map var"),
-		TagValues:        multiVal(flagSet, "TagValues", []string{}, "generate TagValues var per tag"),
-		EnumFieldConsts:  multiVal(flagSet, "enum-field-const", []string{}, "generate constants based on formula applied to struct fields"),
+		EnumFields:    flagSet.Bool("enum-fields", false, "force to generate field name constants; by default constants are generated on demand"),
+		EnumTags:      flagSet.Bool("enum-tags", false, "force to generate tag name constants; by default constants are generated on demand"),
+		EnumTagValues: flagSet.Bool("enum-tag-values", false, "force to generate tag value constants; by default constants are generated on demand"),
+		Fields:        flagSet.Bool("Fields", false, "generate Fields list var"),
+		Tags:          flagSet.Bool("Tags", false, "generate Tags list var"),
+		FieldTagsMap:  flagSet.Bool("FieldTagsMap", false, "generate FieldTags map var"),
+		TagValuesMap:  flagSet.Bool("TagValuesMap", false, "generate TagValues map var"),
+		TagValues:     multiVal(flagSet, "TagValues", []string{}, "generate TagValues var per tag"),
+		EnumFieldConsts: multiVal(flagSet, enum_field_const, []string{}, "generate constants based on template applied to struct fields;"+
+			"\ntemplate examples:"+
+			"\n\t\".json\" - use 'json' tag value as constant value, constant name is generated automatically, template corners '{{', '}}' can be omitted"+
+			"\n\t\"{{field.name}}={{.json}}\" - use 'json' tag value as constant value, constant name based on field name, name/value delimeter '=' and template corners are '{{', '}}' required)"+
+			"\n\t\"{{(join type.name field.name)| toUpper}}={{.json}}\" - usage of functions join, toUpper and pipeline character '|' for more complex constant naming"+
+			"\n\t\"rexp .json \"(\\w+),?\" - regular expression. use 'v' group name as constant value marker",
+		),
+
 		TagFieldsMap:     flagSet.Bool("TagFieldsMap", false, "generate TagFields map var"),
 		FieldTagValueMap: flagSet.Bool("FieldTagValueMap", false, "generate FieldTagValue map var"),
 
@@ -131,6 +140,10 @@ func (c *Config) MergeWith(src *Config, constantReplacers map[string]string) (co
 	if err != nil {
 		return nil, err
 	}
+	cc := *c.Content.EnumFieldConsts
+	sc := *src.Content.EnumFieldConsts
+	cc = append(cc, sc...)
+	c.Content.EnumFieldConsts = &cc
 	logger.Debugw("config merged", "dest", c)
 	return c, nil
 }
