@@ -3,8 +3,8 @@
 package gorm
 
 const (
-	entityTagValueGormID        = "ID"
-	entityTagValueGormName      = "NAME"
-	entityTagValueGormSurname   = "SURNAME"
-	entityTagValueGormUpdatedAt = "UPDATED_AT"
+	COLUMN_ID         = "ID"
+	COLUMN_NAME       = "NAME"
+	COLUMN_SURNAME    = "SURNAME"
+	COLUMN_UPDATED_AT = "UPDATED_AT"
 )

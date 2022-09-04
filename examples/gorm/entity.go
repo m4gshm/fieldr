@@ -2,7 +2,7 @@ package gorm
 
 import "time"
 
-//go:generate fieldr -type Entity -out entity_fields.go -enum-field-const ".gorm | rexp \"column:(\\w+),?\" | or field.name | snake | toUpper"
+//go:generate fieldr -type Entity -out entity_fields.go -export -enum-field-const "COLUMN_{{field.name | snake | toUpper}}={{.gorm | rexp \"column:(\\\\w+),?\" | or field.name | snake | toUpper}}"
 
 type Entity struct {
 	ID        int    `gorm:"column:ID,primaryKey"`

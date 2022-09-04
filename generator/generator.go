@@ -1626,7 +1626,7 @@ func (g *Generator) generateLookupConstants(model *struc.Model) error {
 
 	for i, rawText := range *g.Content.EnumFieldConsts {
 		text := rawText
-		if !strings.HasPrefix(text, "{{") {
+		if !strings.Contains(text, "{{") {
 			text = "{{" + strings.ReplaceAll(text, "\\", "\\\\") + "}}"
 		}
 
