@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/m4gshm/fieldr/generator"
@@ -324,19 +325,62 @@ func newConfigComment(text string) (*params.Config, error) {
 			logger.Debugf("parse command config '%s'", configComment)
 			flagSet := flag.NewFlagSet(params.CommentConfigPrefix, flag.ExitOnError)
 			commentConfig := params.NewConfig(flagSet)
-			var err error
-			if err = flagSet.Parse(toOsArgs(configComment)); err != nil {
+			if args, err := splitArgs(configComment); err != nil {
+				return nil, fmt.Errorf("split cofig comment %v; %w", text, err)
+			} else if err := flagSet.Parse(args); err != nil {
 				return nil, fmt.Errorf("parsing cofig comment %v; %w", text, err)
 			}
-
 			return commentConfig, nil
 		}
 	}
 	return nil, nil
 }
-
-func toOsArgs(cmd string) []string {
-	return strings.Split(cmd, " ")
+func splitArgs(rawArgs string) ([]string, error) {
+	var args []string
+	for {
+		rawArgs = strings.TrimLeft(rawArgs, " ")
+		if len(rawArgs) == 0 {
+			break
+		}
+		symbols := []rune(rawArgs)
+		if symbols[0] == '"' {
+			finished := false
+			//start parsing quoted string
+		quoted:
+			for i := 1; i < len(symbols); i++ {
+				c := symbols[i]
+				switch c {
+				case '\\':
+					if i+1 == len(symbols) {
+						return nil, errors.New("unexpected backslash at the end")
+					}
+					i++
+				case '"':
+					part := rawArgs[0 : i+1]
+					arg, err := strconv.Unquote(part)
+					if err != nil {
+						return nil, fmt.Errorf("unquote string: %s: %w", part, err)
+					}
+					args = append(args, arg)
+					rawArgs = string(symbols[i+1:])
+					//finish parsing quoted string
+					finished = true
+					break quoted
+				}
+			}
+			if !finished {
+				return nil, errors.New("unclosed quoted string")
+			}
+		} else {
+			i := strings.Index(rawArgs, " ")
+			if i < 0 {
+				i = len(rawArgs)
+			}
+			args = append(args, rawArgs[0:i])
+			rawArgs = rawArgs[i:]
+		}
+	}
+	return args, nil
 }
 
 func loadSrcFiles(inputs []string, buildTags []string, fileSet *token.FileSet, files []*ast.File, filePackages map[*ast.File]*packages.Package) ([]*ast.File, error) {

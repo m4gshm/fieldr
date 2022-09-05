@@ -2,8 +2,9 @@ package gorm
 
 import "time"
 
-//go:generate fieldr -type Entity -out entity_fields.go -export -enum-field-const "{{(join type.name \"Col\" field.name) | snake | toUpper}}={{.gorm | rexp \"column:(\\\\w+),?\" | or field.name | snake | toUpper}}" -enum-field-const "rexp \"(?P<v>\\w+),?\" .json"
-
+//go:generate fieldr -type Entity -out entity_fields.go -export
+//go:fieldr -enum-field-const "{{(join type.name \"Col\" field.name) | snake | toUpper}}={{.gorm | rexp \"column:(\\\\w+),?\" | or field.name | snake | toUpper}}"
+//go:fieldr -enum-field-const "rexp \"(?P<v>\\w+),?\" .json" -export
 
 type Entity struct {
 	ID        int       `gorm:"primaryKey" json:"id"`

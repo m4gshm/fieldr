@@ -202,7 +202,7 @@ func (c *Config) MergeWith(src *Config, constantReplacers map[string]string) (*C
 	if c.ConstLength == nil || *c.ConstLength == DefaultConstLength {
 		c.ConstLength = src.ConstLength
 	}
-	
+
 	if len(*src.ConstReplace) > 0 {
 		newElems, err := struc.ExtractReplacers(*src.ConstReplace...)
 		if err != nil {
