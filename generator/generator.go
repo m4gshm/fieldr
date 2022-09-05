@@ -1642,9 +1642,22 @@ func (g *Generator) generateLookupConstants(model *struc.Model) error {
 		return strings.ToLower(toString(val))
 	}
 
-	join := func(val ...interface{}) string {
-		result := strings.Join(toStrings(val), "")
+	join := func(vals ...interface{}) string {
+		result := strings.Join(toStrings(vals), "")
 		return result
+	}
+
+	strOr := func(vals ...string) string {
+		if len(vals) == 0 {
+			return ""
+		}
+
+		for _, val := range vals {
+			if len(val) > 0 {
+				return val
+			}
+		}
+		return vals[len(vals)-1]
 	}
 
 	for i, rawText := range *g.Content.EnumFieldConsts {
@@ -1654,20 +1667,27 @@ func (g *Generator) generateLookupConstants(model *struc.Model) error {
 			logger.Debugf("constant template transformed to '%s'", text)
 		}
 
-		firstUsedTag := ""
+		usedTags := []string{}
+		usedTagsSet := map[string]struct{}{}
+
+		type constResult struct{ name, autoName, field, value string }
+		constants := make([]constResult, 0)
 		for _, fieldName := range model.FieldNames {
 			tags := map[string]interface{}{}
 			if tagVals := model.FieldsTagValue[fieldName]; tagVals != nil {
 				for k, v := range model.FieldsTagValue[fieldName] {
-					tags[k] = &stringer{val: v, callback: func() {
-						if len(firstUsedTag) == 0 {
-							firstUsedTag = k
+					tag := k
+					tags[tag] = &stringer{val: v, callback: func() {
+						if _, ok := usedTagsSet[tag]; !ok {
+							usedTagsSet[tag] = struct{}{}
+							usedTags = append(usedTags, tag)
 						}
 					}}
 				}
 			}
 
 			tmpl, err := template.New(rawText).Option("missingkey=zero").Funcs(template.FuncMap{
+				"OR":          strOr,
 				"conc":        join,
 				"concatenate": join,
 				"join":        join,
@@ -1692,28 +1712,29 @@ func (g *Generator) generateLookupConstants(model *struc.Model) error {
 				return fmt.Errorf("const lookup compile: field=%s, template='%s': %w", fieldName, text, err)
 			}
 
-			tagName := fmt.Sprintf("lookup%d", i)
-			if len(firstUsedTag) != 0 {
-				tagName = firstUsedTag
-			}
-
-			constName := g.getTagTemplateConstName(model.TypeName, tagName, fieldName)
 			cmpVal := buf.String()
-			parts := strings.Split(cmpVal, "=")
-			val := cmpVal
-			if len(parts) > 1 {
-				constName = parts[0]
-				val = parts[1]
+			if parts := strings.Split(cmpVal, "="); len(parts) > 1 {
+				constName := parts[0]
+				val := parts[1]
+				constants = append(constants, constResult{name: constName, value: val})
+			} else {
+				constants = append(constants, constResult{autoName: fmt.Sprintf("lookup%d", i), field: fieldName, value: cmpVal})
 			}
 
-			if len(val) != 0 {
-				constVal := g.getConstValue(baseType, val)
+		}
+
+		for _, c := range constants {
+			constName := c.name
+			if len(constName) == 0 {
+				constName = g.getTagTemplateConstName(model.TypeName, c.field, usedTags)
+			}
+			if len(c.value) != 0 {
+				constVal := g.getConstValue(baseType, c.value)
 				if err := g.addConst(constName, constVal); err != nil {
 					return err
 				}
 			}
 		}
-
 	}
 	return nil
 }
@@ -2425,10 +2446,15 @@ func (g *Generator) getTagValueConstName(typeName string, tag struc.TagName, fie
 	return goName(g.getTagValueType(typeName)+g.getIdentPart(tag)+g.getIdentPart(fieldName), export)
 }
 
-func (g *Generator) getTagTemplateConstName(typeName string, tag struc.TagName, fieldName struc.FieldName) string {
+func (g *Generator) getTagTemplateConstName(typeName string, fieldName struc.FieldName, tags []struc.TagName) string {
 	fieldName = convertFieldPathToGoIdent(fieldName)
 	export := isExport(fieldName) && *g.Conf.Export
-	return goName(typeName+g.getIdentPart(tag)+g.getIdentPart(fieldName), export)
+
+	tagsPart := ""
+	for _, tag := range tags {
+		tagsPart += g.getIdentPart(tag)
+	}
+	return goName(typeName+tagsPart+g.getIdentPart(fieldName), export)
 }
 
 func (g *Generator) getUsedFieldConstName(typeName string, fieldName struc.FieldName) string {

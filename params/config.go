@@ -87,7 +87,8 @@ func newGeneratorContentConfig(flagSet *flag.FlagSet) *generator.ContentConfig {
 			"\n\t\"rexp tag.json \"(\\w+),?\" - regular expression."+
 			"\nfunctions:"+
 			"\n\tjoin, conc - strings concatenation; multiargs"+
-			"\n\trexp - find substring by regular expression; arg1: regular expression, arg2: string value; use 'v' group name as constant value marker, example: (?P<v>\\w+)"+
+			"\n\tOR - select first non empty string argument; multiargs"+
+			"\n\trexp - find substring by regular expression; arg1: regular expression, arg2: string value; use 'v' group name as constant value marker, example: (?P<v>\\\\w+)"+
 			"\n\tup - convert string to upper case"+
 			"\n\tlow - convert string to lower case"+
 			"\n\tsnake - convert camel to snake case"+

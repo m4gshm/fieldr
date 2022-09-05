@@ -3,12 +3,20 @@
 package gorm
 
 const (
-	ENTITY_COL_ID         = "ID"
-	ENTITY_COL_NAME       = "NAME"
-	ENTITY_COL_SURNAME    = "SURNAME"
-	ENTITY_COL_UPDATED_AT = "UPDATED_AT"
-	EntityJsonID          = "id"
-	EntityJsonName        = "name"
-	EntityJsonSurname     = "surname"
-	EntityJsonUpdatedAt   = "updateAt"
+	ENTITY_COL_ID           = "ID"
+	ENTITY_COL_NAME         = "NAME"
+	ENTITY_COL_SURNAME      = "SURNAME"
+	ENTITY_COL_UPDATED_AT   = "UPDATED_AT"
+	EntityGormID            = "ID"
+	EntityGormName          = "NAME"
+	EntityGormSurname       = "SURNAME"
+	EntityGormUpdatedAt     = "UPDATED_AT"
+	EntityJsonID            = "id"
+	EntityJsonName          = "name"
+	EntityJsonSurname       = "_surname"
+	EntityJsonUpdatedAt     = "updateAt"
+	EntityGormJsonID        = "id"
+	EntityGormJsonName      = "NAME"
+	EntityGormJsonSurname   = "SURNAME"
+	EntityGormJsonUpdatedAt = "updateAt"
 )
