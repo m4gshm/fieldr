@@ -13,4 +13,4 @@ type Struct struct {
 	NoTag    string
 }
 
-//go:generate fieldr -type Struct -export -out struct_util.go -Fields -FieldTagValueMap -GetFieldValue -EnumTags -EnumTagValues
+//go:generate fieldr -type Struct -export -out struct_util.go -Fields -FieldTagValueMap -GetFieldValue -enum-tags -enum-tag-values

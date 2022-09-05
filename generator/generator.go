@@ -1696,7 +1696,7 @@ func (g *Generator) generateLookupConstants(model *struc.Model) error {
 				tagName = firstUsedTag
 			}
 
-			constName := g.getTagValueConstName(model.TypeName, tagName, fieldName)
+			constName := g.getTagTemplateConstName(model.TypeName, tagName, fieldName)
 			cmpVal := buf.String()
 			parts := strings.Split(cmpVal, "=")
 			val := cmpVal
@@ -2422,6 +2422,12 @@ func (g *Generator) getTagValueConstName(typeName string, tag struc.TagName, fie
 	fieldName = convertFieldPathToGoIdent(fieldName)
 	export := isExport(fieldName) && *g.Conf.Export
 	return goName(g.getTagValueType(typeName)+g.getIdentPart(tag)+g.getIdentPart(fieldName), export)
+}
+
+func (g *Generator) getTagTemplateConstName(typeName string, tag struc.TagName, fieldName struc.FieldName) string {
+	fieldName = convertFieldPathToGoIdent(fieldName)
+	export := isExport(fieldName) && *g.Conf.Export
+	return goName(typeName+g.getIdentPart(tag)+g.getIdentPart(fieldName), export)
 }
 
 func (g *Generator) getUsedFieldConstName(typeName string, fieldName struc.FieldName) string {
