@@ -1656,29 +1656,10 @@ func (g *Generator) generateLookupConstants(model *struc.Model) error {
 
 		firstUsedTag := ""
 		for _, fieldName := range model.FieldNames {
-			fieldMeta := map[string]interface{}{"name": fieldName}
-			field := func() map[string]interface{} { return fieldMeta }
-			typeMeta := map[string]interface{}{"name": model.TypeName}
-			typ := func() map[string]interface{} { return typeMeta }
-			tmpl, err := template.New(rawText).Option("missingkey=zero").Funcs(template.FuncMap{
-				"conc":        join,
-				"concatenate": join,
-				"join":        join,
-				"regexp":      rexp,
-				"rexp":        rexp,
-				"field":       field,
-				"type":        typ,
-				"snake":       snake,
-				"toUpper":     toUpper,
-				"toLower":     toLower,
-			}).Parse(text)
-			if err != nil {
-				return fmt.Errorf("const lookup parse: template=%s: %w", text, err)
-			}
-			tmplCtx := map[string]interface{}{}
-			if tv := model.FieldsTagValue[fieldName]; tv != nil {
+			tags := map[string]interface{}{}
+			if tagVals := model.FieldsTagValue[fieldName]; tagVals != nil {
 				for k, v := range model.FieldsTagValue[fieldName] {
-					tmplCtx[k] = &stringer{val: v, callback: func() {
+					tags[k] = &stringer{val: v, callback: func() {
 						if len(firstUsedTag) == 0 {
 							firstUsedTag = k
 						}
@@ -1686,8 +1667,28 @@ func (g *Generator) generateLookupConstants(model *struc.Model) error {
 				}
 			}
 
+			tmpl, err := template.New(rawText).Option("missingkey=zero").Funcs(template.FuncMap{
+				"conc":        join,
+				"concatenate": join,
+				"join":        join,
+				"regexp":      rexp,
+				"rexp":        rexp,
+				"name":        func() string { return fieldName },
+				"field":       func() map[string]interface{} { return map[string]interface{}{"name": fieldName} },
+				"struct":      func() map[string]interface{} { return map[string]interface{}{"name": model.TypeName} },
+				"tag":         func() map[string]interface{} { return tags },
+				"snake":       snake,
+				"toUpper":     toUpper,
+				"toLower":     toLower,
+				"up":          toUpper,
+				"low":         toLower,
+			}).Parse(text)
+			if err != nil {
+				return fmt.Errorf("const lookup parse: template=%s: %w", text, err)
+			}
+
 			buf := bytes.Buffer{}
-			if err = tmpl.Execute(&buf, tmplCtx); err != nil {
+			if err = tmpl.Execute(&buf, tags); err != nil {
 				return fmt.Errorf("const lookup compile: field=%s, template='%s': %w", fieldName, text, err)
 			}
 

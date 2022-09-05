@@ -65,7 +65,7 @@ var transformFieldValueFormat = "trigger" + struc.KeyValueSeparator + "trigger_v
 	struc.ReplaceableValueSeparator + "engine_format" + "; supported triggers '" + transformerTriggers +
 	"', engine '" + string(generator.RewriteEngineFmt) + "'"
 
-const enum_field_const = "enum-field-const"
+const enum_field_const = "enum-const"
 
 func newGeneratorContentConfig(flagSet *flag.FlagSet) *generator.ContentConfig {
 	return &generator.ContentConfig{
@@ -82,9 +82,22 @@ func newGeneratorContentConfig(flagSet *flag.FlagSet) *generator.ContentConfig {
 		EnumFieldConsts: multiVal(flagSet, enum_field_const, []string{}, "generate constants based on template applied to struct fields;"+
 			"\ntemplate examples:"+
 			"\n\t\".json\" - use 'json' tag value as constant value, constant name is generated automatically, template corners '{{', '}}' can be omitted"+
-			"\n\t\"{{field.name}}={{.json}}\" - use 'json' tag value as constant value, constant name based on field name, name/value delimeter '=' and template corners are '{{', '}}' required)"+
-			"\n\t\"{{(join type.name field.name)| toUpper}}={{.json}}\" - usage of functions join, toUpper and pipeline character '|' for more complex constant naming"+
-			"\n\t\"rexp .json \"(\\w+),?\" - regular expression. use 'v' group name as constant value marker",
+			"\n\t\"{{name}}={{.json}}\" - use 'json' tag value as constant value, constant name based on field 'name', name/value delimeter '=' and template corners are '{{', '}}' required)"+
+			"\n\t\"{{(join struct.name field.name)| up}}={{tag.json}}\" - usage of functions 'join', 'up' and pipeline character '|' for more complex constant naming"+
+			"\n\t\"rexp tag.json \"(\\w+),?\" - regular expression."+
+			"\nfunctions:"+
+			"\n\tjoin, conc - strings concatenation; multiargs"+
+			"\n\trexp - find substring by regular expression; arg1: regular expression, arg2: string value; use 'v' group name as constant value marker, example: (?P<v>\\w+)"+
+			"\n\tup - convert string to upper case"+
+			"\n\tlow - convert string to lower case"+
+			"\n\tsnake - convert camel to snake case"+
+			"\nmetadata:"+
+			"\n\tname - current field name"+
+			"\n\tfield - current field metadata map"+
+			"\n\tstruct - struct type metadata map"+
+			"\n\ttag - tag names map"+
+			"\n\t.<tag name> - access to tag name"+
+			"",
 		),
 
 		TagFieldsMap:     flagSet.Bool("TagFieldsMap", false, "generate TagFields map var"),
