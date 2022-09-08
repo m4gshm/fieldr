@@ -24,13 +24,18 @@ import (
 	"github.com/m4gshm/fieldr/struc"
 )
 
-func usage() {
-	fmt.Fprintf(os.Stderr, params.Name+" is a tool for generating constants, variables, functions and methods"+
-		" based on a structure model: name, fields, tags\n")
-	fmt.Fprintf(os.Stderr, "Usage of "+params.Name+":\n")
-	fmt.Fprintf(os.Stderr, "\t"+params.Name+" [flags] -type T [directory]\n")
-	fmt.Fprintf(os.Stderr, "Flags:\n")
-	flag.PrintDefaults()
+func usage(commandLine *flag.FlagSet) func() {
+	return func() {
+		out := commandLine.Output()
+		_, _ = fmt.Fprintf(out, params.Name+" is a tool for generating constants, variables, functions and methods"+
+			" based on a structure model: name, fields, tags\n")
+		_, _ = fmt.Fprintf(out, "Usage of "+params.Name+":\n")
+		_, _ = fmt.Fprintf(out, "\t"+params.Name+" [flags] command1 [command-flags] command2 [command-flags]... command [command-flags]\n")
+		_, _ = fmt.Fprintf(out, "Flags:\n")
+
+		commandLine.PrintDefaults()
+		command.PrintUsage()
+	}
 }
 
 func usageErr(message string) *usageError {
@@ -65,55 +70,34 @@ func main() {
 		var uErr *usageError
 		if errors.As(err, &uErr) {
 			fmt.Fprintf(os.Stderr, uErr.Error()+"\n")
-			usage()
+			flag.CommandLine.Usage()
 		} else {
 			log.Fatal(err.Error())
 		}
 	}
 }
 
-func parseCommands(args []string) ([]*command.Command, []string, error) {
-	commands := []*command.Command{}
-	for len(args) > 0 {
-		cmd := ""
-
-		cmd = args[0]
-		args = args[1:]
-
-		cBuilder := command.Get(cmd)
-		if cBuilder == nil {
-			return nil, args, usageErr("unknowd command '" + cmd + "'")
-		}
-
-		c := cBuilder()
-		if err := c.Flag.Parse(args); err != nil {
-			return nil, args, fmt.Errorf("parse flags %s: %w", cmd, err)
-		}
-
-		args = c.Flag.Args()
-		commands = append(commands, c)
-	}
-	return commands, args, nil
-
-}
-
 func run() error {
-	var commandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-	commandLine.Usage = usage
-	config := params.NewConfig(commandLine)
+	cmdLine := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	flag.CommandLine = cmdLine
+	cmdLine.Usage = usage(flag.CommandLine)
+	debugFlag := flag.Bool("debug", false, "enable debug logging")
+	config := params.NewConfig(cmdLine)
 
-	if err := commandLine.Parse(os.Args[1:]); err != nil {
+	if err := cmdLine.Parse(os.Args[1:]); err != nil {
 		return err
 	}
 
-	commands, args, err := parseCommands(commandLine.Args())
+	logger.Init(*debugFlag)
+
+	commands, args, err := parseCommands(cmdLine.Args())
 	if err != nil {
 		return err
-	} 
-	 if len(commands) == 0 {
+	}
+	if len(commands) == 0 {
 		logger.Debugf("no command line generator commands")
-	} 
-	 if len(args) > 0 {
+	}
+	if len(args) > 0 {
 		logger.Debugf("unspent command line args %v\n", args)
 	}
 
@@ -198,8 +182,7 @@ func run() error {
 	// 	return err
 	// }
 
-
-	if len(commands) == 0{
+	if len(commands) == 0 {
 		return usageErr("no generator commands")
 	}
 
@@ -369,7 +352,7 @@ func run() error {
 	}
 
 	for _, c := range commands {
-		if err := c.Op(g, model); err != nil {
+		if err := c.Run(g, model); err != nil {
 			return err
 		}
 	}
@@ -397,6 +380,24 @@ func run() error {
 		return fmt.Errorf("go src code formatting error: %s", fmtErr)
 	}
 	return nil
+}
+
+func parseCommands(args []string) ([]*command.Command, []string, error) {
+	commands := []*command.Command{}
+	for len(args) > 0 {
+		cmd := args[0]
+		args = args[1:]
+
+		if c := command.Get(cmd); c == nil {
+			return nil, args, usageErr("unknowd command '" + cmd + "'")
+		} else if a, err := c.Parse(args); err != nil {
+			return nil, nil, err
+		} else {
+			args = a
+			commands = append(commands, c)
+		}
+	}
+	return commands, args, nil
 }
 
 type fileCmdArgs struct {

@@ -19,20 +19,54 @@ import (
 var counter = 0
 
 func NewEnumConst() *Command {
-	var flagSet = flag.NewFlagSet("enum-const", flag.ContinueOnError)
+	const (
+		name     = "enum-const"
+		flagVal  = "val"
+		flagName = "name"
+	)
+	var (
+		flagSet = flag.NewFlagSet(name, flag.ContinueOnError)
 
-	constName := flagSet.String("name", "", "constant name template")
-	constValue := flagSet.String("val", "", "constant value template; must be set")
-	snake := params.Snake(flagSet)
-	export := params.Export(flagSet, "constants")
-	num := counter
+		constName  = flagSet.String("name", "", "constant name template")
+		constValue = flagSet.String("val", "", "constant value template; must be set")
+		export     = params.Export(flagSet, "constants")
+		num        = counter
+	)
 	counter++
-	return &Command{
-		Flag: flagSet,
-		Op: func(g *generator.Generator, m *struc.Model) error {
-			return generateLookupConstant(g, m, *constValue, *constName, *export, *snake, false, num)
+	c := New(
+		name, "generate constants based on template applied to struct fields",
+		flagSet,
+		func(g *generator.Generator, m *struc.Model) error {
+			return generateLookupConstant(g, m, *constValue, *constName, *export, false, false, num)
 		},
-	}
+	)
+	c.manual =
+		`Examples:
+	` + name + ` -val \".json\" - use 'json' tag value as constant value, constant name is generated automatically, template corners '{{', '}}' can be omitted
+	`
+	return c
+
+	// //te TagValues var per tag"),
+	// 	EnumFieldConsts: multiVal(flagSet, enum_field_const, []string{}, "generate constants based on template applied to struct fields;"+
+	// 	"\ntemplate examples:"+
+	// 	"\n\t\".json\" - use 'json' tag value as constant value, constant name is generated automatically, template corners '{{', '}}' can be omitted"+
+	// 	"\n\t\"{{name}}={{.json}}\" - use 'json' tag value as constant value, constant name based on field 'name', name/value delimeter '=' and template corners are '{{', '}}' required)"+
+	// 	"\n\t\"{{(join struct.name field.name)| up}}={{tag.json}}\" - usage of functions 'join', 'up' and pipeline character '|' for more complex constant naming"+
+	// 	"\n\t\"rexp tag.json \"(\\w+),?\" - regular expression."+
+	// 	"\nfunctions:"+
+	// 	"\n\tjoin, conc - strings concatenation; multiargs"+
+	// 	"\n\tOR - select first non empty string argument; multiargs"+
+	// 	"\n\trexp - find substring by regular expression; arg1: regular expression, arg2: string value; use 'v' group name as constant value marker, example: (?P<v>\\\\w+)"+
+	// 	"\n\tup - convert string to upper case"+
+	// 	"\n\tlow - convert string to lower case"+
+	// 	"\n\tsnake - convert camel to snake case"+
+	// 	"\nmetadata:"+
+	// 	"\n\tname - current field name"+
+	// 	"\n\tfield - current field metadata map"+
+	// 	"\n\tstruct - struct type metadata map"+
+	// 	"\n\ttag - tag names map"+
+	// 	"\n\t.<tag name> - access to tag name"+
+	// 	"",
 }
 
 type stringer struct {
@@ -201,7 +235,7 @@ func generateLookupConstant(g *generator.Generator, model *struc.Model, value, n
 			}
 		}
 
-		parse := func(valueTmpl string) (string, error) {
+		parse := func(tmplVal string) (string, error) {
 			funcs := addCommonFuncs(template.FuncMap{
 				"struct": func() map[string]interface{} { return map[string]interface{}{"name": model.TypeName} },
 				"name":   func() string { return fieldName },
@@ -209,14 +243,16 @@ func generateLookupConstant(g *generator.Generator, model *struc.Model, value, n
 				"tag":    func() map[string]interface{} { return tags },
 			})
 
-			tmpl, err := template.New(value).Option("missingkey=zero").Funcs(funcs).Parse(valueTmpl)
+			logger.Debugf("parse template %s\n", tmplVal)
+			tmpl, err := template.New(value).Option("missingkey=zero").Funcs(funcs).Parse(tmplVal)
 			if err != nil {
-				return "", fmt.Errorf("const lookup parse: template=%s: %w", valueTmpl, err)
+				return "", fmt.Errorf("const lookup parse: template=%s: %w", tmplVal, err)
 			}
 
 			buf := bytes.Buffer{}
+			logger.Debugf("execute template context %+v\n", tags)
 			if err = tmpl.Execute(&buf, tags); err != nil {
-				return "", fmt.Errorf("const lookup compile: field=%s, template='%s': %w", fieldName, valueTmpl, err)
+				return "", fmt.Errorf("const lookup compile: field=%s, template='%s': %w", fieldName, tmplVal, err)
 			}
 			cmpVal := buf.String()
 			return cmpVal, nil

@@ -23,8 +23,6 @@ func NewConfig(flagSet *flag.FlagSet) *Config {
 		PackagePattern: flagSet.String("package", ".", "used package"),
 		OutBuildTags:   flagSet.String("outBuildTag", "", "add build tag to generated file"),
 		OutPackage:     flagSet.String("outPackage", "", "output package name"),
-		// Generator:      newGeneratorConfig(flagSet),
-		// Content:        newGeneratorContentConfig(flagSet),
 	}
 }
 

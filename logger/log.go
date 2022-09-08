@@ -1,27 +1,15 @@
 package logger
 
 import (
-	"flag"
 	"log"
-	"os"
-	"strings"
 
 	"go.uber.org/zap"
 )
 
 var logger *zap.SugaredLogger
 
-func init() {
-	debugFlag := flag.Bool("debug", false, "enable debug logging")
+func Init(debug bool) {
 	var developmentConfig zap.Config
-	debug := *debugFlag
-
-	if !debug {
-		envDebug := os.Getenv("FIELDR_DEBUG")
-		if len(envDebug) > 0 && !(strings.ToLower(envDebug) == "disable" || strings.ToLower(envDebug) == "false") {
-			debug = true
-		}
-	}
 
 	if debug {
 		developmentConfig = zap.NewDevelopmentConfig()
