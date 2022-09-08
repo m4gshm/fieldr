@@ -31,9 +31,11 @@ func usage(commandLine *flag.FlagSet) func() {
 			" based on a structure model: name, fields, tags\n")
 		_, _ = fmt.Fprintf(out, "Usage of "+params.Name+":\n")
 		_, _ = fmt.Fprintf(out, "\t"+params.Name+" [flags] command1 [command-flags] command2 [command-flags]... command [command-flags]\n")
+		_, _ = fmt.Fprintf(out, "Use \"command --help\" to get help of this one\n")
 		_, _ = fmt.Fprintf(out, "Flags:\n")
-
 		commandLine.PrintDefaults()
+		_, _ = fmt.Fprintf(out, "  --help\n")
+		_, _ = fmt.Fprintf(out, "\tshow this message\n")
 		command.PrintUsage()
 	}
 }
@@ -441,12 +443,11 @@ func getCommentCmdArgs(text string) ([]string, error) {
 	if len(text) > 0 && strings.HasPrefix(text, prefix) {
 		configComment := text[len(prefix)+1:]
 		if len(configComment) > 0 {
-			logger.Debugf("parse command config '%s'", configComment)
-			// flagSet := flag.NewFlagSet(params.CommentConfigPrefix, flag.ExitOnError)
-			// commentConfig := params.NewConfig(flagSet)
+			logger.Debugf("split comment args '%s'", configComment)
 			if args, err := splitArgs(configComment); err != nil {
 				return nil, fmt.Errorf("split cofig comment %v; %w", text, err)
 			} else {
+				logger.Debugf("comment args count %d, '%s'", len(args), strings.Join(args, ","))
 				return args, nil
 			}
 		}

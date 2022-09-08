@@ -42,31 +42,25 @@ func NewEnumConst() *Command {
 	)
 	c.manual =
 		`Examples:
-	` + name + ` -val \".json\" - use 'json' tag value as constant value, constant name is generated automatically, template corners '{{', '}}' can be omitted
-	`
-	return c
+	` + name + ` -` + flagVal + ` .json - usage of 'json' tag value as constant value, constant name is generated automatically, template corners '{{', '}}' can be omitted
+	` + name + ` -` + flagName + ` '{{name}}' -` + flagVal + ` '{{.json}}' - the same as the previous one, but constant name is based on field's name
+	` + name + ` -` + flagVal + ` 'rexp "(\w+),?" .json' - usage regexp function to extract json property name as constant value with removed ',omitempty' option
+	` + name + ` -` + flagName + ` '{{(join struct.name field.name)| up}}' -` + flagVal + ` '{{tag.json}}' - usage of functions 'join', 'up' and pipeline character '|' for more complex constant naming"
+Template functions:
+	join, conc - strings concatenation; multiargs
+	OR - select first non empty string argument; multiargs
+	rexp - find substring by regular expression; arg1: regular expression, arg2: string value; use 'v' group name as constant value marker, example: (?P<v>\\\\w+)
+	up - convert string to upper case
+	low - convert string to lower case
+	snake - convert camel to snake case
+Metadata access:
+	name - current field name
+	field - current field metadata map
+	struct - struct type metadata map
+	tag - tag names map
+	t.<tag name> - access to tag name`
 
-	// //te TagValues var per tag"),
-	// 	EnumFieldConsts: multiVal(flagSet, enum_field_const, []string{}, "generate constants based on template applied to struct fields;"+
-	// 	"\ntemplate examples:"+
-	// 	"\n\t\".json\" - use 'json' tag value as constant value, constant name is generated automatically, template corners '{{', '}}' can be omitted"+
-	// 	"\n\t\"{{name}}={{.json}}\" - use 'json' tag value as constant value, constant name based on field 'name', name/value delimeter '=' and template corners are '{{', '}}' required)"+
-	// 	"\n\t\"{{(join struct.name field.name)| up}}={{tag.json}}\" - usage of functions 'join', 'up' and pipeline character '|' for more complex constant naming"+
-	// 	"\n\t\"rexp tag.json \"(\\w+),?\" - regular expression."+
-	// 	"\nfunctions:"+
-	// 	"\n\tjoin, conc - strings concatenation; multiargs"+
-	// 	"\n\tOR - select first non empty string argument; multiargs"+
-	// 	"\n\trexp - find substring by regular expression; arg1: regular expression, arg2: string value; use 'v' group name as constant value marker, example: (?P<v>\\\\w+)"+
-	// 	"\n\tup - convert string to upper case"+
-	// 	"\n\tlow - convert string to lower case"+
-	// 	"\n\tsnake - convert camel to snake case"+
-	// 	"\nmetadata:"+
-	// 	"\n\tname - current field name"+
-	// 	"\n\tfield - current field metadata map"+
-	// 	"\n\tstruct - struct type metadata map"+
-	// 	"\n\ttag - tag names map"+
-	// 	"\n\t.<tag name> - access to tag name"+
-	// 	"",
+	return c
 }
 
 type stringer struct {
@@ -219,23 +213,28 @@ func generateLookupConstant(g *generator.Generator, model *struc.Model, value, n
 	usedTags := []string{}
 	usedTagsSet := map[string]struct{}{}
 
-	type constResult struct{ name, autoName, field, value string }
+	type constResult struct{ name, field, value string }
 	constants := make([]constResult, 0)
-	for _, fieldName := range model.FieldNames {
+	for _, f := range model.FieldNames {
+		fieldName := f
 		tags := map[string]interface{}{}
 		if tagVals := model.FieldsTagValue[fieldName]; tagVals != nil {
 			for k, v := range model.FieldsTagValue[fieldName] {
 				tag := k
 				tags[tag] = &stringer{val: v, callback: func() {
+					if logger.IsInLogContext() {
+						return
+					}
 					if _, ok := usedTagsSet[tag]; !ok {
 						usedTagsSet[tag] = struct{}{}
 						usedTags = append(usedTags, tag)
+						logger.Debugf("use tag '%s'", tag)
 					}
 				}}
 			}
 		}
 
-		parse := func(tmplVal string) (string, error) {
+		parse := func(name string, tmplVal string) (string, error) {
 			funcs := addCommonFuncs(template.FuncMap{
 				"struct": func() map[string]interface{} { return map[string]interface{}{"name": model.TypeName} },
 				"name":   func() string { return fieldName },
@@ -243,31 +242,32 @@ func generateLookupConstant(g *generator.Generator, model *struc.Model, value, n
 				"tag":    func() map[string]interface{} { return tags },
 			})
 
-			logger.Debugf("parse template %s\n", tmplVal)
+			logger.Debugf("parse template for \"%s\" %s\n", name, tmplVal)
 			tmpl, err := template.New(value).Option("missingkey=zero").Funcs(funcs).Parse(tmplVal)
 			if err != nil {
-				return "", fmt.Errorf("const lookup parse: template=%s: %w", tmplVal, err)
+				return "", fmt.Errorf("parse: of '%s', template %s: %w", name, tmplVal, err)
 			}
 
 			buf := bytes.Buffer{}
-			logger.Debugf("execute template context %+v\n", tags)
+			logger.Debugf("template context %+v\n", tags)
 			if err = tmpl.Execute(&buf, tags); err != nil {
-				return "", fmt.Errorf("const lookup compile: field=%s, template='%s': %w", fieldName, tmplVal, err)
+				return "", fmt.Errorf("compile: of '%s': field '%s', template %s: %w", name, fieldName, tmplVal, err)
 			}
 			cmpVal := buf.String()
+			logger.Debugf("parse result: of '%s'; %s\n", name, cmpVal)
 			return cmpVal, nil
 		}
 
-		if val, err := parse(valueTmpl); err != nil {
+		if val, err := parse(fieldName+" const val", valueTmpl); err != nil {
 			return err
 		} else if len(nameTmpl) > 0 {
-			if constName, err := parse(nameTmpl); err != nil {
+			if constName, err := parse(fieldName+" const name", nameTmpl); err != nil {
 				return err
 			} else {
 				constants = append(constants, constResult{name: constName, value: val})
 			}
 		} else {
-			constants = append(constants, constResult{autoName: fmt.Sprintf("lookup%d", num), field: fieldName, value: val})
+			constants = append(constants, constResult{field: fieldName, value: val})
 		}
 	}
 
@@ -275,12 +275,16 @@ func generateLookupConstant(g *generator.Generator, model *struc.Model, value, n
 		constName := c.name
 		if len(constName) == 0 {
 			constName = g.GetTagTemplateConstName(model.TypeName, c.field, usedTags, export, snake)
+			logger.Debugf("apply auto constant name '%s'", constName)
+		} else {
+			logger.Debugf("template generated constant name '%s'", constName)
 		}
 		if len(c.value) != 0 {
-
 			if err := g.AddConst(constName, g.GetConstValue(generator.BaseConstType, c.value, wrapType)); err != nil {
 				return err
 			}
+		} else {
+			logger.Warnf("constant without value: '%s'", constName)
 		}
 	}
 
