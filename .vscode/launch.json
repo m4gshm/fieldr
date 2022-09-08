@@ -39,7 +39,16 @@
             "program": "main.go",
             "cwd": "examples/gorm",
             "args": ["-type", "Entity", "-out", "entity_fields.go", "-export"]
-        },                            
+        },        
+        {
+            "name": "Debug command example",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "examples/gorm",
+            "args": ["-type", "Entity", "-out", "entity_fields.go"]
+        },                      
         {
             "name": "Launch Package",
             "type": "go",

@@ -18,7 +18,6 @@ const KeyValueSeparator = ":"
 const ListValuesSeparator = ","
 
 var (
-	tagParsers    = TagValueParsers{}
 	excludeValues = map[TagName]map[TagValue]bool{}
 )
 
@@ -48,7 +47,7 @@ type (
 	}
 )
 
-func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.File, fileSet *token.FileSet, typeName string, includedTags map[TagName]interface{}, constants []string, constantReplacers map[string]string) (*HierarchicalModel, error) {
+func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.File, fileSet *token.FileSet, typeName string /*includedTags map[TagName]struct{}, */, constants []string, constantReplacers map[string]string) (*HierarchicalModel, error) {
 	constantNameByTemplate, constantNames, constantSubstitutes, err := extractConstantNameAndTemplates(constants, constantReplacers, typeName)
 	if err != nil {
 		return nil, err
@@ -64,7 +63,7 @@ func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.F
 			filePath    = fileInfo.Name()
 		)
 		if lookup := pkg.Scope().Lookup(typeName); lookup != nil {
-			if builder, err := newBuilder(pkg, nil, typeName, filePath, includedTags, handledStructs{}); err != nil {
+			if builder, err := newBuilder(pkg, nil, typeName, filePath /*includedTags,*/, handledStructs{}); err != nil {
 				return nil, fmt.Errorf("new builder of %v: %w", typeName, err)
 			} else if structModel, err = builder.newModel(lookup.Type()); err != nil {
 				return nil, fmt.Errorf("new model of %v: %w", typeName, err)
@@ -292,24 +291,20 @@ func newFieldTagValues(fieldTagNames []TagName, tagValues map[TagName]TagValue) 
 	return fieldTagValues
 }
 
-func parseTagValues(tagsValues string, includedTags map[TagName]interface{}) (map[TagName]TagValue, []TagName) {
+func parseTagValues(tagsValues string /*, includedTags map[TagName]struct{}*/) (map[TagName]TagValue, []TagName) {
 	tagValues, fieldTagNames := ParseTags(tagsValues)
-	return filterIncludedTags(includedTags, tagValues, fieldTagNames)
-}
-
-func filterIncludedTags(includedTags map[TagName]interface{}, tagValues map[TagName]TagValue, fieldTagNames []TagName) (map[TagName]TagValue, []TagName) {
-	if len(includedTags) > 0 {
-		filteredFieldTagValues := make(map[TagName]TagValue)
-		filteredFieldTagNames := make([]TagName, 0)
-		for includedTag := range includedTags {
-			if _tagValue, tagValueOk := tagValues[includedTag]; tagValueOk {
-				filteredFieldTagValues[includedTag] = _tagValue
-				filteredFieldTagNames = append(filteredFieldTagNames, includedTag)
-			}
-		}
-		tagValues = filteredFieldTagValues
-		fieldTagNames = filteredFieldTagNames
-	}
+	// if len(includedTags) > 0 {
+	// 	filteredFieldTagValues := make(map[TagName]TagValue)
+	// 	filteredFieldTagNames := make([]TagName, 0)
+	// 	for includedTag := range includedTags {
+	// 		if _tagValue, tagValueOk := tagValues[includedTag]; tagValueOk {
+	// 			filteredFieldTagValues[includedTag] = _tagValue
+	// 			filteredFieldTagNames = append(filteredFieldTagNames, includedTag)
+	// 		}
+	// 	}
+	// 	tagValues = filteredFieldTagValues
+	// 	fieldTagNames = filteredFieldTagNames
+	// }
 	return tagValues, fieldTagNames
 }
 
@@ -350,22 +345,14 @@ func ParseTags(tags string) (map[TagName]TagValue, []TagName) {
 			}
 
 			tagContent := tags[pos:endValuePos]
-
-			var parsedValue TagValue
-			if parse, ok := tagParsers[_tagName]; ok {
-				parsedValue = parse(tagContent)
-			} else {
-				parsedValue = tagContent
-			}
-
 			var excluded bool
 			if excludedValues, ok := excludeValues[_tagName]; ok {
-				excluded, ok = excludedValues[parsedValue]
+				excluded, ok = excludedValues[tagContent]
 				excluded = excluded && ok
 			}
 
 			if !excluded {
-				tagValues[_tagName] = parsedValue
+				tagValues[_tagName] = tagContent
 				tagNames = append(tagNames, _tagName)
 			}
 

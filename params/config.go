@@ -21,8 +21,10 @@ func NewConfig(flagSet *flag.FlagSet) *Config {
 		Output:         flagSet.String("out", "", "output file name; default srcdir/<type>"+DefaultFileSuffix),
 		Input:          inFlag(flagSet),
 		PackagePattern: flagSet.String("package", ".", "used package"),
-		Generator:      newGeneratorConfig(flagSet),
-		Content:        newGeneratorContentConfig(flagSet),
+		OutBuildTags:   flagSet.String("outBuildTag", "", "add build tag to generated file"),
+		OutPackage:     flagSet.String("outPackage", "", "output package name"),
+		// Generator:      newGeneratorConfig(flagSet),
+		// Content:        newGeneratorContentConfig(flagSet),
 	}
 }
 
@@ -32,29 +34,36 @@ func inFlag(flagSet *flag.FlagSet) *[]string {
 
 func newGeneratorConfig(flagSet *flag.FlagSet) *generator.Config {
 	return &generator.Config{
-		IncludeFieldTags: flagSet.String("filedTags", "", "comma-separated list of used field tags"),
-		Nolint:           flagSet.Bool("nolint", false, "add //nolint comment"),
-		OutBuildTags:     flagSet.String("outBuildTag", "", "add build tag to generated file"),
-		OutPackage:       flagSet.String("outPackage", "", "output package name"),
-		WrapType:         flagSet.Bool("wrap", false, "wrap tag const by own type"),
-		HardcodeValues:   flagSet.Bool("hardcode", false, "hardcode tag values into generated variables, methods"),
-		Name:             flagSet.String("name", "", "rename generated function to defined name"),
-		ExcludeFields:    multiVal(flagSet, "excludeFields", []string{}, "exclude values from generated function result for defined fields"),
+		// IncludeFieldTags: flagSet.String("filedTags", "", "comma-separated list of used field tags"),
+		Nolint: flagSet.Bool("nolint", false, "add //nolint comment"),
+
+		WrapType:       flagSet.Bool("wrap", false, "wrap tag const by own type"),
+		HardcodeValues: flagSet.Bool("hardcode", false, "hardcode tag values into generated variables, methods"),
+		Name:           flagSet.String("name", "", "rename generated function to defined name"),
+		ExcludeFields:  multiVal(flagSet, "excludeFields", []string{}, "exclude values from generated function result for defined fields"),
 		FieldValueRewriters: multiVal(flagSet, "rewrite", []string{}, "field value rewriting applied to generated functions; "+
 			"format - "+transformFieldValueFormat),
 		ReturnRefs:  flagSet.Bool("ref", false, "return field as refs in generated methods"),
-		Export:      flagSet.Bool("export", false, "export generated types, constant, methods"),
+		Export:      Export(flagSet, "types, constants, methods"),
 		NoReceiver:  flagSet.Bool("noReceiver", false, "generate no receiver-based methods for structure type"),
 		ExportVars:  flagSet.Bool("exportVars", false, "export generated variables only"),
 		AllFields:   flagSet.Bool("allFields", false, "include all fields (not only exported) in generated content"),
 		NoEmptyTag:  flagSet.Bool("noEmptyTag", false, "exclude tags without value"),
-		Snake:       flagSet.Bool("snake", false, "use snake case for constants, vars"),
+		Snake:       Snake(flagSet),
 		Flat:        multiVal(flagSet, "flat", []string{}, "apply generator to fields of nested structs. Used byAsMap, const and etc"),
 		Compact:     flagSet.Bool("compact", false, "generate compact (in one line) array expressions"),
 		ConstLength: flagSet.Int("constLen", generator.DefaultConstLength, "max cons length in line"),
 		ConstReplace: multiVal(flagSet, "constReplace", []string{}, "constant's part (ident) replacers; "+
 			"format - "+constReplacersFormat),
 	}
+}
+
+func Snake(flagSet *flag.FlagSet) *bool {
+	return flagSet.Bool("snake", false, "use snake case for constants, vars")
+}
+
+func Export(flagSet *flag.FlagSet, content string) *bool {
+	return flagSet.Bool("export", false, "export generated "+content)
 }
 
 const constReplacersFormat = "replaced_ident" + struc.ReplaceableValueSeparator + "replacer_ident" + struc.ListValuesSeparator + "replaced_ident2" + struc.ReplaceableValueSeparator + "replacer_ident"
@@ -122,6 +131,8 @@ type Config struct {
 	Output         *string
 	Input          *[]string
 	PackagePattern *string
+	OutBuildTags   *string
+	OutPackage     *string
 
 	Generator *generator.Config
 	Content   *generator.ContentConfig

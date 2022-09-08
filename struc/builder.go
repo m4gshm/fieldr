@@ -11,14 +11,14 @@ import (
 type handledStructs = map[types.Type]*HierarchicalModel
 
 type structModelBuilder struct {
-	model        *HierarchicalModel
-	includedTags map[TagName]interface{}
-	deep         bool
-	pkg          *types.Package
-	loopControl  handledStructs
+	model *HierarchicalModel
+	// includedTags map[TagName]struct{}
+	deep        bool
+	pkg         *types.Package
+	loopControl handledStructs
 }
 
-func newBuilder(pkg *types.Package, typ types.Type, typeName string, filePath string, includedTags map[TagName]interface{}, loopControl handledStructs) (*structModelBuilder, error) {
+func newBuilder(pkg *types.Package, typ types.Type, typeName string, filePath string /*includedTags map[TagName]struct{},*/, loopControl handledStructs) (*structModelBuilder, error) {
 	if _, ok := loopControl[typ]; ok {
 		return nil, fmt.Errorf("already handled type %v", typeName)
 	}
@@ -37,11 +37,11 @@ func newBuilder(pkg *types.Package, typ types.Type, typeName string, filePath st
 	}
 	loopControl[typ] = model
 	return &structModelBuilder{
-		model:        model,
-		includedTags: includedTags,
-		deep:         true,
-		pkg:          pkg,
-		loopControl:  loopControl,
+		model: model,
+		// includedTags: includedTags,
+		deep:        true,
+		pkg:         pkg,
+		loopControl: loopControl,
 	}, nil
 }
 
@@ -77,7 +77,7 @@ func (b *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
 				tag := typeStruct.Tag(i)
 				b.model.FieldNames = append(b.model.FieldNames, fldName)
 
-				tagValues, fieldTagNames := parseTagValues(tag, b.includedTags)
+				tagValues, fieldTagNames := parseTagValues(tag /*, b.includedTags*/)
 				b.populateFields(fldName, fieldTagNames, tagValues)
 				for _, fieldTagName := range fieldTagNames {
 					b.populateTags(fldName, fieldTagName, tagValues[fieldTagName])
@@ -101,7 +101,7 @@ func (b *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
 						if model, ok := b.loopControl[fieldTypeNamed]; ok {
 							logger.Debugf("found handled type %v", typeName)
 							b.model.Nested[fldName] = model
-						} else if nestedBuilder, err := newBuilder(pkg, fieldTypeNamed, typeName, "", b.includedTags, b.loopControl); err != nil {
+						} else if nestedBuilder, err := newBuilder(pkg, fieldTypeNamed, typeName, "" /*, b.includedTags*/, b.loopControl); err != nil {
 							return err
 						} else if err = nestedBuilder.populateByType(fieldTypeNamed); err != nil {
 							return fmt.Errorf("nested field %v.%v; %w", typeName, fldName, err)

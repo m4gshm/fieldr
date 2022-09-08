@@ -15,42 +15,115 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/tools/go/packages"
+
+	"github.com/m4gshm/fieldr/command"
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/struc"
-	"golang.org/x/tools/go/packages"
 )
 
 func usage() {
+	fmt.Fprintf(os.Stderr, params.Name+" is a tool for generating constants, variables, functions and methods"+
+		" based on a structure model: name, fields, tags\n")
 	fmt.Fprintf(os.Stderr, "Usage of "+params.Name+":\n")
 	fmt.Fprintf(os.Stderr, "\t"+params.Name+" [flags] -type T [directory]\n")
 	fmt.Fprintf(os.Stderr, "Flags:\n")
 	flag.PrintDefaults()
 }
 
+func usageErr(message string) *usageError {
+	return &usageError{message: message}
+}
+
+func fileCommentUsageErr(message string, file *ast.File, comment *ast.Comment) *usageError {
+	return &usageError{message: message, comment: comment, file: file}
+}
+
+type usageError struct {
+	message string
+	// cmd     *command.Command
+	file    *ast.File
+	comment *ast.Comment
+}
+
+func (e *usageError) Error() string {
+	m := e.message
+	if e.file != nil {
+		n := e.file.Name.String()
+		m += fmt.Sprintf(" file: %s", n)
+	}
+	if e.comment != nil {
+		m += fmt.Sprintf(" pos: %d", e.comment.Pos())
+	}
+	return m
+}
+
 func main() {
 	if err := run(); err != nil {
-		log.Fatal(err.Error())
+		var uErr *usageError
+		if errors.As(err, &uErr) {
+			fmt.Fprintf(os.Stderr, uErr.Error()+"\n")
+			usage()
+		} else {
+			log.Fatal(err.Error())
+		}
 	}
 }
 
-func run() error {
-	log.SetPrefix(params.Name + ": ")
+func parseCommands(args []string) ([]*command.Command, []string, error) {
+	commands := []*command.Command{}
+	for len(args) > 0 {
+		cmd := ""
 
-	config := params.NewConfig(flag.CommandLine)
+		cmd = args[0]
+		args = args[1:]
 
-	flag.Usage = usage
-	flag.Parse()
-
-	args := flag.Args()
-	if outputDir, err := outDir(args); err != nil {
-		return err
-	} else if len(outputDir) > 0 {
-		if err := os.Chdir(outputDir); err != nil {
-			return fmt.Errorf("out chdir: %w", err)
+		cBuilder := command.Get(cmd)
+		if cBuilder == nil {
+			return nil, args, usageErr("unknowd command '" + cmd + "'")
 		}
+
+		c := cBuilder()
+		if err := c.Flag.Parse(args); err != nil {
+			return nil, args, fmt.Errorf("parse flags %s: %w", cmd, err)
+		}
+
+		args = c.Flag.Args()
+		commands = append(commands, c)
 	}
+	return commands, args, nil
+
+}
+
+func run() error {
+	var commandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	commandLine.Usage = usage
+	config := params.NewConfig(commandLine)
+
+	if err := commandLine.Parse(os.Args[1:]); err != nil {
+		return err
+	}
+
+	commands, args, err := parseCommands(commandLine.Args())
+	if err != nil {
+		return err
+	} 
+	 if len(commands) == 0 {
+		logger.Debugf("no command line generator commands")
+	} 
+	 if len(args) > 0 {
+		logger.Debugf("unspent command line args %v\n", args)
+	}
+
+	// if outputDir, err := outDir(args); err != nil {
+	// 	return err
+	// } else if len(outputDir) > 0 {
+	// 	if err := os.Chdir(outputDir); err != nil {
+	// 		return fmt.Errorf("out chdir: %w", err)
+	// 	}
+	// }
 
 	fileSet := token.NewFileSet()
 	buildTags := *config.BuildTags
@@ -76,59 +149,73 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	constantReplacers := map[string]string{}
+	// constantReplacers, err := struc.ExtractReplacers(*config.Generator.ConstReplace...)
+	// if err != nil {
+	// 	return err
+	// }
 
-	constantReplacers, err := struc.ExtractReplacers(*config.Generator.ConstReplace...)
+	filesCmdArgs, err := newFilesCommentsConfig(files)
 	if err != nil {
 		return err
-	}
-	sharedConfig, err := newFilesCommentsConfig(files, constantReplacers)
-	if err != nil {
-		return err
-	} else if sharedConfig != nil {
-		newInputs, _ := newSet(*sharedConfig.Input, inputs...)
-		if len(newInputs) > 0 {
-			//new inputs detected
-			newFiles, err := loadSrcFiles(newInputs, buildTags, fileSet, make([]*ast.File, 0), filePackages)
-			if err != nil {
-				return err
-			} else if additionalConfig, err := newFilesCommentsConfig(newFiles, constantReplacers); err != nil {
-				return err
-			} else if additionalConfig != nil {
-				if sharedConfig, err = sharedConfig.MergeWith(additionalConfig, constantReplacers); err != nil {
+	} else if len(filesCmdArgs) > 0 {
+		for _, f := range filesCmdArgs {
+			for _, cmt := range f.commentArgs {
+				cmtCommands, cmtArgs, err := parseCommands(cmt.args)
+				if err != nil {
+					var uErr *usageError
+					if errors.As(err, &uErr) {
+						return fileCommentUsageErr(uErr.message, f.file, cmt.comment)
+					}
 					return err
+				} else if len(cmtCommands) == 0 {
+					logger.Debugf("no comment generator commands: file %s, line: %d args %v\n", f.file.Name, cmt.comment.Pos(), cmtArgs)
+				} else if len(cmtArgs) > 0 {
+					logger.Debugf("unspent comment line args: %v\n", cmtArgs)
 				}
+				commands = append(commands, cmtCommands...)
 			}
-			files = append(files, newFiles...)
+
 		}
+
+		// newInputs, _ := newSet(*sharedConfig.Input, inputs...)
+		// if len(newInputs) > 0 {
+		// 	//new inputs detected
+		// 	newFiles, err := loadSrcFiles(newInputs, buildTags, fileSet, make([]*ast.File, 0), filePackages)
+		// 	if err != nil {
+		// 		return err
+		// 	} else if additionalConfig, err := newFilesCommentsConfig(newFiles, constantReplacers); err != nil {
+		// 		return err
+		// 	} else if additionalConfig != nil {
+		// 		if sharedConfig, err = sharedConfig.MergeWith(additionalConfig, constantReplacers); err != nil {
+		// 			return err
+		// 		}
+		// 	}
+		// 	files = append(files, newFiles...)
+		// }
 	}
-	if config, err = config.MergeWith(sharedConfig, constantReplacers); err != nil {
-		return err
+	// if config, err = config.MergeWith(sharedConfig, constantReplacers); err != nil {
+	// 	return err
+	// }
+
+
+	if len(commands) == 0{
+		return usageErr("no generator commands")
 	}
 
 	logger.Debugw("using", "config", config)
 
 	typeName := *config.Type
 	if len(typeName) == 0 {
-		log.Print("no type arg")
-		flag.Usage()
-		os.Exit(2)
+		return usageErr("no type arg")
+
 	}
 
-	var (
-		includedTagArg  = *config.Generator.IncludeFieldTags
-		includedTagsSet = make(map[struc.TagName]interface{})
-		includedTags    = make([]struc.TagName, 0)
-	)
-	if len(includedTagArg) > 0 {
-		includedTagNames := strings.Split(includedTagArg, ",")
-		for _, includedTag := range includedTagNames {
-			name := struc.TagName(includedTag)
-			includedTagsSet[name] = nil
-			includedTags = append(includedTags, name)
-		}
-	}
-	constants := *config.Content.Constants
-	hierarchicalModel, err := struc.FindStructTags(filePackages, files, fileSet, typeName, includedTagsSet, constants, constantReplacers)
+	// includedTagsSet, _ := (*config).Generator.IncludedTags()
+
+	// constants := *config.Content.Constants
+	constants := []string{}
+	hierarchicalModel, err := struc.FindStructTags(filePackages, files, fileSet, typeName /*, includedTagsSet*/, constants, constantReplacers)
 	if err != nil {
 		return err
 	} else if hierarchicalModel == nil || (len(hierarchicalModel.TypeName) == 0 && len(typeName) != 0) {
@@ -161,12 +248,14 @@ func run() error {
 		}
 	}
 
-	g := &generator.Generator{
-		IncludedTags: includedTags,
-		Name:         params.Name,
-		Conf:         config.Generator,
-		Content:      config.Content,
-	}
+	g := generator.NewGenerator(params.Name, *config.OutPackage, *config.OutBuildTags)
+	// 	// IncludedTags: includedTags,
+	// 	Name:         params.Name,
+	// 	OutPackage:   config.OutPackage,
+	// 	OutBuildTags: config.OutBuildTags,
+	// 	Conf:         config.Generator,
+	// 	Content:      config.Content,
+	// }
 
 	var outPkg *packages.Package
 	if outFile != nil {
@@ -205,7 +294,9 @@ func run() error {
 	}
 
 	flatFields := make(map[struc.FieldName]interface{})
-	flat := g.Conf.Flat
+	// flat := config.Generator.Flat
+	f := []string{}
+	flat := &f
 	if flat != nil {
 		for _, flatField := range *flat {
 			flatFields[flatField] = nil
@@ -277,9 +368,26 @@ func run() error {
 		model = &hierarchicalModel.Model
 	}
 
-	if err = g.GenerateFile(model, outFile, outFileInfo, outPkg); err != nil {
-		return fmt.Errorf("generate file error: %s", err)
+	for _, c := range commands {
+		if err := c.Op(g, model); err != nil {
+			return err
+		}
 	}
+
+	isRewrite := g.IsRewrite(outFile, outFileInfo)
+
+	outPackageName := generator.OutPackageName(*config.OutPackage, outPkg)
+
+	// if err = g.GenerateFile(model, outFile, outFileInfo, outPkg, config, con); err != nil {
+	// 	return fmt.Errorf("generate file error: %s", err)
+	// }
+
+	// noReceiver := config.NoReceiver != nil && *conf.NoReceiver
+	noReceiver := false
+	if err := g.WriteBody(outFile, outFileInfo, outPackageName, isRewrite, noReceiver); err != nil {
+		return err
+	}
+
 	src, fmtErr := g.FormatSrc()
 
 	const userWriteOtherRead = fs.FileMode(0644)
@@ -291,50 +399,60 @@ func run() error {
 	return nil
 }
 
-func newFilesCommentsConfig(files []*ast.File, constantReplacers map[string]string) (config *params.Config, err error) {
-	for _, file := range files {
-		if config, err = newFileCommentConfig(file, config, constantReplacers); err != nil {
-			return nil, err
-		}
-	}
-	return config, err
+type fileCmdArgs struct {
+	file        *ast.File
+	commentArgs []commentCmdArgs
 }
 
-func newFileCommentConfig(file *ast.File, sharedConfig *params.Config, constantReplacers map[string]string) (*params.Config, error) {
+func newFilesCommentsConfig(files []*ast.File) ([]fileCmdArgs, error) {
+	result := []fileCmdArgs{}
+	for _, file := range files {
+		if args, err := getFileCommentCmdArgs(file); err != nil {
+			return nil, err
+		} else if len(args) > 0 {
+			result = append(result, fileCmdArgs{file: file, commentArgs: args})
+		}
+	}
+	return result, nil
+}
+
+type commentCmdArgs struct {
+	comment *ast.Comment
+	args    []string
+}
+
+func getFileCommentCmdArgs(file *ast.File) ([]commentCmdArgs, error) {
+	result := []commentCmdArgs{}
 	for _, commentGroup := range file.Comments {
 		for _, comment := range commentGroup.List {
-			commentConfig, err := newConfigComment(comment.Text)
-			if err != nil {
+			if args, err := getCommentCmdArgs(comment.Text); err != nil {
 				return nil, err
-			} else if sharedConfig == nil {
-				sharedConfig = commentConfig
-				continue
-			} else if sharedConfig, err = sharedConfig.MergeWith(commentConfig, constantReplacers); err != nil {
-				return nil, err
+			} else if len(args) > 0 {
+				result = append(result, commentCmdArgs{comment: comment, args: args})
 			}
 		}
 	}
-	return sharedConfig, nil
+	return result, nil
 }
 
-func newConfigComment(text string) (*params.Config, error) {
+func getCommentCmdArgs(text string) ([]string, error) {
 	prefix := "//" + params.CommentConfigPrefix
 	if len(text) > 0 && strings.HasPrefix(text, prefix) {
 		configComment := text[len(prefix)+1:]
 		if len(configComment) > 0 {
 			logger.Debugf("parse command config '%s'", configComment)
-			flagSet := flag.NewFlagSet(params.CommentConfigPrefix, flag.ExitOnError)
-			commentConfig := params.NewConfig(flagSet)
+			// flagSet := flag.NewFlagSet(params.CommentConfigPrefix, flag.ExitOnError)
+			// commentConfig := params.NewConfig(flagSet)
 			if args, err := splitArgs(configComment); err != nil {
 				return nil, fmt.Errorf("split cofig comment %v; %w", text, err)
-			} else if err := flagSet.Parse(args); err != nil {
-				return nil, fmt.Errorf("parsing cofig comment %v; %w", text, err)
+			} else {
+				return args, nil
 			}
-			return commentConfig, nil
 		}
 	}
 	return nil, nil
 }
+
 func splitArgs(rawArgs string) ([]string, error) {
 	var args []string
 	for {
