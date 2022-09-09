@@ -9,11 +9,11 @@ import (
 	"github.com/m4gshm/fieldr/struc"
 )
 
-func New(name, description string, flagSet *flag.FlagSet, op func(g *generator.Generator, m *struc.Model) error) *Command {
+func New(name, description string, flagSet *flag.FlagSet, op func(g *generator.Generator, m *struc.HierarchicalModel) error) *Command {
 	c := &Command{
 		name:        name,
 		description: description,
-		flag:        flagSet,
+		flagSet:     flagSet,
 		op:          op,
 	}
 	flagSet.Usage = c.PrintUsage
@@ -22,29 +22,34 @@ func New(name, description string, flagSet *flag.FlagSet, op func(g *generator.G
 
 type Command struct {
 	name, description, manual string
-	op                        func(g *generator.Generator, m *struc.Model) error
-	flag                      *flag.FlagSet
+	op                        func(g *generator.Generator, m *struc.HierarchicalModel) error
+	flagSet                   *flag.FlagSet
+}
+
+func (c *Command) Name() string {
+	return c.name
 }
 
 func (c *Command) PrintUsage() {
-	out := c.flag.Output()
-	_, _ = fmt.Fprintln(out, c.description)
+	out := c.flagSet.Output()
+	_, _ = fmt.Fprintln(out, "Command "+c.name)
+	_, _ = fmt.Fprintln(out, "\t"+c.description)
 	_, _ = fmt.Fprintln(out, "Flags:")
-	c.flag.PrintDefaults()
+	c.flagSet.PrintDefaults()
 	if len(c.manual) > 0 {
 		_, _ = fmt.Fprintln(out, c.manual)
 	}
 }
 
-func (c *Command) Run(g *generator.Generator, m *struc.Model) error {
+func (c *Command) Run(g *generator.Generator, m *struc.HierarchicalModel) error {
 	return c.op(g, m)
 }
 
 func (c *Command) Parse(arguments []string) ([]string, error) {
-	if err := c.flag.Parse(arguments); err != nil {
+	if err := c.flagSet.Parse(arguments); err != nil {
 		return nil, fmt.Errorf("parse args '%s': %w", c.name, err)
 	}
-	return c.flag.Args(), nil
+	return c.flagSet.Args(), nil
 }
 
 func Get(name string) *Command {
@@ -70,6 +75,7 @@ func PrintUsage() {
 
 var commands = []func() *Command{
 	NewEnumConst,
+	NewAsMapMethod,
 }
 
 var index = toMap(commands)

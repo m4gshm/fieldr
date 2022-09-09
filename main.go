@@ -44,13 +44,17 @@ func usageErr(message string) *usageError {
 	return &usageError{message: message}
 }
 
+func cmdUsageErr(message string, cmd *command.Command) *usageError {
+	return &usageError{message: message, cmd: cmd}
+}
+
 func fileCommentUsageErr(message string, file *ast.File, comment *ast.Comment) *usageError {
 	return &usageError{message: message, comment: comment, file: file}
 }
 
 type usageError struct {
 	message string
-	// cmd     *command.Command
+	cmd     *command.Command
 	file    *ast.File
 	comment *ast.Comment
 }
@@ -71,8 +75,12 @@ func main() {
 	if err := run(); err != nil {
 		var uErr *usageError
 		if errors.As(err, &uErr) {
-			fmt.Fprintf(os.Stderr, uErr.Error()+"\n")
-			flag.CommandLine.Usage()
+			fmt.Fprintf(os.Stderr, "err: "+uErr.Error()+"\n")
+			if uErr.cmd != nil {
+				uErr.cmd.PrintUsage()
+			} else {
+				flag.CommandLine.Usage()
+			}
 		} else {
 			log.Fatal(err.Error())
 		}
@@ -192,6 +200,9 @@ func run() error {
 
 	typeName := *config.Type
 	if len(typeName) == 0 {
+		if len(commands) > 0 {
+			return cmdUsageErr("no type arg", commands[0])
+		}
 		return usageErr("no type arg")
 
 	}
@@ -233,15 +244,6 @@ func run() error {
 		}
 	}
 
-	g := generator.NewGenerator(params.Name, *config.OutPackage, *config.OutBuildTags)
-	// 	// IncludedTags: includedTags,
-	// 	Name:         params.Name,
-	// 	OutPackage:   config.OutPackage,
-	// 	OutBuildTags: config.OutBuildTags,
-	// 	Conf:         config.Generator,
-	// 	Content:      config.Content,
-	// }
-
 	var outPkg *packages.Package
 	if outFile != nil {
 		outPkg = filePackages[outFile]
@@ -278,90 +280,13 @@ func run() error {
 		}
 	}
 
-	flatFields := make(map[struc.FieldName]interface{})
-	// flat := config.Generator.Flat
-	f := []string{}
-	flat := &f
-	if flat != nil {
-		for _, flatField := range *flat {
-			flatFields[flatField] = nil
-		}
-	}
-	existsFlatFields := make(map[struc.FieldName]interface{})
-	for _, fieldName := range hierarchicalModel.FieldNames {
-		if _, nested := flatFields[fieldName]; nested {
-			existsFlatFields[fieldName] = nil
-		}
-	}
-
-	var model *struc.Model
-	if len(existsFlatFields) > 0 {
-		//make flat model
-		var (
-			flatFieldNames     []struc.FieldName
-			flatFieldsType     = map[struc.FieldName]struc.FieldType{}
-			flatFieldsTagValue = map[struc.FieldName]map[struc.TagName]struc.TagValue{}
-		)
-		for _, fieldName := range hierarchicalModel.FieldNames {
-			if _, ok := existsFlatFields[fieldName]; ok {
-				if nestedHierarchicalModel := hierarchicalModel.Nested[fieldName]; nestedHierarchicalModel != nil {
-					nestedModel := nestedHierarchicalModel.Model
-					for _, nestedFieldName := range nestedModel.FieldNames {
-						nestedFieldRef := struc.GetFieldRef(fieldName, nestedFieldName)
-
-						flatFieldsType[nestedFieldRef] = nestedHierarchicalModel.FieldsType[nestedFieldName]
-						flatFieldsTagValue[nestedFieldRef] = nestedHierarchicalModel.FieldsTagValue[nestedFieldName]
-
-						flatFieldNames = append(flatFieldNames, nestedFieldRef)
-					}
-				} else {
-					flatFieldNames = append(flatFieldNames, fieldName)
-				}
-			} else {
-				flatFieldNames = append(flatFieldNames, fieldName)
-			}
-			flatFieldsType[fieldName] = hierarchicalModel.FieldsType[fieldName]
-			flatFieldsTagValue[fieldName] = hierarchicalModel.FieldsTagValue[fieldName]
-		}
-
-		tagsFieldValue := map[struc.TagName]map[struc.FieldName]struc.TagValue{}
-		for fieldName, tagNameValues := range flatFieldsTagValue {
-			for tagName, tagValue := range tagNameValues {
-				fieldTagValues, ok := tagsFieldValue[tagName]
-				if !ok {
-					fieldTagValues = map[struc.FieldName]struc.TagValue{}
-				}
-				fieldTagValues[fieldName] = tagValue
-				tagsFieldValue[tagName] = fieldTagValues
-			}
-		}
-
-		model = &struc.Model{
-			TypeName:          hierarchicalModel.TypeName,
-			PackageName:       hierarchicalModel.PackageName,
-			PackagePath:       hierarchicalModel.PackagePath,
-			FilePath:          hierarchicalModel.FilePath,
-			FieldsTagValue:    flatFieldsTagValue,
-			TagsFieldValue:    tagsFieldValue,
-			FieldNames:        flatFieldNames,
-			FieldsType:        flatFieldsType,
-			TagNames:          hierarchicalModel.TagNames,
-			Constants:         hierarchicalModel.Constants,
-			ConstantTemplates: hierarchicalModel.ConstantTemplates,
-		}
-	} else {
-		model = &hierarchicalModel.Model
-	}
+	g := generator.New(params.Name, *config.OutPackage, *config.OutBuildTags, outFile, outFileInfo, outPkg)
 
 	for _, c := range commands {
-		if err := c.Run(g, model); err != nil {
+		if err := c.Run(g, hierarchicalModel); err != nil {
 			return err
 		}
 	}
-
-	isRewrite := g.IsRewrite(outFile, outFileInfo)
-
-	outPackageName := generator.OutPackageName(*config.OutPackage, outPkg)
 
 	// if err = g.GenerateFile(model, outFile, outFileInfo, outPkg, config, con); err != nil {
 	// 	return fmt.Errorf("generate file error: %s", err)
@@ -369,7 +294,8 @@ func run() error {
 
 	// noReceiver := config.NoReceiver != nil && *conf.NoReceiver
 	noReceiver := false
-	if err := g.WriteBody(outFile, outFileInfo, outPackageName, isRewrite, noReceiver); err != nil {
+	outPackageName := generator.OutPackageName(*config.OutPackage, outPkg)
+	if err := g.WriteBody(outPackageName, noReceiver); err != nil {
 		return err
 	}
 

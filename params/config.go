@@ -17,7 +17,7 @@ const (
 func NewConfig(flagSet *flag.FlagSet) *Config {
 	return &Config{
 		Type:           flagSet.String("type", "", "type name; must be set"),
-		BuildTags:      multiVal(flagSet, "buildTag", []string{"fieldr", "fieldr_const_template"}, "include build tag"),
+		BuildTags:      MultiVal(flagSet, "buildTag", []string{"fieldr", "fieldr_const_template"}, "include build tag"),
 		Output:         flagSet.String("out", "", "output file name; default srcdir/<type>"+DefaultFileSuffix),
 		Input:          inFlag(flagSet),
 		PackagePattern: flagSet.String("package", ".", "used package"),
@@ -27,7 +27,7 @@ func NewConfig(flagSet *flag.FlagSet) *Config {
 }
 
 func inFlag(flagSet *flag.FlagSet) *[]string {
-	return multiVal(flagSet, "in", []string{}, "go source file")
+	return MultiVal(flagSet, "in", []string{}, "go source file")
 }
 
 func newGeneratorConfig(flagSet *flag.FlagSet) *generator.Config {
@@ -38,8 +38,8 @@ func newGeneratorConfig(flagSet *flag.FlagSet) *generator.Config {
 		WrapType:       flagSet.Bool("wrap", false, "wrap tag const by own type"),
 		HardcodeValues: flagSet.Bool("hardcode", false, "hardcode tag values into generated variables, methods"),
 		Name:           flagSet.String("name", "", "rename generated function to defined name"),
-		ExcludeFields:  multiVal(flagSet, "excludeFields", []string{}, "exclude values from generated function result for defined fields"),
-		FieldValueRewriters: multiVal(flagSet, "rewrite", []string{}, "field value rewriting applied to generated functions; "+
+		ExcludeFields:  MultiVal(flagSet, "excludeFields", []string{}, "exclude values from generated function result for defined fields"),
+		FieldValueRewriters: MultiVal(flagSet, "rewrite", []string{}, "field value rewriting applied to generated functions; "+
 			"format - "+transformFieldValueFormat),
 		ReturnRefs:  flagSet.Bool("ref", false, "return field as refs in generated methods"),
 		Export:      Export(flagSet, "types, constants, methods"),
@@ -48,10 +48,10 @@ func newGeneratorConfig(flagSet *flag.FlagSet) *generator.Config {
 		AllFields:   flagSet.Bool("allFields", false, "include all fields (not only exported) in generated content"),
 		NoEmptyTag:  flagSet.Bool("noEmptyTag", false, "exclude tags without value"),
 		Snake:       Snake(flagSet),
-		Flat:        multiVal(flagSet, "flat", []string{}, "apply generator to fields of nested structs. Used byAsMap, const and etc"),
+		Flat:        MultiVal(flagSet, "flat", []string{}, "apply generator to fields of nested structs. Used byAsMap, const and etc"),
 		Compact:     flagSet.Bool("compact", false, "generate compact (in one line) array expressions"),
 		ConstLength: flagSet.Int("constLen", generator.DefaultConstLength, "max cons length in line"),
-		ConstReplace: multiVal(flagSet, "constReplace", []string{}, "constant's part (ident) replacers; "+
+		ConstReplace: MultiVal(flagSet, "constReplace", []string{}, "constant's part (ident) replacers; "+
 			"format - "+constReplacersFormat),
 	}
 }
@@ -76,7 +76,7 @@ const enum_field_const = "enum-const"
 
 func newGeneratorContentConfig(flagSet *flag.FlagSet) *generator.ContentConfig {
 	return &generator.ContentConfig{
-		Constants: multiVal(flagSet, "const", []string{}, "generate constant based on template constant; "+
+		Constants: MultiVal(flagSet, "const", []string{}, "generate constant based on template constant; "+
 			"format - consName"+struc.KeyValueSeparator+"constTemplateName"+struc.KeyValueSeparator+constReplacersFormat),
 		EnumFields:    flagSet.Bool("enum-fields", false, "force to generate field name constants; by default constants are generated on demand"),
 		EnumTags:      flagSet.Bool("enum-tags", false, "force to generate tag name constants; by default constants are generated on demand"),
@@ -85,7 +85,7 @@ func newGeneratorContentConfig(flagSet *flag.FlagSet) *generator.ContentConfig {
 		Tags:          flagSet.Bool("Tags", false, "generate Tags list var"),
 		FieldTagsMap:  flagSet.Bool("FieldTagsMap", false, "generate FieldTags map var"),
 		TagValuesMap:  flagSet.Bool("TagValuesMap", false, "generate TagValues map var"),
-		TagValues:     multiVal(flagSet, "TagValues", []string{}, "generate TagValues var per tag"),
+		TagValues:     MultiVal(flagSet, "TagValues", []string{}, "generate TagValues var per tag"),
 
 		TagFieldsMap:     flagSet.Bool("TagFieldsMap", false, "generate TagFields map var"),
 		FieldTagValueMap: flagSet.Bool("FieldTagValueMap", false, "generate FieldTagValue map var"),
@@ -93,7 +93,7 @@ func newGeneratorContentConfig(flagSet *flag.FlagSet) *generator.ContentConfig {
 		GetFieldValue:              flagSet.Bool("GetFieldValue", false, "generate GetFieldValue func"),
 		GetFieldValueByTagValue:    flagSet.Bool("GetFieldValueByTagValue", false, "generate GetFieldValueByTagValue func"),
 		GetFieldValuesByTagGeneric: flagSet.Bool("GetFieldValuesByTag_", false, "generate generic GetFieldValuesByTag func with tagName argument"),
-		GetFieldValuesByTag:        multiVal(flagSet, "GetFieldValuesByTag", []string{}, "generate GetFieldValuesByTag<TAG_NAME> func"),
+		GetFieldValuesByTag:        MultiVal(flagSet, "GetFieldValuesByTag", []string{}, "generate GetFieldValuesByTag<TAG_NAME> func"),
 		AsMap:                      flagSet.Bool("AsMap", false, "generate AsMap func"),
 		AsTagMap:                   flagSet.Bool("AsTagMap", false, "generate AsTagMap func"),
 

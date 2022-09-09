@@ -48,7 +48,16 @@
             "program": "main.go",
             "cwd": "examples/gorm",
             "args": ["-type", "Entity", "-out", "entity_fields.go"]
-        },                      
+        },           
+        {
+            "name": "Debug as map example",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "examples/asmap",
+            "args": ["-type", "Struct", "-out", "struct_as_map.go", "as-map", "-wrap", "-export", "-rewrite", "type:EmbeddedAddress:fmt=%v.AsMap()"]
+        },            
         {
             "name": "Launch Package",
             "type": "go",

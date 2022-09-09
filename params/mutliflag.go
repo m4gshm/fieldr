@@ -33,7 +33,7 @@ func (f *multiflag) Set(s string) error {
 
 func (f *multiflag) Get() interface{} { return f.values }
 
-func multiVal(flagSet *flag.FlagSet, name string, defValues []string, usage string) *[]string {
+func MultiVal(flagSet *flag.FlagSet, name string, defValues []string, usage string) *[]string {
 	duplicateControl := map[string]interface{}{}
 	for _, defValue := range defValues {
 		if err := checkDuplicated(defValue, duplicateControl, name); err != nil {

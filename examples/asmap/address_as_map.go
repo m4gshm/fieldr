@@ -3,19 +3,12 @@
 package asmap
 
 type (
-	EmbeddedAddressField    string
-	EmbeddedAddressTag      string
-	EmbeddedAddressTagValue string
+	EmbeddedAddressField string
 )
 
 const (
 	EmbeddedAddressFieldZipCode     = EmbeddedAddressField("ZipCode")
 	EmbeddedAddressFieldAddressLine = EmbeddedAddressField("AddressLine")
-
-	EmbeddedAddressTagToMap = EmbeddedAddressTag("toMap")
-
-	EmbeddedAddressTagValueToMapZipCode     = EmbeddedAddressTagValue("zip_code")
-	EmbeddedAddressTagValueToMapAddressLine = EmbeddedAddressTagValue("address_line")
 )
 
 func (v *EmbeddedAddress) AsMap() map[EmbeddedAddressField]interface{} {
@@ -23,15 +16,4 @@ func (v *EmbeddedAddress) AsMap() map[EmbeddedAddressField]interface{} {
 		EmbeddedAddressFieldZipCode:     v.ZipCode,
 		EmbeddedAddressFieldAddressLine: v.AddressLine,
 	}
-}
-
-func (v *EmbeddedAddress) AsTagMap(tag EmbeddedAddressTag) map[EmbeddedAddressTagValue]interface{} {
-	switch tag {
-	case EmbeddedAddressTagToMap:
-		return map[EmbeddedAddressTagValue]interface{}{
-			EmbeddedAddressTagValueToMapZipCode:     v.ZipCode,
-			EmbeddedAddressTagValueToMapAddressLine: v.AddressLine,
-		}
-	}
-	return nil
 }
