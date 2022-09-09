@@ -196,19 +196,9 @@ func addCommonFuncs(funcs template.FuncMap) template.FuncMap {
 }
 
 func generateLookupConstant(g *generator.Generator, model *struc.Model, value, name string, export, snake, wrapType bool, num int) error {
-	wrapTmpl := func(text string) string {
-		if len(text) == 0 {
-			return text
-		}
-		if !strings.Contains(text, "{{") {
-			text = "{{" + strings.ReplaceAll(text, "\\", "\\\\") + "}}"
-			logger.Debugf("constant template transformed to '%s'", text)
-		}
-		return text
-	}
 
-	valueTmpl := wrapTmpl(value)
-	nameTmpl := wrapTmpl(name)
+	valueTmpl := wrapTemplate(value)
+	nameTmpl := wrapTemplate(name)
 
 	usedTags := []string{}
 	usedTagsSet := map[string]struct{}{}
@@ -216,13 +206,16 @@ func generateLookupConstant(g *generator.Generator, model *struc.Model, value, n
 	type constResult struct{ name, field, value string }
 	constants := make([]constResult, 0)
 	for _, f := range model.FieldNames {
-		fieldName := f
-		tags := map[string]interface{}{}
+		var (
+			inExecute bool
+			fieldName = f
+			tags      = map[string]interface{}{}
+		)
 		if tagVals := model.FieldsTagValue[fieldName]; tagVals != nil {
-			for k, v := range model.FieldsTagValue[fieldName] {
+			for k, v := range tagVals {
 				tag := k
 				tags[tag] = &stringer{val: v, callback: func() {
-					if logger.IsInLogContext() {
+					if !inExecute {
 						return
 					}
 					if _, ok := usedTagsSet[tag]; !ok {
@@ -250,9 +243,12 @@ func generateLookupConstant(g *generator.Generator, model *struc.Model, value, n
 
 			buf := bytes.Buffer{}
 			logger.Debugf("template context %+v\n", tags)
+			inExecute = true
 			if err = tmpl.Execute(&buf, tags); err != nil {
+				inExecute = false
 				return "", fmt.Errorf("compile: of '%s': field '%s', template %s: %w", name, fieldName, tmplVal, err)
 			}
+			inExecute = false
 			cmpVal := buf.String()
 			logger.Debugf("parse result: of '%s'; %s\n", name, cmpVal)
 			return cmpVal, nil
@@ -289,4 +285,15 @@ func generateLookupConstant(g *generator.Generator, model *struc.Model, value, n
 	}
 
 	return nil
+}
+
+func wrapTemplate(text string) string {
+	if len(text) == 0 {
+		return text
+	}
+	if !strings.Contains(text, "{{") {
+		text = "{{" + strings.ReplaceAll(text, "\\", "\\\\") + "}}"
+		logger.Debugf("constant template transformed to '%s'", text)
+	}
+	return text
 }
