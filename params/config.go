@@ -86,27 +86,6 @@ func newGeneratorContentConfig(flagSet *flag.FlagSet) *generator.ContentConfig {
 		FieldTagsMap:  flagSet.Bool("FieldTagsMap", false, "generate FieldTags map var"),
 		TagValuesMap:  flagSet.Bool("TagValuesMap", false, "generate TagValues map var"),
 		TagValues:     multiVal(flagSet, "TagValues", []string{}, "generate TagValues var per tag"),
-		EnumFieldConsts: multiVal(flagSet, enum_field_const, []string{}, "generate constants based on template applied to struct fields;"+
-			"\ntemplate examples:"+
-			"\n\t\".json\" - use 'json' tag value as constant value, constant name is generated automatically, template corners '{{', '}}' can be omitted"+
-			"\n\t\"{{name}}={{.json}}\" - use 'json' tag value as constant value, constant name based on field 'name', name/value delimeter '=' and template corners are '{{', '}}' required)"+
-			"\n\t\"{{(join struct.name field.name)| up}}={{tag.json}}\" - usage of functions 'join', 'up' and pipeline character '|' for more complex constant naming"+
-			"\n\t\"rexp tag.json \"(\\w+),?\" - regular expression."+
-			"\nfunctions:"+
-			"\n\tjoin, conc - strings concatenation; multiargs"+
-			"\n\tOR - select first non empty string argument; multiargs"+
-			"\n\trexp - find substring by regular expression; arg1: regular expression, arg2: string value; use 'v' group name as constant value marker, example: (?P<v>\\\\w+)"+
-			"\n\tup - convert string to upper case"+
-			"\n\tlow - convert string to lower case"+
-			"\n\tsnake - convert camel to snake case"+
-			"\nmetadata:"+
-			"\n\tname - current field name"+
-			"\n\tfield - current field metadata map"+
-			"\n\tstruct - struct type metadata map"+
-			"\n\ttag - tag names map"+
-			"\n\t.<tag name> - access to tag name"+
-			"",
-		),
 
 		TagFieldsMap:     flagSet.Bool("TagFieldsMap", false, "generate TagFields map var"),
 		FieldTagValueMap: flagSet.Bool("FieldTagValueMap", false, "generate FieldTagValue map var"),
