@@ -60,6 +60,10 @@ func Snake(flagSet *flag.FlagSet) *bool {
 	return flagSet.Bool("snake", false, "use snake case in generated content naming")
 }
 
+func Nolint(flagSet *flag.FlagSet) *bool {
+	return flagSet.Bool("nolint", false, "add 'nolint' comment to generated content")
+}
+
 func ExportCont(flagSet *flag.FlagSet, content string) *bool {
 	return flagSet.Bool("export", false, "export generated "+content)
 }

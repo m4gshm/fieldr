@@ -22,7 +22,7 @@ func NewAsMapMethod() *Command {
 		"', engine '" + string(generator.RewriteEngineFmt) + "'"
 
 	var (
-		flagSet = flag.NewFlagSet(cmdName, flag.ContinueOnError)
+		flagSet             = flag.NewFlagSet(cmdName, flag.ContinueOnError)
 		name                = flagSet.String("name", "", "function/method name")
 		export              = params.Export(flagSet)
 		snake               = params.Snake(flagSet)
@@ -30,7 +30,7 @@ func NewAsMapMethod() *Command {
 		ref                 = flagSet.Bool("ref", false, "use struct field references in generated method")
 		fun                 = flagSet.Bool("func", false, "generate function in place of struct method")
 		all                 = flagSet.Bool("all", false, "use exported and private fields in generated "+genContent)
-		nolint              = flagSet.Bool("nolint", false, "add 'nolint' comment to generated "+genContent)
+		nolint              = params.Nolint(flagSet)
 		hardcode            = flagSet.Bool("hardcode", false, "hardcode field name in generated "+genContent+" (don't generate constants based on field name)")
 		fieldValueRewriters = params.MultiVal(flagSet, "rewrite", []string{}, "field value rewriting applied to generated "+genContent+"; "+
 			"format - "+transformFieldValueFormat)
@@ -46,13 +46,14 @@ func NewAsMapMethod() *Command {
 				return err
 			} else {
 				fieldType := generator.GetFieldType(model.TypeName, *export, *snake)
-				g.AddType(fieldType, generator.BaseConstType)
-				if err := g.GenerateFieldConstants(model, fieldType, model.FieldNames, *export, *snake, *wrap); err != nil {
+				if err := g.AddType(fieldType, generator.BaseConstType); err != nil {
+					return err
+				} else if err := g.GenerateFieldConstants(model, fieldType, model.FieldNames, *export, *snake, *wrap); err != nil {
 					return err
 				} else if rewriter, err := coderewriter.New(*fieldValueRewriters); err != nil {
 					return err
-				} else if typeLink, funcName, funcBody, err := generator.GenerateAsMapFunc(
-					g, model, structPackage, *name, rewriter, *export, *snake, *wrap, *ref, *fun, *all, *nolint, *hardcode,
+				} else if typeLink, funcName, funcBody, err := g.GenerateAsMapFunc(
+					model, structPackage, *name, rewriter, *export, *snake, *wrap, *ref, *fun, *all, *nolint, *hardcode,
 				); err != nil {
 					return err
 				} else if err = g.AddReceiverFunc(typeLink, funcName, funcBody, err); err != nil {

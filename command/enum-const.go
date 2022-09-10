@@ -19,13 +19,15 @@ func NewEnumConst() *Command {
 
 		constName  = flagSet.String("name", "", "constant name template")
 		constValue = flagSet.String("val", "", "constant value template; must be set")
+		constType  = flagSet.String("type", "", "constant type template")
 		export     = params.ExportCont(flagSet, "constants")
+		nolint     = params.Nolint(flagSet)
 	)
 	c := New(
 		name, "generate constants based on template applied to struct fields",
 		flagSet,
 		func(g *generator.Generator, m *struc.HierarchicalModel) error {
-			return generator.GenerateFieldConstant(g, &m.Model, *constValue, *constName, *export, false, false)
+			return generator.GenerateFieldConstant(g, &m.Model, *constValue, *constName, *constType, *export, false, *nolint)
 		},
 	)
 	c.manual =

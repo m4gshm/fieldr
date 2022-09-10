@@ -519,12 +519,6 @@ func (g *Generator) GenerateFile(
 		}
 	}
 
-	if all || asMap {
-		typeLink, funcName, funcBody, err := g.GenerateAsMapFunc(model, structPackage, conf)
-		if err = g.AddReceiverFunc(typeLink, funcName, funcBody, err); err != nil {
-			return err
-		}
-	}
 	if all || asTagMap {
 		if err := g.AddReceiverFunc(g.generateAsTagMapFunc(model, structPackage, conf)); err != nil {
 			return err
@@ -983,24 +977,24 @@ func (g *Generator) generateHead(model *struc.Model, all bool, conf Config, cont
 	wrapType := *conf.WrapType
 	if wrapType {
 		if usedFieldType || *content.EnumFields {
-			g.AddType(fieldType, BaseConstType)
+			_ = g.AddType(fieldType, BaseConstType)
 			if g.used.fieldArrayType {
-				g.AddType(ArrayType(fieldType), "[]"+fieldType)
+				_ = g.AddType(ArrayType(fieldType), "[]"+fieldType)
 			}
 		}
 
 		if usedTagType {
-			g.AddType(tagType, BaseConstType)
+			_ = g.AddType(tagType, BaseConstType)
 			if g.used.tagArrayType {
-				g.AddType(ArrayType(tagType), "[]"+tagType)
+				_ = g.AddType(ArrayType(tagType), "[]"+tagType)
 			}
 		}
 
 		if usedTagValueType {
 			tagValueType := tagValType
-			g.AddType(tagValueType, BaseConstType)
+			_ = g.AddType(tagValueType, BaseConstType)
 			if g.used.tagValueArrayType {
-				g.AddType(ArrayType(tagValueType), "[]"+tagValueType)
+				_ = g.AddType(ArrayType(tagValueType), "[]"+tagValueType)
 			}
 		}
 	}
@@ -1073,7 +1067,7 @@ func (g *Generator) generateHead(model *struc.Model, all bool, conf Config, cont
 	} else {
 		if *content.Excludes {
 			funcName, funcBody := g.generateArrayToExcludesFunc(false, BaseConstType, "[]"+BaseConstType, conf)
-			if err := g.addFunc(funcName, funcBody); err != nil {
+			if err := g.AddFunc(funcName, funcBody); err != nil {
 				return err
 			}
 		}
@@ -1099,9 +1093,15 @@ func (g *Generator) writeTypes() {
 	}
 }
 
-func (g *Generator) AddType(typeName string, typeValue string) {
-	g.typeNames = append(g.typeNames, typeName)
-	g.typeValues[typeName] = typeValue
+func (g *Generator) AddType(typeName string, typeValue string) error {
+	if exists, ok := g.typeValues[typeName]; !ok {
+		g.typeNames = append(g.typeNames, typeName)
+		g.typeValues[typeName] = typeValue
+	} else if typeValue != exists {
+		return fmt.Errorf("duplicated type with different base type: type %s, expected base %s, actual %s",
+			typeName, typeValue, exists)
+	}
+	return nil
 }
 
 func (g *Generator) generatedMarker() string {
@@ -1511,7 +1511,7 @@ func (g *Generator) generateTagFieldConstants(model *struc.Model, tagValueType s
 	if len(model.TagNames) == 0 {
 		return g.noTagsError("Tag Fields Constants")
 	}
-	g.addConstDelim()
+	g.AddConstDelim()
 	for _, tagName := range model.TagNames {
 		for _, fieldName := range model.FieldNames {
 			if tagValue, ok := model.FieldsTagValue[fieldName][tagName]; ok {
@@ -1543,24 +1543,11 @@ func isEmpty(tagValue struc.TagValue) bool {
 	return len(tagValue) == 0
 }
 
-func (g *Generator) GenerateFieldConstants(model *struc.Model, fieldType string, fieldNames []struc.FieldName, export, snake, wrapType bool) error {
-	typeName := model.TypeName
-	g.addConstDelim()
-	for _, fieldName := range fieldNames {
-		constName := GetFieldConstName(typeName, fieldName, export, snake)
-		constVal := g.GetConstValue(fieldType, fieldName, wrapType)
-		if err := g.AddConst(constName, constVal); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (g *Generator) generateTagConstants(typeName string, tagType string, tagNames []struc.TagName, conf Config) error {
 	if len(tagNames) == 0 {
 		return g.noTagsError("Tag Constants")
 	}
-	g.addConstDelim()
+	g.AddConstDelim()
 	for _, name := range tagNames {
 		constName := g.getTagConstName(typeName, name, conf)
 		constVal := g.GetConstValue(tagType, string(name), *conf.WrapType)
@@ -1571,20 +1558,18 @@ func (g *Generator) generateTagConstants(typeName string, tagType string, tagNam
 	return nil
 }
 
-func (g *Generator) addConstDelim() {
+func (g *Generator) AddConstDelim() {
 	if len(g.constNames) > 0 {
 		g.constNames = append(g.constNames, "")
 	}
 }
 
 func (g *Generator) AddConst(constName, constValue string) error {
-	if _, constExists := g.constValues[constName]; !constExists {
+	if exists, ok := g.constValues[constName]; ok && exists != constValue {
+		return errors.Errorf("duplicated constant with different value; const %v, values: %v, %v", constName, exists, constValue)
+	} else {
 		g.constNames = append(g.constNames, constName)
 		g.constValues[constName] = constValue
-	} else if existsValue, valueExists := g.constValues[constName]; valueExists {
-		if existsValue != constValue {
-			return errors.Errorf("duplicated constant with different values; const %v, values: %v, %v", constName, existsValue, constValue)
-		}
 	}
 	return nil
 }
@@ -1614,9 +1599,9 @@ func (g *Generator) addVar(varName, varValue string, err error) error {
 	return nil
 }
 
-func (g *Generator) addFunc(funcName, funcValue string) error {
-	if _, ok := g.funcValues[funcName]; ok {
-		return errors.Errorf("duplicated func %v", funcName)
+func (g *Generator) AddFunc(funcName, funcValue string) error {
+	if exists, ok := g.funcValues[funcName]; ok && exists != funcValue {
+		return errors.Errorf("duplicated func with different value; const %v, values: %v, %v", funcName, exists, funcValue)
 	}
 	g.funcNames = append(g.funcNames, funcName)
 	g.funcValues[funcName] = funcValue
@@ -2096,61 +2081,6 @@ func (g *Generator) generateArrayToStringsFunc(arrayTypeName string, resultType 
 		"		return *(*[]string)(unsafe.Pointer(&" + receiverVar + "))\n" +
 		"	}\n"
 	return arrayTypeName, funcName, funcBody, map[string]string{"unsafe": ""}, nil
-}
-
-func (g *Generator) GenerateAsMapFunc(model *struc.Model, pkg string, conf Config) (string, string, string, error) {
-	var (
-		export         = *conf.Export
-		snake          = *conf.Snake
-		wrapType       = *conf.WrapType
-		returnRefs     = *conf.ReturnRefs
-		noReceiver     = *conf.NoReceiver
-		allFields      = *conf.AllFields
-		nolint         = *conf.Nolint
-		hardcodeValues = *conf.HardcodeValues
-		name           = *conf.Name
-	)
-	return GenerateAsMapFunc(g, model, pkg, name, &g.rewrite, export, snake, wrapType, returnRefs, noReceiver, allFields, nolint, hardcodeValues)
-}
-
-func GenerateAsMapFunc(
-	g *Generator,
-	model *struc.Model, pkg, name string,
-	rewriter *CodeRewriter,
-	export, snake, wrapType, returnRefs, noReceiver, allFields, nolint, hardcodeValues bool,
-) (string, string, string, error) {
-
-	receiverVar := "v"
-	receiverRef := AsRefIfNeed(receiverVar, returnRefs)
-
-	keyType := BaseConstType
-	if wrapType {
-		g.used.fieldType = true
-		keyType = getUsedFieldType(model.TypeName, export, snake)
-	}
-
-	funcName := renameFuncByConfig(goName("AsMap", export), name)
-	typeLink := getTypeName(model.TypeName, pkg)
-	var funcBody string
-	if noReceiver {
-		funcBody = "func " + funcName + "(" + receiverVar + " *" + typeLink + ") map[" + keyType + "]interface{}"
-	} else {
-		funcBody = "func (" + receiverVar + " *" + typeLink + ") " + funcName + "() map[" + keyType + "]interface{}"
-	}
-	funcBody += " {" + g.noLint(nolint) + "\n" +
-		"	return map[" + keyType + "]interface{}{\n"
-
-	for _, fieldName := range model.FieldNames {
-		if g.isFieldExcluded(fieldName, allFields) {
-			continue
-		}
-		funcBody += g.getUsedFieldConstName(model.TypeName, fieldName, hardcodeValues, export, snake) + ": " +
-			rewriter.Transform(fieldName, model.FieldsType[fieldName], struc.GetFieldRef(receiverRef, fieldName)) + ",\n"
-	}
-	funcBody += "" +
-		"	}\n" +
-		"}\n"
-	return typeLink, funcName, funcBody, nil
 }
 
 func (g *Generator) generateAsTagMapFunc(model *struc.Model, alias string, conf Config) (string, string, string, error) {

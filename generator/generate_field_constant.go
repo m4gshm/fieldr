@@ -25,14 +25,35 @@ func (c *stringer) String() string {
 
 var _ fmt.Stringer = (*stringer)(nil)
 
-func GenerateFieldConstant(g *Generator, model *struc.Model, value, name string, export, snake, wrapType bool) error {
+func (g *Generator) GenerateFieldConstants(model *struc.Model, fieldType string, fieldNames []struc.FieldName, export, snake, wrapType bool) error {
+	typeName := model.TypeName
+	g.AddConstDelim()
+	for _, fieldName := range fieldNames {
+		constName := GetFieldConstName(typeName, fieldName, export, snake)
+		constVal := g.GetConstValue(fieldType, fieldName, wrapType)
+		if err := g.AddConst(constName, constVal); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type constResult struct{ name, field, value string }
+
+func GenerateFieldConstant(g *Generator, model *struc.Model, value, name, typ string, export, snake, nolint bool) error {
 	valueTmpl := wrapTemplate(value)
 	nameTmpl := wrapTemplate(name)
+
+	wrapType := len(typ) > 0
+	if !wrapType {
+		typ = BaseConstType
+	} else if err := g.AddType(typ, BaseConstType); err != nil {
+		return err
+	}
 
 	usedTags := []string{}
 	usedTagsSet := map[string]struct{}{}
 
-	type constResult struct{ name, field, value string }
 	constants := make([]constResult, 0)
 	for _, f := range model.FieldNames {
 		var (
@@ -89,7 +110,7 @@ func GenerateFieldConstant(g *Generator, model *struc.Model, value, name string,
 			if constName, err := parse(fieldName+" const name", nameTmpl); err != nil {
 				return err
 			} else {
-				constants = append(constants, constResult{name: constName, value: val})
+				constants = append(constants, constResult{field: fieldName, name: constName, value: val})
 			}
 		} else {
 			constants = append(constants, constResult{field: fieldName, value: val})
@@ -105,11 +126,26 @@ func GenerateFieldConstant(g *Generator, model *struc.Model, value, name string,
 			logger.Debugf("template generated constant name '%s'", constName)
 		}
 		if len(c.value) != 0 {
-			if err := g.AddConst(constName, g.GetConstValue(BaseConstType, c.value, wrapType)); err != nil {
+			if err := g.AddConst(constName, g.GetConstValue(typ, c.value, wrapType)); err != nil {
 				return err
 			}
 		} else {
 			logger.Warnf("constant without value: '%s'", constName)
+		}
+	}
+	g.AddConstDelim()
+
+	if wrapType {
+		if funcBody, funcName, err := g.generateAggregateFunc(typ, constants, true, snake, false, nolint); err != nil {
+			return err
+		} else if err := g.AddFunc(funcName, funcBody); err != nil {
+			return err
+		}
+
+		if funcBody, funcName, err := g.generateConstFieldFunc(typ, constants, true, nolint); err != nil {
+			return err
+		} else if err := g.AddFunc(funcName, funcBody); err != nil {
+			return err
 		}
 	}
 
@@ -223,12 +259,11 @@ func addCommonFuncs(funcs template.FuncMap) template.FuncMap {
 		"join":        join,
 		"regexp":      rexp,
 		"rexp":        rexp,
-
-		"snake":   snakeFunc,
-		"toUpper": toUpper,
-		"toLower": toLower,
-		"up":      toUpper,
-		"low":     toLower,
+		"snake":       snakeFunc,
+		"toUpper":     toUpper,
+		"toLower":     toLower,
+		"up":          toUpper,
+		"low":         toLower,
 	}
 	for k, v := range f {
 		funcs[k] = v
@@ -245,4 +280,59 @@ func wrapTemplate(text string) string {
 		logger.Debugf("constant template transformed to '%s'", text)
 	}
 	return text
+}
+
+func (g *Generator) generateAggregateFunc(typ string, constants []constResult, export, snake, compact, nolint bool) (string, string, error) {
+	var (
+		funcName  = goName(typ+"s", export)
+		arrayType = "[]" + typ
+	)
+
+	arrayBody := arrayType + "{"
+
+	compact = compact || len(constants) <= oneLineSize
+	if !compact {
+		arrayBody += "\n"
+	}
+
+	i := 0
+	for _, constant := range constants {
+		if compact && i > 0 {
+			arrayBody += ", "
+		}
+		arrayBody += constant.name
+		if !compact {
+			arrayBody += ",\n"
+		}
+		i++
+	}
+	arrayBody += "}"
+
+	return "func " + funcName + "() " + arrayType + " { return " + arrayBody + "}", funcName, nil
+}
+
+func (g *Generator) generateConstFieldFunc(typ string, constants []constResult, export, nolint bool) (string, string, error) {
+	var (
+		funcName     = goName("Field", export)
+		receiverVar  = "c"
+		returnType   = BaseConstType
+		returnNoCase = "\"\""
+	)
+
+	funcBody := "func (" + receiverVar + " " + typ + ") " + funcName + "() " + returnType
+	funcBody += " {" + g.noLint(nolint) + "\n" +
+		"switch " + receiverVar + " {\n" +
+		""
+
+	for _, constant := range constants {
+		funcBody += "case " + constant.name + ":\n" +
+			"return \"" + constant.field + "\"\n"
+	}
+
+	funcBody += "}\n"
+	funcBody += "" +
+		"return " + returnNoCase +
+		"}\n"
+
+	return funcBody, typ + "." + funcName, nil
 }
