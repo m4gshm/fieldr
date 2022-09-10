@@ -19,7 +19,7 @@ func NewEnumConst() *Command {
 
 		constName  = flagSet.String("name", "", "constant name template")
 		constValue = flagSet.String("val", "", "constant value template; must be set")
-		export     = params.Export(flagSet, "constants")
+		export     = params.ExportCont(flagSet, "constants")
 	)
 	c := New(
 		name, "generate constants based on template applied to struct fields",

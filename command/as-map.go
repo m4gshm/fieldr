@@ -11,9 +11,8 @@ import (
 
 func NewAsMapMethod() *Command {
 	const (
-		name     = "as-map"
-		flagVal  = "val"
-		flagName = "name"
+		cmdName    = "as-map"
+		genContent = "method/function"
 	)
 
 	const transformerTriggers = "<no condition (empty)>, " + string(generator.RewriteTriggerType) + ", " + string(generator.RewriteTriggerField)
@@ -23,24 +22,23 @@ func NewAsMapMethod() *Command {
 		"', engine '" + string(generator.RewriteEngineFmt) + "'"
 
 	var (
-		flagSet = flag.NewFlagSet(name, flag.ContinueOnError)
-
-		constName           = flagSet.String("name", "", "function/method name")
-		export              = params.Export(flagSet, "function/method")
-		snake               = flagSet.Bool("snake", false, "use snake format for generated function/method name")
-		wrap                = flagSet.Bool("wrap", false, "wrap")
-		ref                 = flagSet.Bool("ref", false, "ref")
-		fun                 = flagSet.Bool("func", false, "func")
-		all                 = flagSet.Bool("all", false, "all")
-		nolint              = flagSet.Bool("nolint", false, "nolint")
-		hardcode            = flagSet.Bool("hardcode", false, "hardcode")
-		fieldValueRewriters = params.MultiVal(flagSet, "rewrite", []string{}, "field value rewriting applied to generated functions; "+
+		flagSet = flag.NewFlagSet(cmdName, flag.ContinueOnError)
+		name                = flagSet.String("name", "", "function/method name")
+		export              = params.Export(flagSet)
+		snake               = params.Snake(flagSet)
+		wrap                = flagSet.Bool("wrap", false, "wrap generated constants with specific types")
+		ref                 = flagSet.Bool("ref", false, "use struct field references in generated method")
+		fun                 = flagSet.Bool("func", false, "generate function in place of struct method")
+		all                 = flagSet.Bool("all", false, "use exported and private fields in generated "+genContent)
+		nolint              = flagSet.Bool("nolint", false, "add 'nolint' comment to generated "+genContent)
+		hardcode            = flagSet.Bool("hardcode", false, "hardcode field name in generated "+genContent+" (don't generate constants based on field name)")
+		fieldValueRewriters = params.MultiVal(flagSet, "rewrite", []string{}, "field value rewriting applied to generated "+genContent+"; "+
 			"format - "+transformFieldValueFormat)
 		flat = params.MultiVal(flagSet, "flat", []string{}, "apply generator to fields of nested structs")
 	)
 
 	c := New(
-		name, "generates method or functon that converts the struct type to a map",
+		cmdName, "generates method or functon that converts the struct type to a map",
 		flagSet,
 		func(g *generator.Generator, hmodel *struc.HierarchicalModel) error {
 			model := toFlatModel(hmodel, *flat)
@@ -54,7 +52,7 @@ func NewAsMapMethod() *Command {
 				} else if rewriter, err := coderewriter.New(*fieldValueRewriters); err != nil {
 					return err
 				} else if typeLink, funcName, funcBody, err := generator.GenerateAsMapFunc(
-					g, model, structPackage, *constName, rewriter, *export, *snake, *wrap, *ref, *fun, *all, *nolint, *hardcode,
+					g, model, structPackage, *name, rewriter, *export, *snake, *wrap, *ref, *fun, *all, *nolint, *hardcode,
 				); err != nil {
 					return err
 				} else if err = g.AddReceiverFunc(typeLink, funcName, funcBody, err); err != nil {

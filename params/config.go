@@ -42,7 +42,7 @@ func newGeneratorConfig(flagSet *flag.FlagSet) *generator.Config {
 		FieldValueRewriters: MultiVal(flagSet, "rewrite", []string{}, "field value rewriting applied to generated functions; "+
 			"format - "+transformFieldValueFormat),
 		ReturnRefs:  flagSet.Bool("ref", false, "return field as refs in generated methods"),
-		Export:      Export(flagSet, "types, constants, methods"),
+		Export:      ExportCont(flagSet, "types, constants, methods"),
 		NoReceiver:  flagSet.Bool("noReceiver", false, "generate no receiver-based methods for structure type"),
 		ExportVars:  flagSet.Bool("exportVars", false, "export generated variables only"),
 		AllFields:   flagSet.Bool("allFields", false, "include all fields (not only exported) in generated content"),
@@ -57,11 +57,15 @@ func newGeneratorConfig(flagSet *flag.FlagSet) *generator.Config {
 }
 
 func Snake(flagSet *flag.FlagSet) *bool {
-	return flagSet.Bool("snake", false, "use snake case for constants, vars")
+	return flagSet.Bool("snake", false, "use snake case in generated content naming")
 }
 
-func Export(flagSet *flag.FlagSet, content string) *bool {
+func ExportCont(flagSet *flag.FlagSet, content string) *bool {
 	return flagSet.Bool("export", false, "export generated "+content)
+}
+
+func Export(flagSet *flag.FlagSet) *bool {
+	return ExportCont(flagSet, "content")
 }
 
 const constReplacersFormat = "replaced_ident" + struc.ReplaceableValueSeparator + "replacer_ident" + struc.ListValuesSeparator + "replaced_ident2" + struc.ReplaceableValueSeparator + "replacer_ident"
