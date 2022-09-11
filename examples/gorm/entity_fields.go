@@ -36,6 +36,7 @@ func EntityCols() []EntityCol {
 		ENTITY_COL_SURNAME,
 	}
 }
+
 func (c EntityCol) Field() string {
 	switch c {
 	case ENTITY_COL_ID:
@@ -48,4 +49,32 @@ func (c EntityCol) Field() string {
 		return "Surname"
 	}
 	return ""
+}
+
+func (c EntityCol) Val(s *Entity) interface{} {
+	switch c {
+	case ENTITY_COL_ID:
+		return s.ID
+	case ENTITY_COL_UPDATED_AT:
+		return s.UpdatedAt
+	case ENTITY_COL_NAME:
+		return s.Name
+	case ENTITY_COL_SURNAME:
+		return s.Surname
+	}
+	return nil
+}
+
+func (c EntityCol) Ref(s *Entity) interface{} {
+	switch c {
+	case ENTITY_COL_ID:
+		return &s.ID
+	case ENTITY_COL_UPDATED_AT:
+		return &s.UpdatedAt
+	case ENTITY_COL_NAME:
+		return &s.Name
+	case ENTITY_COL_SURNAME:
+		return &s.Surname
+	}
+	return nil
 }

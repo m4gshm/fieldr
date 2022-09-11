@@ -921,8 +921,9 @@ func (g *Generator) writeFunctions() {
 	values := g.funcValues
 
 	for _, name := range names {
-		value := values[name]
-		g.writeBody(value)
+		if value, ok := values[name]; ok {
+			g.writeBody(value)
+		}
 		g.writeBody("\n")
 	}
 }
@@ -1561,6 +1562,12 @@ func (g *Generator) generateTagConstants(typeName string, tagType string, tagNam
 func (g *Generator) AddConstDelim() {
 	if len(g.constNames) > 0 {
 		g.constNames = append(g.constNames, "")
+	}
+}
+
+func (g *Generator) AddFunсDelim() {
+	if len(g.funcNames) > 0 {
+		g.funcNames = append(g.funcNames, "")
 	}
 }
 

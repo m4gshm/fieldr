@@ -40,7 +40,7 @@ func (g *Generator) GenerateFieldConstants(model *struc.Model, fieldType string,
 
 type constResult struct{ name, field, value string }
 
-func GenerateFieldConstant(g *Generator, model *struc.Model, value, name, typ string, export, snake, nolint bool) error {
+func (g *Generator) GenerateFieldConstant(model *struc.Model, value, name, typ string, export, snake, nolint, refAccessor, valAccessor bool) error {
 	valueTmpl := wrapTemplate(value)
 	nameTmpl := wrapTemplate(name)
 
@@ -134,18 +134,37 @@ func GenerateFieldConstant(g *Generator, model *struc.Model, value, name, typ st
 		}
 	}
 	g.AddConstDelim()
-
 	if wrapType {
-		if funcBody, funcName, err := g.generateAggregateFunc(typ, constants, true, snake, false, nolint); err != nil {
+		exportFunc := true
+		if funcBody, funcName, err := g.generateAggregateFunc(typ, constants, exportFunc, false, nolint); err != nil {
 			return err
 		} else if err := g.AddFunc(funcName, funcBody); err != nil {
 			return err
 		}
+		g.AddFunсDelim()
 
-		if funcBody, funcName, err := g.generateConstFieldFunc(typ, constants, true, nolint); err != nil {
+		if funcBody, funcName, err := g.generateConstFieldFunc(typ, constants, exportFunc, nolint); err != nil {
 			return err
 		} else if err := g.AddFunc(funcName, funcBody); err != nil {
 			return err
+		}
+		g.AddFunсDelim()
+
+		// aggr := refAccessor || valAccessor
+
+		if valAccessor {
+			if funcBody, funcName, err := g.generateConstValueFunc(model, typ, constants, exportFunc, nolint, false); err != nil {
+				return err
+			} else if err := g.AddFunc(funcName, funcBody); err != nil {
+				return err
+			}
+		}
+		if refAccessor {
+			if funcBody, funcName, err := g.generateConstValueFunc(model, typ, constants, exportFunc, nolint, true); err != nil {
+				return err
+			} else if err := g.AddFunc(funcName, funcBody); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -282,7 +301,7 @@ func wrapTemplate(text string) string {
 	return text
 }
 
-func (g *Generator) generateAggregateFunc(typ string, constants []constResult, export, snake, compact, nolint bool) (string, string, error) {
+func (g *Generator) generateAggregateFunc(typ string, constants []constResult, export, compact, nolint bool) (string, string, error) {
 	var (
 		funcName  = goName(typ+"s", export)
 		arrayType = "[]" + typ
@@ -327,6 +346,40 @@ func (g *Generator) generateConstFieldFunc(typ string, constants []constResult, 
 	for _, constant := range constants {
 		funcBody += "case " + constant.name + ":\n" +
 			"return \"" + constant.field + "\"\n"
+	}
+
+	funcBody += "}\n"
+	funcBody += "" +
+		"return " + returnNoCase +
+		"}\n"
+
+	return funcBody, typ + "." + funcName, nil
+}
+
+func (g *Generator) generateConstValueFunc(model *struc.Model, typ string, constants []constResult, export, nolint, ref bool) (string, string, error) {
+	var (
+		funcName     = goName("Val", export)
+		receiverVar  = "c"
+		argName      = "s"
+		argType      = "*" + model.TypeName
+		returnTypes  = "interface{}"
+		returnNoCase = "nil"
+		pref         = ""
+	)
+
+	if ref {
+		pref = "&"
+		funcName = goName("Ref", export)
+	}
+
+	funcBody := "func (" + receiverVar + " " + typ + ") " + funcName + "(" + argName + " " + argType + ") " + returnTypes
+	funcBody += " {" + g.noLint(nolint) + "\n" +
+		"switch " + receiverVar + " {\n" +
+		""
+
+	for _, constant := range constants {
+		funcBody += "case " + constant.name + ":\n" +
+			"return " + pref + argName + "." + constant.field + "\n"
 	}
 
 	funcBody += "}\n"

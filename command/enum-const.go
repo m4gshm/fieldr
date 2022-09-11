@@ -20,6 +20,8 @@ func NewEnumConst() *Command {
 		constName  = flagSet.String("name", "", "constant name template")
 		constValue = flagSet.String("val", "", "constant value template; must be set")
 		constType  = flagSet.String("type", "", "constant type template")
+		refAccessor  = flagSet.Bool("ref-accessor", false, "extends generated type with field reference accessor method")
+		valAccessor  = flagSet.Bool("val-accessor", false, "extends generated type with field value accessor method")
 		export     = params.ExportCont(flagSet, "constants")
 		nolint     = params.Nolint(flagSet)
 		flat       = params.MultiVal(flagSet, "flat", []string{}, "apply generator to fields of nested structs")
@@ -29,7 +31,7 @@ func NewEnumConst() *Command {
 		flagSet,
 		func(g *generator.Generator, m *struc.HierarchicalModel) error {
 			model := toFlatModel(m, *flat)
-			return generator.GenerateFieldConstant(g, model, *constValue, *constName, *constType, *export, false, *nolint)
+			return g.GenerateFieldConstant(model, *constValue, *constName, *constType, *export, false, *nolint, *refAccessor, *valAccessor)
 		},
 	)
 	c.manual =
