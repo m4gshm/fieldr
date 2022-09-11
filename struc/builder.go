@@ -73,8 +73,11 @@ func (b *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
 				if err := b.populateByType(fieldType); err != nil {
 					return err
 				}
+			} else if _, ok := b.model.FieldsType[fldName]; ok {
+				logger.Infof("duplicated field '%s'", fldName)
 			} else {
 				tag := typeStruct.Tag(i)
+
 				b.model.FieldNames = append(b.model.FieldNames, fldName)
 
 				tagValues, fieldTagNames := parseTagValues(tag /*, b.includedTags*/)

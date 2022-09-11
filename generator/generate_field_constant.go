@@ -130,7 +130,7 @@ func GenerateFieldConstant(g *Generator, model *struc.Model, value, name, typ st
 				return err
 			}
 		} else {
-			logger.Warnf("constant without value: '%s'", constName)
+			logger.Infof("constant without value: '%s'", constName)
 		}
 	}
 	g.AddConstDelim()

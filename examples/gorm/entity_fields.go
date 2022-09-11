@@ -8,44 +8,44 @@ type (
 
 const (
 	ENTITY_COL_ID         = EntityCol("ID")
+	ENTITY_COL_UPDATED_AT = EntityCol("UPDATED_AT")
 	ENTITY_COL_NAME       = EntityCol("NAME")
 	ENTITY_COL_SURNAME    = EntityCol("SURNAME")
-	ENTITY_COL_UPDATED_AT = EntityCol("UPDATED_AT")
 
 	EntityGormID        = "ID"
+	EntityGormUpdatedAt = "UPDATED_AT"
 	EntityGormName      = "NAME"
 	EntityGormSurname   = "SURNAME"
-	EntityGormUpdatedAt = "UPDATED_AT"
 
 	EntityJsonID        = "id"
+	EntityJsonUpdatedAt = "updateAt"
 	EntityJsonName      = "name"
 	EntityJsonSurname   = "_surname"
-	EntityJsonUpdatedAt = "updateAt"
 
 	EntityGormJsonID        = "id"
+	EntityGormJsonUpdatedAt = "updateAt"
 	EntityGormJsonName      = "NAME"
 	EntityGormJsonSurname   = "SURNAME"
-	EntityGormJsonUpdatedAt = "updateAt"
 )
 
 func EntityCols() []EntityCol {
 	return []EntityCol{
 		ENTITY_COL_ID,
+		ENTITY_COL_UPDATED_AT,
 		ENTITY_COL_NAME,
 		ENTITY_COL_SURNAME,
-		ENTITY_COL_UPDATED_AT,
 	}
 }
 func (c EntityCol) Field() string {
 	switch c {
 	case ENTITY_COL_ID:
 		return "ID"
+	case ENTITY_COL_UPDATED_AT:
+		return "UpdatedAt"
 	case ENTITY_COL_NAME:
 		return "Name"
 	case ENTITY_COL_SURNAME:
 		return "Surname"
-	case ENTITY_COL_UPDATED_AT:
-		return "UpdatedAt"
 	}
 	return ""
 }

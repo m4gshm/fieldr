@@ -18,8 +18,8 @@ lint:
 	go install golang.org/x/tools/cmd/goimports@latest
 	goimports -w .
 	go vet ./...
-	# go install github.com/tetafro/godot/cmd/godot@latest
-	# godot ./:
+	go install github.com/tetafro/godot/cmd/godot@latest
+	godot ./:
 	go install github.com/kisielk/errcheck@latest
 	errcheck ./...
 	go install github.com/alexkohler/nakedret@latest
