@@ -1,13 +1,44 @@
 package squirrel
 
 import (
+	"database/sql"
+	"fmt"
+
 	sq "github.com/Masterminds/squirrel"
 )
 
 var (
 	pkColumn      = string(colID)
 	dbColumnNames = strings(cols())
+	tableName     = "table_name"
 )
+
+
+func GetEntity(db *sql.DB, id int) (*Entity, error) {
+	if sql, values, err := getSqlSelectById(tableName, id).ToSql(); err != nil {
+		return nil, err
+	} else if r, err := db.Query(sql, values...); err != nil {
+		return nil, err
+	} else if r.Next() {
+		e := &Entity{}
+		if err := r.Scan(e.refs()...); err != nil {
+			return nil, err
+		}
+		return e, nil
+	}
+	return nil, nil
+}
+
+func (e *Entity) Store(db *sql.DB) error {
+	if sql, values, err := e.getSqlUpsert(tableName).ToSql(); err != nil {
+		return err
+	} else if r, err := db.Exec(sql, values...); err != nil {
+		return err
+	} else if rowsNum, err := r.RowsAffected(); err != nil {
+		fmt.Printf("stored %d row", rowsNum)
+	}
+	return nil
+}
 
 func getSqlSelectById(table string, id int) sq.SelectBuilder {
 	return sqlSelectWhere(table, dbColumnNames, idEqualTo(id))
