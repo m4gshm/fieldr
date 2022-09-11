@@ -40,7 +40,9 @@ func (g *Generator) GenerateFieldConstants(model *struc.Model, fieldType string,
 
 type constResult struct{ name, field, value string }
 
-func (g *Generator) GenerateFieldConstant(model *struc.Model, value, name, typ string, export, snake, nolint, refAccessor, valAccessor bool) error {
+func (g *Generator) GenerateFieldConstant(
+	model *struc.Model, value, name, typ string, export, snake, nolint, usePrivate, refAccessor, valAccessor bool,
+) error {
 	valueTmpl := wrapTemplate(value)
 	nameTmpl := wrapTemplate(name)
 
@@ -61,6 +63,11 @@ func (g *Generator) GenerateFieldConstant(model *struc.Model, value, name, typ s
 			fieldName = f
 			tags      = map[string]interface{}{}
 		)
+
+		if IsFieldExcluded(fieldName, usePrivate) {
+			continue
+		}
+
 		if tagVals := model.FieldsTagValue[fieldName]; tagVals != nil {
 			for k, v := range tagVals {
 				tag := k
@@ -135,7 +142,7 @@ func (g *Generator) GenerateFieldConstant(model *struc.Model, value, name, typ s
 	}
 	g.AddConstDelim()
 	if wrapType {
-		exportFunc := true
+		exportFunc := export
 		if funcBody, funcName, err := g.generateAggregateFunc(typ, constants, exportFunc, false, nolint); err != nil {
 			return err
 		} else if err := g.AddFunc(funcName, funcBody); err != nil {

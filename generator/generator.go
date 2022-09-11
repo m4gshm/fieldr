@@ -1708,7 +1708,11 @@ func (g *Generator) getFieldArrayType(typeName string, export, snake bool) strin
 
 func (g *Generator) isFieldExcluded(fieldName struc.FieldName, allFields bool) bool {
 	_, excluded := g.excludedFields[fieldName]
-	return (!allFields && !token.IsExported(string(fieldName))) || excluded
+	return IsFieldExcluded(fieldName, allFields) || excluded
+}
+
+func IsFieldExcluded(fieldName struc.FieldName, includePrivate bool) bool {
+	return (!includePrivate && !token.IsExported(string(fieldName)))
 }
 
 func (g *Generator) generateTagsVar(typeName string, tagNames []struc.TagName, conf Config) (string, string, error) {

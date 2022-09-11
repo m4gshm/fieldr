@@ -56,6 +56,10 @@ func newGeneratorConfig(flagSet *flag.FlagSet) *generator.Config {
 	}
 }
 
+func WithPrivate(flagSet *flag.FlagSet) *bool {
+	return flagSet.Bool("with-private", false, "use private fields for generating content")
+}
+
 func Snake(flagSet *flag.FlagSet) *bool {
 	return flagSet.Bool("snake", false, "use snake case in generated content naming")
 }

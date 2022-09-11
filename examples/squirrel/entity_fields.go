@@ -2,30 +2,50 @@
 
 package squirrel
 
-import (
-	"unsafe"
-)
-
 type (
-	entityTagValue     string
-	entityTagValueList []entityTagValue
+	Col string
 )
 
 const (
-	entityTagValueDbID      = entityTagValue("ID")
-	entityTagValueDbName    = entityTagValue("NAME")
-	entityTagValueDbSurname = entityTagValue("SURNAME")
-	entityTagValueDbTs      = entityTagValue("TS")
+	colID      = Col("ID")
+	colName    = Col("NAME")
+	colSurname = Col("SURNAME")
 )
 
-var (
-	entityTagValuesDb = entityTagValueList{entityTagValueDbID, entityTagValueDbName, entityTagValueDbSurname}
-)
+func cols() []Col { return []Col{colID, colName, colSurname} }
 
-func (v *Entity) getFieldValuesByTagDb() []interface{} {
-	return []interface{}{v.ID, v.Name, v.Surname}
+func (c Col) field() string {
+	switch c {
+	case colID:
+		return "ID"
+	case colName:
+		return "Name"
+	case colSurname:
+		return "Surname"
+	}
+	return ""
 }
 
-func (v entityTagValueList) strings() []string {
-	return *(*[]string)(unsafe.Pointer(&v))
+func (c Col) val(s *Entity) interface{} {
+	switch c {
+	case colID:
+		return s.ID
+	case colName:
+		return s.Name
+	case colSurname:
+		return s.Surname
+	}
+	return nil
+}
+
+func (c Col) ref(s *Entity) interface{} {
+	switch c {
+	case colID:
+		return &s.ID
+	case colName:
+		return &s.Name
+	case colSurname:
+		return &s.Surname
+	}
+	return nil
 }

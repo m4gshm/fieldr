@@ -25,12 +25,17 @@ func TestSqlUpsert(t *testing.T) {
 }
 
 func TestSqlSelectByID(t *testing.T) {
-	sql, values, err := getSqlSelectById("test_table", 100).ToSql()
-	if err != nil {
+	buildr := getSqlSelectById("test_table", 100)
+	// e := &Entity{}
+	// if err := buildr.Scan(e.refs()...); err != nil {
+	// 	t.Fatal(err)
+	// }
+	if sql, values, err := buildr.ToSql(); err != nil {
 		t.Fatal(err)
+	} else {
+		assert.Equal(t, []interface{}{100}, values)
+		assert.Equal(t, "SELECT ID, NAME, SURNAME FROM test_table WHERE ID = $1", sql)
 	}
-	assert.Equal(t, []interface{}{100}, values)
-	assert.Equal(t, "SELECT ID, NAME, SURNAME FROM test_table WHERE ID = $1", sql)
 }
 
 func TestSqlDeleteByID(t *testing.T) {

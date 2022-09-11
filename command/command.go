@@ -53,7 +53,11 @@ func (c *Command) Parse(arguments []string) ([]string, error) {
 }
 
 func Get(name string) *Command {
-	return index[name]()
+	c := index[name]
+	if c != nil {
+		return c()
+	}
+	return nil
 }
 
 func Supported() []string {
