@@ -111,14 +111,6 @@ func run() error {
 		logger.Debugf("unspent command line args %v\n", args)
 	}
 
-	// if outputDir, err := outDir(args); err != nil {
-	// 	return err
-	// } else if len(outputDir) > 0 {
-	// 	if err := os.Chdir(outputDir); err != nil {
-	// 		return fmt.Errorf("out chdir: %w", err)
-	// 	}
-	// }
-
 	fileSet := token.NewFileSet()
 	buildTags := *config.BuildTags
 	pkg, err := extractPackage(fileSet, buildTags, *config.PackagePattern)
@@ -144,10 +136,6 @@ func run() error {
 		return err
 	}
 	constantReplacers := map[string]string{}
-	// constantReplacers, err := struc.ExtractReplacers(*config.Generator.ConstReplace...)
-	// if err != nil {
-	// 	return err
-	// }
 
 	filesCmdArgs, err := newFilesCommentsConfig(files)
 	if err != nil {
@@ -169,28 +157,8 @@ func run() error {
 				}
 				commands = append(commands, cmtCommands...)
 			}
-
 		}
-
-		// newInputs, _ := newSet(*sharedConfig.Input, inputs...)
-		// if len(newInputs) > 0 {
-		// 	//new inputs detected
-		// 	newFiles, err := loadSrcFiles(newInputs, buildTags, fileSet, make([]*ast.File, 0), filePackages)
-		// 	if err != nil {
-		// 		return err
-		// 	} else if additionalConfig, err := newFilesCommentsConfig(newFiles, constantReplacers); err != nil {
-		// 		return err
-		// 	} else if additionalConfig != nil {
-		// 		if sharedConfig, err = sharedConfig.MergeWith(additionalConfig, constantReplacers); err != nil {
-		// 			return err
-		// 		}
-		// 	}
-		// 	files = append(files, newFiles...)
-		// }
 	}
-	// if config, err = config.MergeWith(sharedConfig, constantReplacers); err != nil {
-	// 	return err
-	// }
 
 	if len(commands) == 0 {
 		return usageErr("no generator commands")
@@ -207,9 +175,6 @@ func run() error {
 
 	}
 
-	// includedTagsSet, _ := (*config).Generator.IncludedTags()
-
-	// constants := *config.Content.Constants
 	constants := []string{}
 	hierarchicalModel, err := struc.FindStructTags(filePackages, files, fileSet, typeName /*, includedTagsSet*/, constants, constantReplacers)
 	if err != nil {
@@ -288,14 +253,8 @@ func run() error {
 		}
 	}
 
-	// if err = g.GenerateFile(model, outFile, outFileInfo, outPkg, config, con); err != nil {
-	// 	return fmt.Errorf("generate file error: %s", err)
-	// }
-
-	// noReceiver := config.NoReceiver != nil && *conf.NoReceiver
-	noReceiver := false
 	outPackageName := generator.OutPackageName(*config.OutPackage, outPkg)
-	if err := g.WriteBody(outPackageName, noReceiver); err != nil {
+	if err := g.WriteBody(outPackageName); err != nil {
 		return err
 	}
 
@@ -515,7 +474,6 @@ func isDir(name string) (bool, error) {
 	return info.IsDir(), nil
 }
 
-// const packageMode = packages.NeedSyntax | packages.NeedModule | packages.NeedName | packages.NeedImports | packages.NeedDeps | packages.NeedTypes | packages.NeedTypesInfo
 const packageMode = packages.NeedSyntax | packages.NeedModule | packages.NeedName | packages.NeedTypesInfo | packages.NeedTypes
 
 func extractPackage(fileSet *token.FileSet, buildTags []string, patterns ...string) (*packages.Package, error) {

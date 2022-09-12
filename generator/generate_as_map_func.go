@@ -13,7 +13,6 @@ func (g *Generator) GenerateAsMapFunc(
 
 	keyType := BaseConstType
 	if wrapType {
-		g.used.fieldType = true
 		keyType = getUsedFieldType(model.TypeName, export, snake)
 	}
 

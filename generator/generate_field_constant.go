@@ -27,11 +27,11 @@ var _ fmt.Stringer = (*stringer)(nil)
 
 func (g *Generator) GenerateFieldConstants(model *struc.Model, fieldType string, fieldNames []struc.FieldName, export, snake, wrapType bool) error {
 	typeName := model.TypeName
-	g.AddConstDelim()
+	g.addConstDelim()
 	for _, fieldName := range fieldNames {
 		constName := GetFieldConstName(typeName, fieldName, export, snake)
 		constVal := g.GetConstValue(fieldType, fieldName, wrapType)
-		if err := g.AddConst(constName, constVal); err != nil {
+		if err := g.addConst(constName, constVal); err != nil {
 			return err
 		}
 	}
@@ -64,7 +64,7 @@ func (g *Generator) GenerateFieldConstant(
 			tags      = map[string]interface{}{}
 		)
 
-		if IsFieldExcluded(fieldName, usePrivate) {
+		if isFieldExcluded(fieldName, usePrivate) {
 			continue
 		}
 
@@ -114,11 +114,11 @@ func (g *Generator) GenerateFieldConstant(
 		if val, err := parse(fieldName+" const val", valueTmpl); err != nil {
 			return err
 		} else if len(nameTmpl) > 0 {
-			if constName, err := parse(fieldName+" const name", nameTmpl); err != nil {
+			constName, err := parse(fieldName+" const name", nameTmpl)
+			if err != nil {
 				return err
-			} else {
-				constants = append(constants, constResult{field: fieldName, name: strings.ReplaceAll(constName, ".", ""), value: val})
 			}
+			constants = append(constants, constResult{field: fieldName, name: strings.ReplaceAll(constName, ".", ""), value: val})
 		} else {
 			constants = append(constants, constResult{field: fieldName, value: val})
 		}
@@ -127,20 +127,20 @@ func (g *Generator) GenerateFieldConstant(
 	for _, c := range constants {
 		constName := c.name
 		if len(constName) == 0 {
-			constName = g.GetTagTemplateConstName(model.TypeName, c.field, usedTags, export, snake)
+			constName = g.getTagTemplateConstName(model.TypeName, c.field, usedTags, export, snake)
 			logger.Debugf("apply auto constant name '%s'", constName)
 		} else {
 			logger.Debugf("template generated constant name '%s'", constName)
 		}
 		if len(c.value) != 0 {
-			if err := g.AddConst(constName, g.GetConstValue(typ, c.value, wrapType)); err != nil {
+			if err := g.addConst(constName, g.GetConstValue(typ, c.value, wrapType)); err != nil {
 				return err
 			}
 		} else {
 			logger.Infof("constant without value: '%s'", constName)
 		}
 	}
-	g.AddConstDelim()
+	g.addConstDelim()
 	if wrapType {
 		exportFunc := export
 		if funcBody, funcName, err := g.generateAggregateFunc(typ, constants, exportFunc, false, nolint); err != nil {
@@ -148,34 +148,32 @@ func (g *Generator) GenerateFieldConstant(
 		} else if err := g.AddFunc(funcName, funcBody); err != nil {
 			return err
 		}
-		g.AddFunсDelim()
+		g.addFunсDelim()
 
-		if funcBody, funcName, err := g.generateConstFieldFunc(typ, constants, exportFunc, nolint); err != nil {
+		if funcBody, funcName, err := g.aenerateConstFieldFunc(typ, constants, exportFunc, nolint); err != nil {
 			return err
 		} else if err := g.AddFunc(funcName, funcBody); err != nil {
 			return err
 		}
-		g.AddFunсDelim()
+		g.addFunсDelim()
 
 		if refAccessor || valAccessor {
-
-			if structPackage, err := g.StructPackage(model); err != nil {
+			structPackage, err := g.StructPackage(model)
+			if err != nil {
 				return err
-			} else {
-
-				if valAccessor {
-					if funcBody, funcName, err := g.generateConstValueFunc(model, structPackage, typ, constants, exportFunc, nolint, false); err != nil {
-						return err
-					} else if err := g.AddFunc(funcName, funcBody); err != nil {
-						return err
-					}
+			}
+			if valAccessor {
+				if funcBody, funcName, err := g.GenerateConstValueFunc(model, structPackage, typ, constants, exportFunc, nolint, false); err != nil {
+					return err
+				} else if err := g.AddFunc(funcName, funcBody); err != nil {
+					return err
 				}
-				if refAccessor {
-					if funcBody, funcName, err := g.generateConstValueFunc(model, structPackage, typ, constants, exportFunc, nolint, true); err != nil {
-						return err
-					} else if err := g.AddFunc(funcName, funcBody); err != nil {
-						return err
-					}
+			}
+			if refAccessor {
+				if funcBody, funcName, err := g.GenerateConstValueFunc(model, structPackage, typ, constants, exportFunc, nolint, true); err != nil {
+					return err
+				} else if err := g.AddFunc(funcName, funcBody); err != nil {
+					return err
 				}
 			}
 		}
@@ -213,28 +211,27 @@ func addCommonFuncs(funcs template.FuncMap) template.FuncMap {
 		if len(sexpr) == 0 {
 			return "", errors.New("empty regexp: val '" + str + "'")
 		}
-		if r, err := regexp.Compile(sexpr); err != nil {
+		r, err := regexp.Compile(sexpr)
+		if err != nil {
 			return "", err
-		} else {
-			submatches := r.FindStringSubmatch(str)
-			names := r.SubexpNames()
-			if len(names) <= len(submatches) {
-				for i, groupName := range names {
-					if groupName == "v" {
-						submatch := submatches[i]
-						if len(submatch) == 0 {
-							return submatch, nil
-						}
+		}
+		submatches := r.FindStringSubmatch(str)
+		names := r.SubexpNames()
+		if len(names) <= len(submatches) {
+			for i, groupName := range names {
+				if groupName == "v" {
+					submatch := submatches[i]
+					if len(submatch) == 0 {
+						return submatch, nil
 					}
 				}
 			}
-			if len(submatches) > 0 {
-				s := submatches[len(submatches)-1]
-				return s, nil
-			} else {
-				return "", nil
-			}
 		}
+		if len(submatches) > 0 {
+			s := submatches[len(submatches)-1]
+			return s, nil
+		}
+		return "", nil
 	}
 
 	snakeFunc := func(val interface{}) string {
@@ -343,7 +340,7 @@ func (g *Generator) generateAggregateFunc(typ string, constants []constResult, e
 	return "func " + funcName + "() " + arrayType + " { return " + arrayBody + "}", funcName, nil
 }
 
-func (g *Generator) generateConstFieldFunc(typ string, constants []constResult, export, nolint bool) (string, string, error) {
+func (g *Generator) aenerateConstFieldFunc(typ string, constants []constResult, export, nolint bool) (string, string, error) {
 	var (
 		funcName     = goName("Field", export)
 		receiverVar  = "c"
@@ -366,10 +363,12 @@ func (g *Generator) generateConstFieldFunc(typ string, constants []constResult, 
 		"return " + returnNoCase +
 		"}\n"
 
-	return funcBody, typ + "." + funcName, nil
+	return funcBody, MethodName(typ, funcName), nil
 }
 
-func (g *Generator) generateConstValueFunc(model *struc.Model, pkg, typ string, constants []constResult, export, nolint, ref bool) (string, string, error) {
+func MethodName(typ, fun string) string { return typ + "." + fun }
+
+func (g *Generator) GenerateConstValueFunc(model *struc.Model, pkg, typ string, constants []constResult, export, nolint, ref bool) (string, string, error) {
 	var (
 		funcName     = goName("Val", export)
 		receiverVar  = "c"
@@ -400,5 +399,5 @@ func (g *Generator) generateConstValueFunc(model *struc.Model, pkg, typ string, 
 		"return " + returnNoCase +
 		"}\n"
 
-	return funcBody, typ + "." + funcName, nil
+	return funcBody, MethodName(typ, funcName), nil
 }

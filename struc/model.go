@@ -47,7 +47,8 @@ type (
 	}
 )
 
-func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.File, fileSet *token.FileSet, typeName string /*includedTags map[TagName]struct{}, */, constants []string, constantReplacers map[string]string) (*HierarchicalModel, error) {
+func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.File, fileSet *token.FileSet, typeName string,
+	constants []string, constantReplacers map[string]string) (*HierarchicalModel, error) {
 	constantNameByTemplate, constantNames, constantSubstitutes, err := extractConstantNameAndTemplates(constants, constantReplacers, typeName)
 	if err != nil {
 		return nil, err
@@ -180,7 +181,7 @@ func splitConstantName(constant string) (string, string, map[string]string, erro
 		if index > 0 {
 			templateConst := templatePart[:index]
 			substitutePart := templatePart[index+1:]
-			replacers, err := ExtractReplacers(substitutePart)
+			replacers, err := extractReplacers(substitutePart)
 			if err != nil {
 				return "", "", nil, err
 			}
@@ -191,7 +192,7 @@ func splitConstantName(constant string) (string, string, map[string]string, erro
 	return constant, "", nil, nil
 }
 
-func ExtractReplacers(substituteParts ...string) (map[string]string, error) {
+func extractReplacers(substituteParts ...string) (map[string]string, error) {
 	substitutes := make(map[string]string)
 	for _, substitutePart := range substituteParts {
 		substitutesPairs := strings.Split(substitutePart, ListValuesSeparator)
@@ -291,24 +292,7 @@ func newFieldTagValues(fieldTagNames []TagName, tagValues map[TagName]TagValue) 
 	return fieldTagValues
 }
 
-func parseTagValues(tagsValues string /*, includedTags map[TagName]struct{}*/) (map[TagName]TagValue, []TagName) {
-	tagValues, fieldTagNames := ParseTags(tagsValues)
-	// if len(includedTags) > 0 {
-	// 	filteredFieldTagValues := make(map[TagName]TagValue)
-	// 	filteredFieldTagNames := make([]TagName, 0)
-	// 	for includedTag := range includedTags {
-	// 		if _tagValue, tagValueOk := tagValues[includedTag]; tagValueOk {
-	// 			filteredFieldTagValues[includedTag] = _tagValue
-	// 			filteredFieldTagNames = append(filteredFieldTagNames, includedTag)
-	// 		}
-	// 	}
-	// 	tagValues = filteredFieldTagValues
-	// 	fieldTagNames = filteredFieldTagNames
-	// }
-	return tagValues, fieldTagNames
-}
-
-func ParseTags(tags string) (map[TagName]TagValue, []TagName) {
+func parseTagValues(tags string) (map[TagName]TagValue, []TagName) {
 	tagNames := make([]TagName, 0)
 	tagValues := make(map[TagName]TagValue)
 

@@ -56,7 +56,7 @@ func NewAsMapMethod() *Command {
 					model, structPackage, *name, rewriter, *export, *snake, *wrap, *ref, *fun, *all, *nolint, *hardcode,
 				); err != nil {
 					return err
-				} else if err = g.AddReceiverFunc(typeLink, funcName, funcBody, err); err != nil {
+				} else if err := g.AddFunc(generator.MethodName(typeLink, funcName), funcBody); err != nil {
 					return err
 				}
 				return nil
