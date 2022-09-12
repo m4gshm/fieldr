@@ -21,8 +21,8 @@ func NewConfig(flagSet *flag.FlagSet) *Config {
 		Output:         flagSet.String("out", "", "output file name; default srcdir/<type>"+DefaultFileSuffix),
 		Input:          inFlag(flagSet),
 		PackagePattern: flagSet.String("package", ".", "used package"),
-		OutBuildTags:   flagSet.String("outBuildTag", "", "add build tag to generated file"),
-		OutPackage:     flagSet.String("outPackage", "", "output package name"),
+		OutBuildTags:   flagSet.String("out-build-tag", "", "add build tag to generated file"),
+		OutPackage:     flagSet.String("out-package", "", "output package name"),
 	}
 }
 

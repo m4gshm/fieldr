@@ -8,7 +8,6 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/pressly/goose/v3"
 
-	// "github.com/rs/zerolog"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	sqldblogger "github.com/simukti/sqldb-logger"

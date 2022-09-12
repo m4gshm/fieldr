@@ -19,7 +19,7 @@ lint:
 	goimports -w .
 	go vet ./...
 	go install github.com/tetafro/godot/cmd/godot@latest
-	godot ./:
+	godot .
 	go install github.com/kisielk/errcheck@latest
 	errcheck ./...
 	go install github.com/alexkohler/nakedret@latest

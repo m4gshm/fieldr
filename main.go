@@ -280,7 +280,7 @@ func run() error {
 		}
 	}
 
-	g := generator.New(params.Name, *config.OutPackage, *config.OutBuildTags, outFile, outFileInfo, outPkg)
+	g := generator.New(params.Name, *config.OutBuildTags, outFile, outFileInfo, outPkg)
 
 	for _, c := range commands {
 		if err := c.Run(g, hierarchicalModel); err != nil {

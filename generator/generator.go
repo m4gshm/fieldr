@@ -65,7 +65,7 @@ type Generator struct {
 	isRewrite bool
 }
 
-func New(name, outPackage, outBuildTags string, outFile *ast.File, outFileInfo *token.File, outPkg *packages.Package) *Generator {
+func New(name /*outPackage,*/, outBuildTags string, outFile *ast.File, outFileInfo *token.File, outPkg *packages.Package) *Generator {
 	g := &Generator{
 		// IncludedTags: includedTags,
 		name: name,

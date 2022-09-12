@@ -157,20 +157,26 @@ func (g *Generator) GenerateFieldConstant(
 		}
 		g.AddFunсDelim()
 
-		// aggr := refAccessor || valAccessor
+		if refAccessor || valAccessor {
 
-		if valAccessor {
-			if funcBody, funcName, err := g.generateConstValueFunc(model, typ, constants, exportFunc, nolint, false); err != nil {
+			if structPackage, err := g.StructPackage(model); err != nil {
 				return err
-			} else if err := g.AddFunc(funcName, funcBody); err != nil {
-				return err
-			}
-		}
-		if refAccessor {
-			if funcBody, funcName, err := g.generateConstValueFunc(model, typ, constants, exportFunc, nolint, true); err != nil {
-				return err
-			} else if err := g.AddFunc(funcName, funcBody); err != nil {
-				return err
+			} else {
+
+				if valAccessor {
+					if funcBody, funcName, err := g.generateConstValueFunc(model, structPackage, typ, constants, exportFunc, nolint, false); err != nil {
+						return err
+					} else if err := g.AddFunc(funcName, funcBody); err != nil {
+						return err
+					}
+				}
+				if refAccessor {
+					if funcBody, funcName, err := g.generateConstValueFunc(model, structPackage, typ, constants, exportFunc, nolint, true); err != nil {
+						return err
+					} else if err := g.AddFunc(funcName, funcBody); err != nil {
+						return err
+					}
+				}
 			}
 		}
 	}
@@ -363,12 +369,12 @@ func (g *Generator) generateConstFieldFunc(typ string, constants []constResult, 
 	return funcBody, typ + "." + funcName, nil
 }
 
-func (g *Generator) generateConstValueFunc(model *struc.Model, typ string, constants []constResult, export, nolint, ref bool) (string, string, error) {
+func (g *Generator) generateConstValueFunc(model *struc.Model, pkg, typ string, constants []constResult, export, nolint, ref bool) (string, string, error) {
 	var (
 		funcName     = goName("Val", export)
 		receiverVar  = "c"
 		argName      = "s"
-		argType      = "*" + model.TypeName
+		argType      = "*" + getTypeName(model.TypeName, pkg)
 		returnTypes  = "interface{}"
 		returnNoCase = "nil"
 		pref         = ""
