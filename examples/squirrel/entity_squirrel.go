@@ -13,7 +13,6 @@ var (
 	tableName     = "table_name"
 )
 
-
 func GetEntity(db *sql.DB, id int) (*Entity, error) {
 	if sql, values, err := getSqlSelectById(tableName, id).ToSql(); err != nil {
 		return nil, err

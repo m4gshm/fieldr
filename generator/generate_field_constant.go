@@ -117,7 +117,7 @@ func (g *Generator) GenerateFieldConstant(
 			if constName, err := parse(fieldName+" const name", nameTmpl); err != nil {
 				return err
 			} else {
-				constants = append(constants, constResult{field: fieldName, name: constName, value: val})
+				constants = append(constants, constResult{field: fieldName, name: strings.ReplaceAll(constName, ".", ""), value: val})
 			}
 		} else {
 			constants = append(constants, constResult{field: fieldName, value: val})

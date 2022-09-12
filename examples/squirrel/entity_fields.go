@@ -7,12 +7,20 @@ type (
 )
 
 const (
-	colID      = Col("ID")
-	colName    = Col("NAME")
-	colSurname = Col("SURNAME")
+	colID               = Col("ID")
+	colName             = Col("NAME")
+	colSurname          = Col("SURNAME")
+	colVersionedVersion = Col("version")
 )
 
-func cols() []Col { return []Col{colID, colName, colSurname} }
+func cols() []Col {
+	return []Col{
+		colID,
+		colName,
+		colSurname,
+		colVersionedVersion,
+	}
+}
 
 func (c Col) field() string {
 	switch c {
@@ -22,6 +30,8 @@ func (c Col) field() string {
 		return "Name"
 	case colSurname:
 		return "Surname"
+	case colVersionedVersion:
+		return "Versioned.Version"
 	}
 	return ""
 }
@@ -34,6 +44,8 @@ func (c Col) val(s *Entity) interface{} {
 		return s.Name
 	case colSurname:
 		return s.Surname
+	case colVersionedVersion:
+		return s.Versioned.Version
 	}
 	return nil
 }
@@ -46,6 +58,8 @@ func (c Col) ref(s *Entity) interface{} {
 		return &s.Name
 	case colSurname:
 		return &s.Surname
+	case colVersionedVersion:
+		return &s.Versioned.Version
 	}
 	return nil
 }

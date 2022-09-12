@@ -12,7 +12,8 @@ var (
 	id int constraint test_table_pk primary key,
 	name text,
 	surname text,
-	values int[]
+	values int[],
+	version bigint
 )`
 )
 
