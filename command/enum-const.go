@@ -20,8 +20,9 @@ func NewEnumConst() *Command {
 		constName   = flagSet.String("name", "", "constant name template")
 		constValue  = flagSet.String("val", "", "constant value template; must be set")
 		constType   = flagSet.String("type", "", "constant type template")
-		refAccessor = flagSet.Bool("ref-accessor", false, "extends generated type with field reference accessor method")
-		valAccessor = flagSet.Bool("val-accessor", false, "extends generated type with field value accessor method")
+		refAccessor = flagSet.Bool("ref-access", false, "extends generated type with field reference accessor method")
+		valAccessor = flagSet.Bool("val-access", false, "extends generated type with field value accessor method")
+		compact     = flagSet.Bool("compact", false, "generate single line code in aggregate functions, constants")
 		export      = params.ExportCont(flagSet, "constants")
 		private     = params.WithPrivate(flagSet)
 		nolint      = params.Nolint(flagSet)
@@ -31,8 +32,9 @@ func NewEnumConst() *Command {
 		name, "generate constants based on template applied to struct fields",
 		flagSet,
 		func(g *generator.Generator, m *struc.HierarchicalModel) error {
-			model := toFlatModel(m, *flat)
-			return g.GenerateFieldConstant(model, *constValue, *constName, *constType, *export, false, *nolint, *private, *refAccessor, *valAccessor)
+			return g.GenerateFieldConstant(
+				toFlatModel(m, *flat), *constValue, *constName, *constType, *export, false, *nolint, *compact, *private, *refAccessor, *valAccessor,
+			)
 		},
 	)
 	c.manual =

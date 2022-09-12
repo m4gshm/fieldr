@@ -64,7 +64,7 @@ func FindStructTags(filePackages map[*ast.File]*packages.Package, files []*ast.F
 			filePath    = fileInfo.Name()
 		)
 		if lookup := pkg.Scope().Lookup(typeName); lookup != nil {
-			if builder, err := newBuilder(pkg, nil, typeName, filePath /*includedTags,*/, handledStructs{}); err != nil {
+			if builder, err := newBuilder(pkg, nil, typeName, filePath, handledStructs{}); err != nil {
 				return nil, fmt.Errorf("new builder of %v: %w", typeName, err)
 			} else if structModel, err = builder.newModel(lookup.Type()); err != nil {
 				return nil, fmt.Errorf("new model of %v: %w", typeName, err)

@@ -11,14 +11,13 @@ import (
 type handledStructs = map[types.Type]*HierarchicalModel
 
 type structModelBuilder struct {
-	model *HierarchicalModel
-	// includedTags map[TagName]struct{}
+	model       *HierarchicalModel
 	deep        bool
 	pkg         *types.Package
 	loopControl handledStructs
 }
 
-func newBuilder(pkg *types.Package, typ types.Type, typeName string, filePath string /*includedTags map[TagName]struct{},*/, loopControl handledStructs) (*structModelBuilder, error) {
+func newBuilder(pkg *types.Package, typ types.Type, typeName string, filePath string, loopControl handledStructs) (*structModelBuilder, error) {
 	if _, ok := loopControl[typ]; ok {
 		return nil, fmt.Errorf("already handled type %v", typeName)
 	}
@@ -37,8 +36,7 @@ func newBuilder(pkg *types.Package, typ types.Type, typeName string, filePath st
 	}
 	loopControl[typ] = model
 	return &structModelBuilder{
-		model: model,
-		// includedTags: includedTags,
+		model:       model,
 		deep:        true,
 		pkg:         pkg,
 		loopControl: loopControl,
@@ -80,7 +78,7 @@ func (b *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
 
 				b.model.FieldNames = append(b.model.FieldNames, fldName)
 
-				tagValues, fieldTagNames := parseTagValues(tag /*, b.includedTags*/)
+				tagValues, fieldTagNames := parseTagValues(tag)
 				b.populateFields(fldName, fieldTagNames, tagValues)
 				for _, fieldTagName := range fieldTagNames {
 					b.populateTags(fldName, fieldTagName, tagValues[fieldTagName])
@@ -104,7 +102,7 @@ func (b *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
 						if model, ok := b.loopControl[fieldTypeNamed]; ok {
 							logger.Debugf("found handled type %v", typeName)
 							b.model.Nested[fldName] = model
-						} else if nestedBuilder, err := newBuilder(pkg, fieldTypeNamed, typeName, "" /*, b.includedTags*/, b.loopControl); err != nil {
+						} else if nestedBuilder, err := newBuilder(pkg, fieldTypeNamed, typeName, "", b.loopControl); err != nil {
 							return err
 						} else if err = nestedBuilder.populateByType(fieldTypeNamed); err != nil {
 							return fmt.Errorf("nested field %v.%v; %w", typeName, fldName, err)

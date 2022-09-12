@@ -176,7 +176,7 @@ func run() error {
 	}
 
 	constants := []string{}
-	hierarchicalModel, err := struc.FindStructTags(filePackages, files, fileSet, typeName /*, includedTagsSet*/, constants, constantReplacers)
+	hierarchicalModel, err := struc.FindStructTags(filePackages, files, fileSet, typeName, constants, constantReplacers)
 	if err != nil {
 		return err
 	} else if hierarchicalModel == nil || (len(hierarchicalModel.TypeName) == 0 && len(typeName) != 0) {

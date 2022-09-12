@@ -41,7 +41,7 @@ func (g *Generator) GenerateFieldConstants(model *struc.Model, fieldType string,
 type constResult struct{ name, field, value string }
 
 func (g *Generator) GenerateFieldConstant(
-	model *struc.Model, value, name, typ string, export, snake, nolint, usePrivate, refAccessor, valAccessor bool,
+	model *struc.Model, value, name, typ string, export, snake, nolint, compact, usePrivate, refAccessor, valAccessor bool,
 ) error {
 	valueTmpl := wrapTemplate(value)
 	nameTmpl := wrapTemplate(name)
@@ -84,14 +84,7 @@ func (g *Generator) GenerateFieldConstant(
 			}
 		}
 
-		parse := func(name string, tmplVal string) (string, error) {
-			funcs := addCommonFuncs(template.FuncMap{
-				"struct": func() map[string]interface{} { return map[string]interface{}{"name": model.TypeName} },
-				"name":   func() string { return fieldName },
-				"field":  func() map[string]interface{} { return map[string]interface{}{"name": fieldName} },
-				"tag":    func() map[string]interface{} { return tags },
-			})
-
+		parse := func(name string, data interface{}, funcs template.FuncMap, tmplVal string) (string, error) {
 			logger.Debugf("parse template for \"%s\" %s\n", name, tmplVal)
 			tmpl, err := template.New(value).Option("missingkey=zero").Funcs(funcs).Parse(tmplVal)
 			if err != nil {
@@ -101,7 +94,7 @@ func (g *Generator) GenerateFieldConstant(
 			buf := bytes.Buffer{}
 			logger.Debugf("template context %+v\n", tags)
 			inExecute = true
-			if err = tmpl.Execute(&buf, tags); err != nil {
+			if err = tmpl.Execute(&buf, data); err != nil {
 				inExecute = false
 				return "", fmt.Errorf("compile: of '%s': field '%s', template %s: %w", name, fieldName, tmplVal, err)
 			}
@@ -111,10 +104,17 @@ func (g *Generator) GenerateFieldConstant(
 			return cmpVal, nil
 		}
 
-		if val, err := parse(fieldName+" const val", valueTmpl); err != nil {
+		funcs := addCommonFuncs(template.FuncMap{
+			"struct": func() map[string]interface{} { return map[string]interface{}{"name": model.TypeName} },
+			"name":   func() string { return fieldName },
+			"field":  func() map[string]interface{} { return map[string]interface{}{"name": fieldName} },
+			"tag":    func() map[string]interface{} { return tags },
+		})
+
+		if val, err := parse(fieldName+" const val", tags, funcs, valueTmpl); err != nil {
 			return err
 		} else if len(nameTmpl) > 0 {
-			constName, err := parse(fieldName+" const name", nameTmpl)
+			constName, err := parse(fieldName+" const name", tags, funcs, nameTmpl)
 			if err != nil {
 				return err
 			}
@@ -141,9 +141,10 @@ func (g *Generator) GenerateFieldConstant(
 		}
 	}
 	g.addConstDelim()
+
 	if wrapType {
 		exportFunc := export
-		if funcBody, funcName, err := g.generateAggregateFunc(typ, constants, exportFunc, false, nolint); err != nil {
+		if funcBody, funcName, err := generateAggregateFunc(typ, constants, exportFunc, compact, nolint); err != nil {
 			return err
 		} else if err := g.AddFunc(funcName, funcBody); err != nil {
 			return err
@@ -311,7 +312,7 @@ func wrapTemplate(text string) string {
 	return text
 }
 
-func (g *Generator) generateAggregateFunc(typ string, constants []constResult, export, compact, nolint bool) (string, string, error) {
+func generateAggregateFunc(typ string, constants []constResult, export, compact, nolint bool) (string, string, error) {
 	var (
 		funcName  = goName(typ+"s", export)
 		arrayType = "[]" + typ
