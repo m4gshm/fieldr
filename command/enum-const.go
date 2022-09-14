@@ -22,6 +22,7 @@ func NewEnumConst() *Command {
 		constType   = flagSet.String("type", "", "constant type template")
 		refAccessor = flagSet.Bool("ref-access", false, "extends generated type with field reference accessor method")
 		valAccessor = flagSet.Bool("val-access", false, "extends generated type with field value accessor method")
+		funcList    = flagSet.String("func-list", "", "generate function that return list of all generated constant values")
 		compact     = flagSet.Bool("compact", false, "generate single line code in aggregate functions, constants")
 		export      = params.ExportCont(flagSet, "constants")
 		private     = params.WithPrivate(flagSet)
@@ -33,7 +34,7 @@ func NewEnumConst() *Command {
 		flagSet,
 		func(g *generator.Generator, m *struc.HierarchicalModel) error {
 			return g.GenerateFieldConstant(
-				toFlatModel(m, *flat), *constValue, *constName, *constType, *export, false, *nolint, *compact, *private, *refAccessor, *valAccessor,
+				toFlatModel(m, *flat), *constValue, *constName, *constType, *funcList, *export, false, *nolint, *compact, *private, *refAccessor, *valAccessor,
 			)
 		},
 	)

@@ -25,6 +25,8 @@ func (c *stringer) String() string {
 
 var _ fmt.Stringer = (*stringer)(nil)
 
+const funcListTypeBased = "."
+
 func (g *Generator) GenerateFieldConstants(model *struc.Model, fieldType string, fieldNames []struc.FieldName, export, snake, wrapType bool) error {
 	typeName := model.TypeName
 	g.addConstDelim()
@@ -41,7 +43,7 @@ func (g *Generator) GenerateFieldConstants(model *struc.Model, fieldType string,
 type constResult struct{ name, field, value string }
 
 func (g *Generator) GenerateFieldConstant(
-	model *struc.Model, value, name, typ string, export, snake, nolint, compact, usePrivate, refAccessor, valAccessor bool,
+	model *struc.Model, value, name, typ, funcList string, export, snake, nolint, compact, usePrivate, refAccessor, valAccessor bool,
 ) error {
 	valueTmpl := wrapTemplate(value)
 	nameTmpl := wrapTemplate(name)
@@ -111,27 +113,26 @@ func (g *Generator) GenerateFieldConstant(
 			"tag":    func() map[string]interface{} { return tags },
 		})
 
-		if val, err := parse(fieldName+" const val", tags, funcs, valueTmpl); err != nil {
+		val, err := parse(fieldName+" const val", tags, funcs, valueTmpl)
+		if err != nil {
 			return err
-		} else if len(nameTmpl) > 0 {
-			constName, err := parse(fieldName+" const name", tags, funcs, nameTmpl)
+		}
+		var constName string
+		if len(nameTmpl) > 0 {
+			parsedConst, err := parse(fieldName+" const name", tags, funcs, nameTmpl)
 			if err != nil {
 				return err
 			}
-			constants = append(constants, constResult{field: fieldName, name: strings.ReplaceAll(constName, ".", ""), value: val})
+			constName = strings.ReplaceAll(parsedConst, ".", "")
 		} else {
-			constants = append(constants, constResult{field: fieldName, value: val})
+			constName = g.getTagTemplateConstName(model.TypeName, fieldName, usedTags, export, snake)
+			logger.Debugf("apply auto constant name '%s'", constName)
 		}
+		constants = append(constants, constResult{field: fieldName, name: constName, value: val})
 	}
 
 	for _, c := range constants {
 		constName := c.name
-		if len(constName) == 0 {
-			constName = g.getTagTemplateConstName(model.TypeName, c.field, usedTags, export, snake)
-			logger.Debugf("apply auto constant name '%s'", constName)
-		} else {
-			logger.Debugf("template generated constant name '%s'", constName)
-		}
 		if len(c.value) != 0 {
 			if err := g.addConst(constName, g.GetConstValue(typ, c.value, wrapType)); err != nil {
 				return err
@@ -142,15 +143,25 @@ func (g *Generator) GenerateFieldConstant(
 	}
 	g.addConstDelim()
 
-	if wrapType {
-		exportFunc := export
-		if funcBody, funcName, err := generateAggregateFunc(typ, constants, exportFunc, compact, nolint); err != nil {
+	exportFunc := export
+	if len(funcList) > 0 {
+		funcName := funcList
+		if funcName == funcListTypeBased {
+			if wrapType {
+				funcName = goName(typ+"s", export)
+			} else {
+				return fmt.Errorf("invalid list function name, value '%s' unsupported without constant type definition", funcListTypeBased)
+			}
+		}
+		if funcBody, funcName, err := generateAggregateFunc(funcName, typ, constants, exportFunc, compact, nolint); err != nil {
 			return err
 		} else if err := g.AddFunc(funcName, funcBody); err != nil {
 			return err
 		}
 		g.addFunсDelim()
+	}
 
+	if wrapType {
 		if funcBody, funcName, err := g.aenerateConstFieldFunc(typ, constants, exportFunc, nolint); err != nil {
 			return err
 		} else if err := g.AddFunc(funcName, funcBody); err != nil {
@@ -312,11 +323,8 @@ func wrapTemplate(text string) string {
 	return text
 }
 
-func generateAggregateFunc(typ string, constants []constResult, export, compact, nolint bool) (string, string, error) {
-	var (
-		funcName  = goName(typ+"s", export)
-		arrayType = "[]" + typ
-	)
+func generateAggregateFunc(funcName, typ string, constants []constResult, export, compact, nolint bool) (string, string, error) {
+	var arrayType = "[]" + typ
 
 	arrayBody := arrayType + "{"
 
