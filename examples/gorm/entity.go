@@ -7,6 +7,7 @@ import "time"
 //go:fieldr enum-const -export -val ".gorm | rexp \"column:(\\w+),?\" | OR name | snake | up"
 //go:fieldr enum-const -export -val "rexp \"(?P<v>\\w+),?\" .json"
 //go:fieldr enum-const -export -val "(OR (rexp \"column:(\\w+),?\" .gorm) (rexp \"(?P<v>\\w+),?\" .json))" -func-list gormOrJsonList
+//go:field1 aggr-const -export -selector type == EntityCol -val ".const.name," -name EntityCols
 
 type BaseEntity struct {
 	ID        int       `gorm:"primaryKey" json:"id"`

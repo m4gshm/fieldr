@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/format"
-	"go/parser"
 	"go/token"
 	"io/ioutil"
 	"log"
@@ -39,19 +38,37 @@ type Generator struct {
 
 	rewrite CodeRewriter
 
-	constNames    []string
-	constValues   map[string]string
-	constComments map[string]string
-	varNames      []string
-	varValues     map[string]string
-	typeNames     []string
-	typeValues    map[string]string
-	funcNames     []string
-	funcValues    map[string]string
+	constNames []string
+	constants  constants
+
+	varNames   []string
+	varValues  map[string]string
+	typeNames  []string
+	typeValues map[string]string
+	funcNames  []string
+	funcValues map[string]string
 
 	imports map[string]string
 
 	isRewrite bool
+}
+
+type constant struct {
+	typ, value, comment string
+}
+
+type constants map[string]constant
+
+func (c constants) nvMap() map[string]string {
+
+	r := make(map[string]string, len(c))
+
+	for k, v := range c {
+		r[k] = v.value
+	}
+
+	return r
+
 }
 
 func New(name, outBuildTags string, outFile *ast.File, outFileInfo *token.File, outPkg *packages.Package) *Generator {
@@ -62,8 +79,7 @@ func New(name, outBuildTags string, outFile *ast.File, outFileInfo *token.File, 
 		outFileInfo:       outFileInfo,
 		outPkg:            outPkg,
 		constNames:        make([]string, 0),
-		constValues:       make(map[string]string),
-		constComments:     make(map[string]string),
+		constants:         make(map[string]constant),
 		varNames:          make([]string, 0),
 		varValues:         make(map[string]string),
 		typeNames:         make([]string, 0),
@@ -361,18 +377,20 @@ func (g *Generator) getInjectChunks(outFile *ast.File, base int) (map[int]map[in
 							value := values[0]
 							start := int(value.Pos()) - base
 							end := int(value.End()) - base
-
+							name := objectName.Name
 							var generatingValues map[string]string
 							switch dt.Tok {
 							case token.TYPE:
 								generatingValues = g.typeValues
 							case token.CONST:
-								generatingValues = g.constValues
+								if constant, found := g.constants[name]; found {
+									chunks[start] = map[int]string{end: constant.value}
+									delete(g.constants, name)
+								}
 							case token.VAR:
 								generatingValues = g.varValues
 							}
 							if generatingValues != nil {
-								name := objectName.Name
 								if newValue, found := generatingValues[name]; found {
 									chunks[start] = map[int]string{end: newValue}
 									delete(generatingValues, name)
@@ -508,25 +526,34 @@ func (g *Generator) importsExprList() string {
 }
 
 func (g *Generator) writeConstants() {
-	names := g.constNames
-	values := g.constValues
-	comments := g.constComments
-	if len(names) > 0 {
+	if len(g.constNames) > 0 {
 		g.writeBody("const(\n")
 	}
-	for _, name := range names {
+	typ := BaseConstType
+	for i, name := range g.constNames {
 		if len(name) == 0 {
 			g.writeBody("\n")
 			continue
 		}
-		value := values[name]
-		g.writeBody("%v=%v", name, value)
-		if comment, ok := comments[name]; ok {
-			g.writeBody(comment)
+		constant := g.constants[name]
+		typeChanged := typ != constant.typ
+		if typeChanged && i > 0 {
+			g.writeBody("\n")
 		}
+		typ = constant.typ
+		writeType := typeChanged && constant.typ != BaseConstType
+		if writeType {
+			g.writeBody("%v %v=%v", name, constant.typ, constant.value)
+		} else {
+			g.writeBody("%v=%v", name, constant.value)
+		}
+		if len(constant.comment) > 0 {
+			g.writeBody(constant.comment)
+		}
+
 		g.writeBody("\n")
 	}
-	if len(names) > 0 {
+	if len(g.constNames) > 0 {
 		g.writeBody(")\n")
 	}
 }
@@ -646,20 +673,17 @@ func (g *Generator) addFunсDelim() {
 	}
 }
 
-func (g *Generator) addConst(constName, constValue string) error {
-	if exists, ok := g.constValues[constName]; ok && exists != constValue {
-		return errors.Errorf("duplicated constant with different value; const %v, values: %v, %v", constName, exists, constValue)
+func (g *Generator) addConst(name, value, typ string) error {
+	if exists, ok := g.constants[name]; ok && exists.value != value {
+		return errors.Errorf("duplicated constant with different value; const %v, values: %v, %v", name, exists, value)
 	}
-	g.constNames = append(g.constNames, constName)
-	g.constValues[constName] = constValue
+	g.constNames = append(g.constNames, name)
+	g.constants[name] = constant{value: value, typ: typ}
 	return nil
 }
 
-func (g *Generator) GetConstValue(typ string, value string, wrapType bool) (constValue string) {
-	if wrapType {
-		return fmt.Sprintf("%v(\"%v\")", typ, value)
-	}
-	return fmt.Sprintf("\"%v\"", value)
+func (g *Generator) GetConstValue(value string) (constValue string) {
+	return "\"" + value + "\""
 }
 
 func (g *Generator) addVarDelim() {
@@ -743,7 +767,7 @@ func convertFieldPathToGoIdent(fieldName struc.FieldName) string {
 
 func (g *Generator) filterInjected() {
 	g.typeNames = filterNotExisted(g.typeNames, g.typeValues)
-	g.constNames = filterNotExisted(g.constNames, g.constValues)
+	g.constNames = filterNotExisted(g.constNames, g.constants.nvMap())
 	g.varNames = filterNotExisted(g.varNames, g.varValues)
 	g.funcNames = filterNotExisted(g.funcNames, g.funcValues)
 
@@ -772,125 +796,125 @@ func filterNotExisted(names []string, values map[string]string) []string {
 	return newTypeNames
 }
 
-func (g *Generator) splitLines(generatedValue string, stepSize int, nolint bool) (string, error) {
-	quotes := "\""
-	if len(generatedValue) > stepSize {
-		expr, err := parser.ParseExpr(generatedValue)
-		if err != nil {
-			return "", err
-		}
-		buf := bytes.Buffer{}
+// func (g *Generator) splitLines(generatedValue string, stepSize int, nolint bool) (string, error) {
+// 	quotes := "\""
+// 	if len(generatedValue) > stepSize {
+// 		expr, err := parser.ParseExpr(generatedValue)
+// 		if err != nil {
+// 			return "", err
+// 		}
+// 		buf := bytes.Buffer{}
 
-		tokenPos := make(map[int]token.Token)
-		stringStartEnd := make(map[int]int)
-		computeTokenPositions(expr, tokenPos, stringStartEnd)
+// 		tokenPos := make(map[int]token.Token)
+// 		stringStartEnd := make(map[int]int)
+// 		computeTokenPositions(expr, tokenPos, stringStartEnd)
 
-		val := generatedValue
+// 		val := generatedValue
 
-		line := 1
-		pos := 0
-		lenVal := len(val)
-		for lenVal-pos > stepSize {
-			prev := pos
-			pos = stepSize + pos
-			var (
-				start        int
-				end          int
-				inStringPart bool
-			)
-			for start, end = range stringStartEnd {
-				inStringPart = pos >= start && pos <= end
-				if inStringPart {
-					break
-				}
-			}
+// 		line := 1
+// 		pos := 0
+// 		lenVal := len(val)
+// 		for lenVal-pos > stepSize {
+// 			prev := pos
+// 			pos = stepSize + pos
+// 			var (
+// 				start        int
+// 				end          int
+// 				inStringPart bool
+// 			)
+// 			for start, end = range stringStartEnd {
+// 				inStringPart = pos >= start && pos <= end
+// 				if inStringPart {
+// 					break
+// 				}
+// 			}
 
-			if inStringPart {
-				front := pos
-				back := pos - 1
-				for {
-					split := -1
-					if front == len(val) {
-						split = len(val)
-					} else if front < len(val) && val[front] == ' ' {
-						split = front + 1
-					} else if back >= 0 && val[back] == ' ' {
-						split = back + 1
-					}
+// 			if inStringPart {
+// 				front := pos
+// 				back := pos - 1
+// 				for {
+// 					split := -1
+// 					if front == len(val) {
+// 						split = len(val)
+// 					} else if front < len(val) && val[front] == ' ' {
+// 						split = front + 1
+// 					} else if back >= 0 && val[back] == ' ' {
+// 						split = back + 1
+// 					}
 
-					if split > -1 && split <= len(val) {
-						s := val[prev:split]
-						buf.WriteString(s)
-						if split != len(val) {
-							buf.WriteString(quotes)
-							buf.WriteString(" + ")
-							if line == 1 {
-								buf.WriteString(g.noLint(nolint))
-							}
-							buf.WriteString("\n")
-							buf.WriteString(quotes)
-							line++
-						}
-						pos = split
-						break
-					} else {
-						front++
-						back--
-					}
-				}
-			} else {
-				front := pos
-				back := pos - 1
-				for {
-					split := -1
-					_, frontOk := tokenPos[front]
-					_, backOk := tokenPos[back]
-					if frontOk {
-						split = front + 1
-					} else if backOk {
-						split = back + 1
-					}
+// 					if split > -1 && split <= len(val) {
+// 						s := val[prev:split]
+// 						buf.WriteString(s)
+// 						if split != len(val) {
+// 							buf.WriteString(quotes)
+// 							buf.WriteString(" + ")
+// 							if line == 1 {
+// 								buf.WriteString(g.noLint(nolint))
+// 							}
+// 							buf.WriteString("\n")
+// 							buf.WriteString(quotes)
+// 							line++
+// 						}
+// 						pos = split
+// 						break
+// 					} else {
+// 						front++
+// 						back--
+// 					}
+// 				}
+// 			} else {
+// 				front := pos
+// 				back := pos - 1
+// 				for {
+// 					split := -1
+// 					_, frontOk := tokenPos[front]
+// 					_, backOk := tokenPos[back]
+// 					if frontOk {
+// 						split = front + 1
+// 					} else if backOk {
+// 						split = back + 1
+// 					}
 
-					if split > -1 && split <= len(val) {
-						s := val[prev:split]
-						buf.WriteString(s)
-						if split != len(val) {
-							if line == 1 {
-								buf.WriteString(g.noLint(nolint))
-							}
-							buf.WriteString("\n")
-							line++
-						}
-						pos = split
-						break
-					} else {
-						front++
-						back--
-					}
-				}
-			}
-		}
-		if pos < lenVal {
-			s := val[pos:]
-			buf.WriteString(s)
-		}
-		generatedValue = buf.String()
-	}
-	return generatedValue, nil
-}
+// 					if split > -1 && split <= len(val) {
+// 						s := val[prev:split]
+// 						buf.WriteString(s)
+// 						if split != len(val) {
+// 							if line == 1 {
+// 								buf.WriteString(g.noLint(nolint))
+// 							}
+// 							buf.WriteString("\n")
+// 							line++
+// 						}
+// 						pos = split
+// 						break
+// 					} else {
+// 						front++
+// 						back--
+// 					}
+// 				}
+// 			}
+// 		}
+// 		if pos < lenVal {
+// 			s := val[pos:]
+// 			buf.WriteString(s)
+// 		}
+// 		generatedValue = buf.String()
+// 	}
+// 	return generatedValue, nil
+// }
 
-func computeTokenPositions(expr ast.Expr, tokenPos map[int]token.Token, startEnd map[int]int) {
-	switch et := expr.(type) {
-	case *ast.BinaryExpr:
-		pos := int(et.OpPos) - 1
-		tokenPos[pos] = et.Op
-		computeTokenPositions(et.X, tokenPos, startEnd)
-		computeTokenPositions(et.Y, tokenPos, startEnd)
-	case *ast.BasicLit:
-		pos := int(et.ValuePos) - 1
-		startEnd[pos] = pos + len(et.Value)
-	}
-}
+// func computeTokenPositions(expr ast.Expr, tokenPos map[int]token.Token, startEnd map[int]int) {
+// 	switch et := expr.(type) {
+// 	case *ast.BinaryExpr:
+// 		pos := int(et.OpPos) - 1
+// 		tokenPos[pos] = et.Op
+// 		computeTokenPositions(et.X, tokenPos, startEnd)
+// 		computeTokenPositions(et.Y, tokenPos, startEnd)
+// 	case *ast.BasicLit:
+// 		pos := int(et.ValuePos) - 1
+// 		startEnd[pos] = pos + len(et.Value)
+// 	}
+// }
 
 func GetFieldConstName(typeName string, fieldName struc.FieldName, export, snake bool) string {
 	fieldName = convertFieldPathToGoIdent(fieldName)

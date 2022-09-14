@@ -7,8 +7,8 @@ type (
 )
 
 const (
-	EmbeddedAddressFieldZipCode     = EmbeddedAddressField("ZipCode")
-	EmbeddedAddressFieldAddressLine = EmbeddedAddressField("AddressLine")
+	EmbeddedAddressFieldZipCode     EmbeddedAddressField = "ZipCode"
+	EmbeddedAddressFieldAddressLine                      = "AddressLine"
 )
 
 func (v *EmbeddedAddress) AsMap() map[EmbeddedAddressField]interface{} {

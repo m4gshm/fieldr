@@ -7,10 +7,10 @@ type (
 )
 
 const (
-	ENTITY_COL_ID         = EntityCol("ID")
-	ENTITY_COL_UPDATED_AT = EntityCol("UPDATED_AT")
-	ENTITY_COL_NAME       = EntityCol("NAME")
-	ENTITY_COL_SURNAME    = EntityCol("SURNAME")
+	ENTITY_COL_ID         EntityCol = "ID"
+	ENTITY_COL_UPDATED_AT           = "UPDATED_AT"
+	ENTITY_COL_NAME                 = "NAME"
+	ENTITY_COL_SURNAME              = "SURNAME"
 
 	EntityGormID        = "ID"
 	EntityGormUpdatedAt = "UPDATED_AT"

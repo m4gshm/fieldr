@@ -27,13 +27,13 @@ var _ fmt.Stringer = (*stringer)(nil)
 
 const funcListTypeBased = "."
 
-func (g *Generator) GenerateFieldConstants(model *struc.Model, fieldType string, fieldNames []struc.FieldName, export, snake, wrapType bool) error {
+func (g *Generator) GenerateFieldConstants(model *struc.Model, typ string, fieldNames []struc.FieldName, export, snake, wrapType bool) error {
 	typeName := model.TypeName
 	g.addConstDelim()
 	for _, fieldName := range fieldNames {
-		constName := GetFieldConstName(typeName, fieldName, export, snake)
-		constVal := g.GetConstValue(fieldType, fieldName, wrapType)
-		if err := g.addConst(constName, constVal); err != nil {
+		name := GetFieldConstName(typeName, fieldName, export, snake)
+		value := g.GetConstValue(fieldName)
+		if err := g.addConst(name, value, typ); err != nil {
 			return err
 		}
 	}
@@ -132,13 +132,12 @@ func (g *Generator) GenerateFieldConstant(
 	}
 
 	for _, c := range constants {
-		constName := c.name
 		if len(c.value) != 0 {
-			if err := g.addConst(constName, g.GetConstValue(typ, c.value, wrapType)); err != nil {
+			if err := g.addConst(c.name, g.GetConstValue(c.value), typ); err != nil {
 				return err
 			}
 		} else {
-			logger.Infof("constant without value: '%s'", constName)
+			logger.Infof("constant without value: '%s'", c.name)
 		}
 	}
 	g.addConstDelim()
