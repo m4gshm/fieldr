@@ -19,15 +19,17 @@ type stringer struct {
 }
 
 func (c *stringer) String() string {
+	if c == nil {
+		return ""
+	}
 	c.callback()
-	return c.val
+	val := c.val
+	return val
 }
 
 var _ fmt.Stringer = (*stringer)(nil)
 
-const funcListTypeBased = "."
-
-func (g *Generator) GenerateFieldConstants(model *struc.Model, typ string, fieldNames []struc.FieldName, export, snake, wrapType bool) error {
+func (g *Generator) GenerateFieldConstants(model *struc.Model, typ string, fieldNames []struc.FieldName, export, snake bool) error {
 	typeName := model.TypeName
 	g.addConstDelim()
 	for _, fieldName := range fieldNames {
@@ -63,7 +65,7 @@ func (g *Generator) GenerateFieldConstant(
 		var (
 			inExecute bool
 			fieldName = f
-			tags      = map[string]interface{}{}
+			tags      = map[string]*stringer{}
 		)
 
 		if isFieldExcluded(fieldName, usePrivate) {
@@ -110,13 +112,14 @@ func (g *Generator) GenerateFieldConstant(
 			"struct": func() map[string]interface{} { return map[string]interface{}{"name": model.TypeName} },
 			"name":   func() string { return fieldName },
 			"field":  func() map[string]interface{} { return map[string]interface{}{"name": fieldName} },
-			"tag":    func() map[string]interface{} { return tags },
+			"tag":    func() map[string]*stringer { return tags },
 		})
 
 		val, err := parse(fieldName+" const val", tags, funcs, valueTmpl)
 		if err != nil {
 			return err
 		}
+
 		var constName string
 		if len(nameTmpl) > 0 {
 			parsedConst, err := parse(fieldName+" const name", tags, funcs, nameTmpl)
@@ -128,16 +131,17 @@ func (g *Generator) GenerateFieldConstant(
 			constName = g.getTagTemplateConstName(model.TypeName, fieldName, usedTags, export, snake)
 			logger.Debugf("apply auto constant name '%s'", constName)
 		}
-		constants = append(constants, constResult{field: fieldName, name: constName, value: val})
+
+		if len(val) > 0 {
+			constants = append(constants, constResult{field: fieldName, name: constName, value: val})
+		} else {
+			logger.Infof("constant without value: '%s'", constName)
+		}
 	}
 
 	for _, c := range constants {
-		if len(c.value) != 0 {
-			if err := g.addConst(c.name, g.GetConstValue(c.value), typ); err != nil {
-				return err
-			}
-		} else {
-			logger.Infof("constant without value: '%s'", c.name)
+		if err := g.addConst(c.name, g.GetConstValue(c.value), typ); err != nil {
+			return err
 		}
 	}
 	g.addConstDelim()
@@ -145,11 +149,11 @@ func (g *Generator) GenerateFieldConstant(
 	exportFunc := export
 	if len(funcList) > 0 {
 		funcName := funcList
-		if funcName == funcListTypeBased {
+		if funcName == Autoname {
 			if wrapType {
 				funcName = goName(typ+"s", export)
 			} else {
-				return fmt.Errorf("invalid list function name, value '%s' unsupported without constant type definition", funcListTypeBased)
+				return fmt.Errorf("list function autoname is unsupported without constant type definition")
 			}
 		}
 		if funcBody, funcName, err := generateAggregateFunc(funcName, typ, constants, exportFunc, compact, nolint); err != nil {
@@ -195,6 +199,9 @@ func (g *Generator) GenerateFieldConstant(
 
 func addCommonFuncs(funcs template.FuncMap) template.FuncMap {
 	toString := func(val interface{}) string {
+		if val == nil {
+			return ""
+		}
 		str := ""
 		switch vt := val.(type) {
 		case string:
@@ -280,17 +287,18 @@ func addCommonFuncs(funcs template.FuncMap) template.FuncMap {
 		return result
 	}
 
-	strOr := func(vals ...string) string {
+	strOr := func(vals ...interface{}) string {
 		if len(vals) == 0 {
 			return ""
 		}
 
 		for _, val := range vals {
-			if len(val) > 0 {
-				return val
+			s := toString(val)
+			if len(s) > 0 {
+				return s
 			}
 		}
-		return vals[len(vals)-1]
+		return toString(vals[len(vals)-1])
 	}
 	f := template.FuncMap{
 		"OR":          strOr,
@@ -362,6 +370,9 @@ func (g *Generator) aenerateConstFieldFunc(typ string, constants []constResult, 
 		""
 
 	for _, constant := range constants {
+		if len(constant.value) == 0 {
+			continue
+		}
 		funcBody += "case " + constant.name + ":\n" +
 			"return \"" + constant.field + "\"\n"
 	}

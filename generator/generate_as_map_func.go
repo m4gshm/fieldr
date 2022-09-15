@@ -3,18 +3,13 @@ package generator
 import "github.com/m4gshm/fieldr/struc"
 
 func (g *Generator) GenerateAsMapFunc(
-	model *struc.Model, pkg, name string,
+	model *struc.Model, pkg, name, keyType string,
 	rewriter *CodeRewriter,
-	export, snake, wrapType, returnRefs, noReceiver, allFields, nolint, hardcodeValues bool,
+	export, snake, returnRefs, noReceiver, allFields, nolint, hardcodeValues bool,
 ) (string, string, string, error) {
 
 	receiverVar := "v"
 	receiverRef := AsRefIfNeed(receiverVar, returnRefs)
-
-	keyType := BaseConstType
-	if wrapType {
-		keyType = getUsedFieldType(model.TypeName, export, snake)
-	}
 
 	funcName := renameFuncByConfig(goName("AsMap", export), name)
 	typeLink := getTypeName(model.TypeName, pkg)

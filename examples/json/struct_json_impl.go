@@ -1,7 +1,7 @@
 package json
 
 import (
-	"encoding/json"
+	json "encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -9,38 +9,29 @@ import (
 )
 
 var (
-	jsonFields     = make([]string, 0, len(structFields))
-	jsonFieldNames = make([]string, 0, len(structFields))
-	jsonOmitEmpty  = make([]bool, 0, len(structFields))
+	jsonFields     = structJsons()
+	jsonFieldNames = make([]string, 0)
+	jsonOmitEmpty  = make([]bool, 0)
 )
 
 func init() {
-	for _, field := range structFields {
-		tag, ok := structFieldTagValue[field][StructTagJson]
-
-		jsonFieldName := field
-		include := true
+	for _, tag := range jsonFields {
+		jsonFieldName := tag.field()
 		omitEmpty := false
-		if ok {
-			include = tag != "-"
-			strTag := tag
-			if include {
-				const omitEmptySuffix = ",omitempty"
-				if strings.HasSuffix(strTag, omitEmptySuffix) {
-					strTag = strTag[0 : len(strTag)-len(omitEmptySuffix)]
-					omitEmpty = true
-				}
 
-				if strTag != "" {
-					jsonFieldName = strTag
-				}
-			}
+		strTag := string(tag)
+		const omitEmptySuffix = ",omitempty"
+		if strings.HasSuffix(strTag, omitEmptySuffix) {
+			strTag = strTag[0 : len(strTag)-len(omitEmptySuffix)]
+			omitEmpty = true
 		}
-		if include {
-			jsonFields = append(jsonFields, field)
-			jsonFieldNames = append(jsonFieldNames, jsonFieldName)
-			jsonOmitEmpty = append(jsonOmitEmpty, omitEmpty)
+
+		if strTag != "" {
+			jsonFieldName = strTag
 		}
+
+		jsonFieldNames = append(jsonFieldNames, jsonFieldName)
+		jsonOmitEmpty = append(jsonOmitEmpty, omitEmpty)
 	}
 }
 
@@ -68,7 +59,7 @@ func isEmpty(v interface{}) bool {
 func (s *Struct) MarshalJSON() ([]byte, error) {
 	var builder strings.Builder
 
-	builder.Grow(len(structFields) * 16)
+	builder.Grow(len(jsonFields) * 16)
 
 	err := s.MarshalJSONToBuilder(&builder)
 	if err != nil {
@@ -90,7 +81,7 @@ func (s *Struct) writeJson(builder *strings.Builder) error {
 	builder.WriteString("{")
 
 	for i, field := range jsonFields {
-		fieldValue := s.GetFieldValue(field)
+		fieldValue := field.val(s)
 
 		if jsonOmitEmpty[i] && isEmpty(fieldValue) {
 			continue

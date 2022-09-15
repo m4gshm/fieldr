@@ -13,4 +13,6 @@ type Struct struct {
 	NoTag    string
 }
 
-//go:generate fieldr -type Struct -export -out struct_util.go -Fields -FieldTagValueMap -GetFieldValue -enum-tags -enum-tag-values
+//go:generate fieldr -type Struct -out struct_util.go
+
+//go:fieldr enum-const -type structJson -val "rexp \"[^-]+\" (OR tag.json field.name)" -func-list . -val-access

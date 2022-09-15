@@ -23,6 +23,8 @@ import (
 
 const oneLineSize = 3
 
+const Autoname = "."
+
 type Generator struct {
 	name string
 
@@ -541,7 +543,7 @@ func (g *Generator) writeConstants() {
 			g.writeBody("\n")
 		}
 		typ = constant.typ
-		writeType := typeChanged && constant.typ != BaseConstType
+		writeType := typ != BaseConstType
 		if writeType {
 			g.writeBody("%v %v=%v", name, constant.typ, constant.value)
 		} else {

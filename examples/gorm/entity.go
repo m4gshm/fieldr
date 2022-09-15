@@ -18,7 +18,7 @@ type Entity struct {
 	BaseEntity
 	ID        int       `gorm:"primaryKey" json:"id"`
 	Name      string    `gorm:"column:NAME" json:"name"`
-	Surname   string    `gorm:"column:SURNAME" json:"_surname"`
+	Surname   string    `gorm:"column:SURNAME"`
 	UpdatedAt time.Time `json:"updateAt,omitempty"`
 }
 

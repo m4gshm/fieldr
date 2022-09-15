@@ -26,7 +26,7 @@ func NewAsMapMethod() *Command {
 		name                = flagSet.String("name", "", "function/method name")
 		export              = params.Export(flagSet)
 		snake               = params.Snake(flagSet)
-		wrap                = flagSet.Bool("wrap", false, "wrap generated constants with specific types")
+		keyType             = flagSet.String("key-type", "", "generated constants type, use "+generator.Autoname+" for autoname")
 		ref                 = flagSet.Bool("ref", false, "use struct field references in generated method")
 		fun                 = flagSet.Bool("func", false, "generate function in place of struct method")
 		all                 = flagSet.Bool("all", false, "use exported and private fields in generated "+genContent)
@@ -45,15 +45,21 @@ func NewAsMapMethod() *Command {
 			if structPackage, err := g.StructPackage(model); err != nil {
 				return err
 			} else {
-				fieldType := generator.GetFieldType(model.TypeName, *export, *snake)
-				if err := g.AddType(fieldType, generator.BaseConstType); err != nil {
-					return err
-				} else if err := g.GenerateFieldConstants(model, fieldType, model.FieldNames, *export, *snake, *wrap); err != nil {
+				kType := *keyType
+				if kType == generator.Autoname {
+					kType = generator.GetFieldType(model.TypeName, *export, *snake)
+					if err := g.AddType(kType, generator.BaseConstType); err != nil {
+						return err
+					}
+				} else if len(kType) == 0 {
+					kType = generator.BaseConstType
+				}
+				if err := g.GenerateFieldConstants(model, kType, model.FieldNames, *export, *snake); err != nil {
 					return err
 				} else if rewriter, err := coderewriter.New(*fieldValueRewriters); err != nil {
 					return err
 				} else if typeLink, funcName, funcBody, err := g.GenerateAsMapFunc(
-					model, structPackage, *name, rewriter, *export, *snake, *wrap, *ref, *fun, *all, *nolint, *hardcode,
+					model, structPackage, *name, kType, rewriter, *export, *snake, *ref, *fun, *all, *nolint, *hardcode,
 				); err != nil {
 					return err
 				} else if err := g.AddFunc(generator.MethodName(typeLink, funcName), funcBody); err != nil {

@@ -8,17 +8,17 @@ type (
 
 const (
 	StructFieldID                  StructField = "ID"
-	StructFieldTS                              = "TS"
-	StructFieldName                            = "Name"
-	StructFieldSurname                         = "Surname"
-	structFieldNoExport                        = "noExport"
-	StructFieldNoTag                           = "NoTag"
-	StructFieldIgnoredInTagMap                 = "IgnoredInTagMap"
-	StructFieldAddress                         = "Address"
-	StructFieldFlatNoPrefixCardNum             = "FlatNoPrefix.CardNum"
-	StructFieldFlatNoPrefixBank                = "FlatNoPrefix.Bank"
-	StructFieldFlatPrefixCardNum               = "FlatPrefix.CardNum"
-	StructFieldFlatPrefixBank                  = "FlatPrefix.Bank"
+	StructFieldTS                  StructField = "TS"
+	StructFieldName                StructField = "Name"
+	StructFieldSurname             StructField = "Surname"
+	structFieldNoExport            StructField = "noExport"
+	StructFieldNoTag               StructField = "NoTag"
+	StructFieldIgnoredInTagMap     StructField = "IgnoredInTagMap"
+	StructFieldAddress             StructField = "Address"
+	StructFieldFlatNoPrefixCardNum StructField = "FlatNoPrefix.CardNum"
+	StructFieldFlatNoPrefixBank    StructField = "FlatNoPrefix.Bank"
+	StructFieldFlatPrefixCardNum   StructField = "FlatPrefix.CardNum"
+	StructFieldFlatPrefixBank      StructField = "FlatPrefix.Bank"
 )
 
 func (v *Struct) AsMap() map[StructField]interface{} {

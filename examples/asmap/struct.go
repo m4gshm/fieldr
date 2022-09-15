@@ -2,8 +2,8 @@ package asmap
 
 import "time"
 
-//go:generate fieldr -type EmbeddedAddress -out address_as_map.go as-map -wrap -export
-//go:generate fieldr -type Struct -out struct_as_map.go -debug as-map -wrap -export -rewrite type:EmbeddedAddress:fmt=%v.AsMap() -flat FlatPrefix -flat FlatNoPrefix
+//go:generate fieldr -type EmbeddedAddress -out address_as_map.go as-map -key-type . -export
+//go:generate fieldr -type Struct -out struct_as_map.go -debug as-map -key-type . -export -rewrite type:EmbeddedAddress:fmt=%v.AsMap() -flat FlatPrefix -flat FlatNoPrefix
 
 type BaseStruct struct {
 	ID int       `toMap:"id"`
