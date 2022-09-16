@@ -21,7 +21,7 @@ func Test_CRUD(t *testing.T) {
 
 	env := "POSTGRES_TEST_DSN"
 	dsn := os.Getenv(env)
-	dsn = "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
+	// dsn = "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
 	if dsn == "" {
 		t.Skip("set '" + env + "' to run this test")
 	}

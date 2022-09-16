@@ -34,6 +34,7 @@ type Entity struct {
 const tableName = "tableName"
 
 var (
+	sqlInsert      = initSqlInsert(tableName)
 	sqlUpsert      = initSqlUpsert(tableName)
 	sqlSelectByID  = initSqlSelectBy(tableName, string(colID)+"=$1")
 	sqlSelectByIDs = initSqlSelectBy(tableName, string(colID)+"=ANY($1::int[])")
@@ -50,6 +51,30 @@ func initSqlSelectBy(tableName, whereCondition string) string {
 		columns.WriteString(colName)
 	}
 	return "SELECT " + columns.String() + " FROM \"" + tableName + "\" WHERE " + whereCondition
+}
+
+func initSqlInsert(tableName string) string {
+	id := string(colID)
+
+	columns := strings.Builder{}
+	indexes := strings.Builder{}
+
+	i := 0
+	for _, c := range cols() {
+		if c == colID {
+			continue
+		}
+		colName := string(c)
+		colIndex := strconv.Itoa(i + 1)
+		if i > 0 {
+			columns.WriteString(",")
+			indexes.WriteString(",")
+		}
+		columns.WriteString(colName)
+		indexes.WriteString("$" + colIndex)
+		i++
+	}
+	return "INSERT INTO \"" + tableName + "\" (" + columns.String() + ") VALUES (" + indexes.String() + ") RETURNING " + id
 }
 
 func initSqlUpsert(tableName string) string {
@@ -78,15 +103,30 @@ func initSqlUpsert(tableName string) string {
 			u++
 		}
 	}
-	return "INSERT INTO \"" + tableName + "\" (" + columns.String() + ") VALUES (" + indexes.String() + ") ON CONFLICT (" + id + ") DO UPDATE SET " + updatePairs.String() + ") RETURNING " + id
+	return "INSERT INTO \"" + tableName + "\" (" + columns.String() + ") VALUES (" + indexes.String() + ") ON CONFLICT (" + id + ") DO UPDATE SET " + updatePairs.String() + " RETURNING " + id
 }
 
 func (v *Entity) values() []interface{} {
-	cols := cols()
-	r := make([]interface{}, len(cols))
+	return v.valuesExcept()
+}
 
-	for i, c := range cols {
-		r[i] = c.ref(v)
+func (v *Entity) valuesExcept(excepts ...col) []interface{} {
+	exceptSet := map[col]struct{}{}
+	for _, c := range excepts {
+		exceptSet[c] = struct{}{}
+	}
+
+	cols := cols()
+	r := make([]interface{}, 0, len(cols)-len(exceptSet))
+
+	for _, c := range cols {
+		if _, except := exceptSet[c]; !except {
+			ref := c.ref(v)
+			if c == colValues {
+				ref = pq.Array(ref)
+			}
+			r = append(r, ref)
+		}
 	}
 
 	return r
@@ -126,6 +166,11 @@ func GetByIDs(e RowsQuerier, ids ...int32) ([]*Entity, error) {
 func (v *Entity) Store(e RowQuerier) (int32, error) {
 	sqlOp := sqlUpsert
 	columns := v.values()
+	if v.ID == 0 {
+		sqlOp = sqlInsert
+		columns = v.valuesExcept(colID)
+	}
+
 	row := e.QueryRow(sqlOp, columns...)
 	if err := row.Err(); err != nil {
 		return -1, err
