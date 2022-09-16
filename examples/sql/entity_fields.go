@@ -2,9 +2,7 @@
 
 package sql
 
-type (
-	col string
-)
+type col string
 
 const (
 	colID               col = "id"

@@ -2,9 +2,7 @@
 
 package json
 
-type (
-	structJson string
-)
+type structJson string
 
 const (
 	structJsonID      structJson = "id"

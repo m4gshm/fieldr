@@ -20,7 +20,7 @@
             "mode": "debug",
             "program": "main.go",
             "cwd": "examples/squirrel",
-            "args": ["-type", "Entity", "-out", "entity_fields.go", "-wrap", "-Strings", "-TagValues", "db", "-GetFieldValuesByTag_", "-GetFieldValuesByTag", "db"]
+            "args": ["-type", "Entity", "-out", "entity_fields.go", "-Strings", "-TagValues", "db", "-GetFieldValuesByTag_", "-GetFieldValuesByTag", "db"]
         },
         {
             "name": "Debug gorm example",
@@ -56,7 +56,7 @@
             "mode": "debug",
             "program": "main.go",
             "cwd": "examples/asmap",
-            "args": ["-type", "Struct", "-out", "struct_as_map.go", "as-map", "-wrap", "-export", "-rewrite", "type:EmbeddedAddress:fmt=%v.AsMap()"]
+            "args": ["-type", "Struct", "-out", "struct_as_map.go", "as-map", "-export", "-rewrite", "type:EmbeddedAddress:fmt=%v.AsMap()"]
         },            
         {
             "name": "Launch Package",

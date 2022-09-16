@@ -2,9 +2,7 @@
 
 package squirrel
 
-type (
-	Col string
-)
+type Col string
 
 const (
 	colID               Col = "ID"

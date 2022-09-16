@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/format"
+	"go/printer"
 	"go/token"
 	"io/ioutil"
 	"log"
@@ -17,7 +18,6 @@ import (
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/struc"
 	"github.com/pkg/errors"
-
 	"golang.org/x/tools/go/packages"
 )
 
@@ -222,9 +222,15 @@ func (g *Generator) StructPackage(model *struc.Model) (string, error) {
 func (g *Generator) WriteBody(outPackageName string) error {
 	if g.isRewrite {
 		g.body = &bytes.Buffer{}
-		g.writeHead(outPackageName)
-		g.writeTypes()
-		g.writeConstants()
+		if err := g.writeHead(outPackageName); err != nil {
+			return err
+		}
+		if err := g.writeTypes(); err != nil {
+			return err
+		}
+		if err := g.writeConstants(); err != nil {
+			return err
+		}
 		g.writeVars()
 		g.writeFunctions()
 	} else {
@@ -245,19 +251,16 @@ func (g *Generator) WriteBody(outPackageName string) error {
 		//write not injected
 		g.filterInjected()
 
-		g.writeTypes()
-		g.writeConstants()
+		if err := g.writeTypes(); err != nil {
+			return err
+		}
+		if err := g.writeConstants(); err != nil {
+			return err
+		}
 		g.writeVars()
 		g.writeFunctions()
 	}
 	return nil
-}
-
-func toInt(value bool) int {
-	if value {
-		return 1
-	}
-	return 0
 }
 
 func (g *Generator) IsRewrite(outFile *ast.File, outFileInfo *token.File) bool {
@@ -350,7 +353,9 @@ func (g *Generator) getInjectChunks(outFile *ast.File, base int) (map[int]map[in
 						end = start
 					}
 				}
-				if expr := g.getImportsExpr(); len(expr) > 0 {
+				if expr, err := g.getImportsExpr(); err != nil {
+					return nil, err
+				} else if len(expr) > 0 {
 					chunks[start] = map[int]string{end: expr}
 				}
 				importInjected = true
@@ -419,7 +424,9 @@ func (g *Generator) getInjectChunks(outFile *ast.File, base int) (map[int]map[in
 	}
 
 	if !importInjected {
-		if expr := g.getImportsExpr(); len(expr) > 0 {
+		if expr, err := g.getImportsExpr(); err != nil {
+			return nil, err
+		} else if len(expr) > 0 {
 			start := int(outFile.Name.End()) - base
 			end := start
 			chunks[start] = map[int]string{end: expr}
@@ -501,63 +508,82 @@ func getSortedChunks(chunkVals map[int]map[int]string) []int {
 	return chunkPos
 }
 
-func (g *Generator) writeHead(packageName string) {
+func (g *Generator) writeHead(packageName string) error {
 	g.writeBody("// %s'; DO NOT EDIT.\n\n", g.generatedMarker())
 	g.writeBody(g.outBuildTags)
 	g.writeBody("package %s\n", packageName)
-	g.writeBody(g.getImportsExpr())
-}
-
-func (g *Generator) getImportsExpr() string {
-	if len(g.imports) > 0 {
-		return "\nimport (" + g.importsExprList() + "\n)\n"
+	if imps, err := g.getImportsExpr(); err != nil {
+		return err
+	} else {
+		g.writeBody(imps)
+		g.writeBody("\n")
 	}
-	return ""
+	return nil
 }
 
-func (g *Generator) importsExprList() string {
-	imps := ""
+func (g *Generator) getImportsExpr() (string, error) {
+	fset := token.NewFileSet()
+	out := &bytes.Buffer{}
+	imports := g.getImports()
+	if imports == nil {
+		return "", nil
+	}
+	if err := printer.Fprint(out, fset, imports); err != nil {
+		return "", err
+	}
+	return out.String(), nil
+
+}
+
+func (g *Generator) getImports() *ast.GenDecl {
+	specs := []ast.Spec{}
 	for pack, alias := range g.imports {
-		if len(alias) == 0 {
-			imps += "\n" + "\"" + pack + "\""
-		} else {
-			imps += "\n" + alias + "\"" + pack + "\""
-		}
+		specs = append(specs, newImport(alias, pack))
 	}
-	return imps
+	if len(specs) == 0 {
+		return nil
+	}
+	return &ast.GenDecl{Tok: token.IMPORT, Specs: specs}
 }
 
-func (g *Generator) writeConstants() {
-	if len(g.constNames) > 0 {
-		g.writeBody("const(\n")
+func (g *Generator) writeSpecs(specs ast.Node) error {
+	if specs == nil || (reflect.ValueOf(specs).Kind() == reflect.Ptr && reflect.ValueOf(specs).IsNil()) {
+		return nil
 	}
+	fset := token.NewFileSet()
+	if err := printer.Fprint(g.body, fset, specs); err != nil {
+		return err
+	}
+	g.writeBody("\n")
+	return nil
+}
+
+func (g *Generator) writeConstants() error {
+	return g.writeSpecs(g.getConstants())
+}
+
+func (g *Generator) getConstants() *ast.GenDecl {
+	specs := []ast.Spec{}
 	typ := BaseConstType
-	for i, name := range g.constNames {
+	for _, name := range g.constNames {
 		if len(name) == 0 {
-			g.writeBody("\n")
 			continue
 		}
 		constant := g.constants[name]
-		typeChanged := typ != constant.typ
-		if typeChanged && i > 0 {
-			g.writeBody("\n")
-		}
 		typ = constant.typ
 		writeType := typ != BaseConstType
+		var c *ast.ValueSpec
 		if writeType {
-			g.writeBody("%v %v=%v", name, constant.typ, constant.value)
+			c = newConst(name, constant.typ, constant.value, constant.comment)
 		} else {
-			g.writeBody("%v=%v", name, constant.value)
+			c = newConst(name, "", constant.value, constant.comment)
 		}
-		if len(constant.comment) > 0 {
-			g.writeBody(constant.comment)
-		}
-
-		g.writeBody("\n")
+		specs = append(specs, c)
 	}
-	if len(g.constNames) > 0 {
-		g.writeBody(")\n")
+	if len(specs) == 0 {
+		return nil
 	}
+	return &ast.GenDecl{Tok: token.CONST, Specs: specs}
 }
 
 func (g *Generator) writeVars() {
@@ -590,22 +616,22 @@ func (g *Generator) writeFunctions() {
 	}
 }
 
-func (g *Generator) writeTypes() {
+func (g *Generator) writeTypes() error {
+	return g.writeSpecs(g.getTypes())
+}
+
+func (g *Generator) getTypes() *ast.GenDecl {
+	specs := []ast.Spec{}
 	names := g.typeNames
 	values := g.typeValues
-
-	if len(names) > 0 {
-		g.writeBody("type(\n")
-	}
-
 	for _, name := range names {
 		value := values[name]
-		g.writeBody("%v %v\n", name, value)
+		specs = append(specs, newType(name, value))
 	}
-
-	if len(names) > 0 {
-		g.writeBody(")\n")
+	if len(specs) == 0 {
+		return nil
 	}
+	return &ast.GenDecl{Tok: token.TYPE, Specs: specs}
 }
 
 func (g *Generator) AddType(typeName string, typeValue string) error {
@@ -621,10 +647,6 @@ func (g *Generator) AddType(typeName string, typeValue string) error {
 
 func (g *Generator) generatedMarker() string {
 	return fmt.Sprintf("Code generated by '%s", g.name)
-}
-
-func getUsedFieldType(typeName string, export, snake bool) string {
-	return GetFieldType(typeName, export, snake)
 }
 
 func GetFieldType(typeName string, export, snake bool) string {
@@ -798,126 +820,6 @@ func filterNotExisted(names []string, values map[string]string) []string {
 	return newTypeNames
 }
 
-// func (g *Generator) splitLines(generatedValue string, stepSize int, nolint bool) (string, error) {
-// 	quotes := "\""
-// 	if len(generatedValue) > stepSize {
-// 		expr, err := parser.ParseExpr(generatedValue)
-// 		if err != nil {
-// 			return "", err
-// 		}
-// 		buf := bytes.Buffer{}
-
-// 		tokenPos := make(map[int]token.Token)
-// 		stringStartEnd := make(map[int]int)
-// 		computeTokenPositions(expr, tokenPos, stringStartEnd)
-
-// 		val := generatedValue
-
-// 		line := 1
-// 		pos := 0
-// 		lenVal := len(val)
-// 		for lenVal-pos > stepSize {
-// 			prev := pos
-// 			pos = stepSize + pos
-// 			var (
-// 				start        int
-// 				end          int
-// 				inStringPart bool
-// 			)
-// 			for start, end = range stringStartEnd {
-// 				inStringPart = pos >= start && pos <= end
-// 				if inStringPart {
-// 					break
-// 				}
-// 			}
-
-// 			if inStringPart {
-// 				front := pos
-// 				back := pos - 1
-// 				for {
-// 					split := -1
-// 					if front == len(val) {
-// 						split = len(val)
-// 					} else if front < len(val) && val[front] == ' ' {
-// 						split = front + 1
-// 					} else if back >= 0 && val[back] == ' ' {
-// 						split = back + 1
-// 					}
-
-// 					if split > -1 && split <= len(val) {
-// 						s := val[prev:split]
-// 						buf.WriteString(s)
-// 						if split != len(val) {
-// 							buf.WriteString(quotes)
-// 							buf.WriteString(" + ")
-// 							if line == 1 {
-// 								buf.WriteString(g.noLint(nolint))
-// 							}
-// 							buf.WriteString("\n")
-// 							buf.WriteString(quotes)
-// 							line++
-// 						}
-// 						pos = split
-// 						break
-// 					} else {
-// 						front++
-// 						back--
-// 					}
-// 				}
-// 			} else {
-// 				front := pos
-// 				back := pos - 1
-// 				for {
-// 					split := -1
-// 					_, frontOk := tokenPos[front]
-// 					_, backOk := tokenPos[back]
-// 					if frontOk {
-// 						split = front + 1
-// 					} else if backOk {
-// 						split = back + 1
-// 					}
-
-// 					if split > -1 && split <= len(val) {
-// 						s := val[prev:split]
-// 						buf.WriteString(s)
-// 						if split != len(val) {
-// 							if line == 1 {
-// 								buf.WriteString(g.noLint(nolint))
-// 							}
-// 							buf.WriteString("\n")
-// 							line++
-// 						}
-// 						pos = split
-// 						break
-// 					} else {
-// 						front++
-// 						back--
-// 					}
-// 				}
-// 			}
-// 		}
-// 		if pos < lenVal {
-// 			s := val[pos:]
-// 			buf.WriteString(s)
-// 		}
-// 		generatedValue = buf.String()
-// 	}
-// 	return generatedValue, nil
-// }
-
-// func computeTokenPositions(expr ast.Expr, tokenPos map[int]token.Token, startEnd map[int]int) {
-// 	switch et := expr.(type) {
-// 	case *ast.BinaryExpr:
-// 		pos := int(et.OpPos) - 1
-// 		tokenPos[pos] = et.Op
-// 		computeTokenPositions(et.X, tokenPos, startEnd)
-// 		computeTokenPositions(et.Y, tokenPos, startEnd)
-// 	case *ast.BasicLit:
-// 		pos := int(et.ValuePos) - 1
-// 		startEnd[pos] = pos + len(et.Value)
-// 	}
-// }
-
 func GetFieldConstName(typeName string, fieldName struc.FieldName, export, snake bool) string {
 	fieldName = convertFieldPathToGoIdent(fieldName)
 	return goName(GetFieldType(typeName, export, snake)+getIdentPart(fieldName, snake), isExport(fieldName) && export)
@@ -925,4 +827,34 @@ func GetFieldConstName(typeName string, fieldName struc.FieldName, export, snake
 
 func isExport(fieldName struc.FieldName) bool {
 	return token.IsExported(fieldName)
+}
+
+func newComment(comment string) *ast.CommentGroup {
+	if len(comment) == 0 {
+		return nil
+	}
+	return &ast.CommentGroup{List: []*ast.Comment{{Text: comment}}}
+}
+
+func newConst(name, typ, val, comment string) *ast.ValueSpec {
+	return &ast.ValueSpec{
+		Names:   []*ast.Ident{{Name: name}},
+		Type:    &ast.Ident{Name: typ},
+		Values:  []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: val}},
+		Comment: newComment(comment),
+	}
+}
+
+func newType(name, typ string) *ast.TypeSpec {
+	return &ast.TypeSpec{
+		Name: &ast.Ident{Name: name},
+		Type: &ast.Ident{Name: typ},
+	}
+}
+
+func newImport(name, path string) *ast.ImportSpec {
+	return &ast.ImportSpec{
+		Name: &ast.Ident{Name: name},
+		Path: &ast.BasicLit{Kind: token.STRING, Value: path},
+	}
 }

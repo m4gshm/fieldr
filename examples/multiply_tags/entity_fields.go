@@ -2,29 +2,24 @@
 
 package gorm
 
-type (
-	EntityCol string
-)
+type EntityCol string
 
 const (
-	ENTITY_COL_ID         EntityCol = "ID"
-	ENTITY_COL_UPDATED_AT EntityCol = "UPDATED_AT"
-	ENTITY_COL_NAME       EntityCol = "NAME"
-	ENTITY_COL_SURNAME    EntityCol = "SURNAME"
-
-	EntityGormID        = "ID"
-	EntityGormUpdatedAt = "UPDATED_AT"
-	EntityGormName      = "NAME"
-	EntityGormSurname   = "SURNAME"
-
-	EntityJsonID        = "id"
-	EntityJsonUpdatedAt = "updateAt"
-	EntityJsonName      = "name"
-
-	EntityGormJsonID        = "id"
-	EntityGormJsonUpdatedAt = "updateAt"
-	EntityGormJsonName      = "NAME"
-	EntityGormJsonSurname   = "SURNAME"
+	ENTITY_COL_ID           EntityCol = "ID"
+	ENTITY_COL_UPDATED_AT   EntityCol = "UPDATED_AT"
+	ENTITY_COL_NAME         EntityCol = "NAME"
+	ENTITY_COL_SURNAME      EntityCol = "SURNAME"
+	EntityGormID                      = "ID"
+	EntityGormUpdatedAt               = "UPDATED_AT"
+	EntityGormName                    = "NAME"
+	EntityGormSurname                 = "SURNAME"
+	EntityJsonID                      = "id"
+	EntityJsonUpdatedAt               = "updateAt"
+	EntityJsonName                    = "name"
+	EntityGormJsonID                  = "id"
+	EntityGormJsonUpdatedAt           = "updateAt"
+	EntityGormJsonName                = "NAME"
+	EntityGormJsonSurname             = "SURNAME"
 )
 
 func entityCols() []EntityCol {

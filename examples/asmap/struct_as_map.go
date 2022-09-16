@@ -2,9 +2,7 @@
 
 package asmap
 
-type (
-	StructField string
-)
+type StructField string
 
 const (
 	StructFieldID                  StructField = "ID"

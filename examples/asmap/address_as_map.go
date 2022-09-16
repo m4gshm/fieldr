@@ -2,9 +2,7 @@
 
 package asmap
 
-type (
-	EmbeddedAddressField string
-)
+type EmbeddedAddressField string
 
 const (
 	EmbeddedAddressFieldZipCode     EmbeddedAddressField = "ZipCode"
