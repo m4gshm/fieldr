@@ -7,10 +7,10 @@ type (
 )
 
 const (
-	colID               = Col("ID")
-	colName             = Col("NAME")
-	colSurname          = Col("SURNAME")
-	colVersionedVersion = Col("version")
+	colID               Col = "ID"
+	colName             Col = "NAME"
+	colSurname          Col = "SURNAME"
+	colVersionedVersion Col = "version"
 )
 
 func cols() []Col {

@@ -26,7 +26,7 @@ func (e *Entity) Values() interface{} {
 	s := entityCols()
 	r := make([]interface{}, len(s))
 	for i, c := range entityCols() {
-		r[i] = c.Val(e)
+		r[i] = c.val(e)
 	}
 	return r
 }

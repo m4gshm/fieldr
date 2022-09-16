@@ -9,10 +9,10 @@ type (
 )
 
 const (
-	colID               = Col("ID")
-	colName             = Col("NAME")
-	colSurname          = Col("SURNAME")
-	colVersionedVersion = Col("version")
+	colID               = "ID"
+	colName             = "NAME"
+	colSurname          = "SURNAME"
+	colVersionedVersion = "version"
 )
 
 func cols() []Col {
