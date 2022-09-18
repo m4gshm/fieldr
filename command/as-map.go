@@ -22,15 +22,15 @@ func NewAsMapMethod() *Command {
 		"', engine '" + string(generator.RewriteEngineFmt) + "'"
 
 	var (
-		flagSet             = flag.NewFlagSet(cmdName, flag.ContinueOnError)
-		name                = flagSet.String("name", "", "function/method name")
-		export              = params.Export(flagSet)
-		snake               = params.Snake(flagSet)
-		keyType             = flagSet.String("key-type", "", "generated constants type, use "+generator.Autoname+" for autoname")
-		ref                 = flagSet.Bool("ref", false, "use struct field references in generated method")
-		fun                 = flagSet.Bool("func", false, "generate function in place of struct method")
-		all                 = flagSet.Bool("all", false, "use exported and private fields in generated "+genContent)
-		nolint              = params.Nolint(flagSet)
+		flagSet = flag.NewFlagSet(cmdName, flag.ContinueOnError)
+		name    = flagSet.String("name", "", "function/method name")
+		export  = params.Export(flagSet)
+		snake   = params.Snake(flagSet)
+		keyType = flagSet.String("key-type", "", "generated constants type, use "+generator.Autoname+" for autoname")
+		ref     = flagSet.Bool("ref", false, "use struct field references in generated method")
+		fun     = flagSet.Bool("func", false, "generate function in place of struct method")
+		all     = flagSet.Bool("all", false, "use exported and private fields in generated "+genContent)
+		// nolint              = params.Nolint(flagSet)
 		hardcode            = flagSet.Bool("hardcode", false, "hardcode field name in generated "+genContent+" (don't generate constants based on field name)")
 		fieldValueRewriters = params.MultiVal(flagSet, "rewrite", []string{}, "field value rewriting applied to generated "+genContent+"; "+
 			"format - "+transformFieldValueFormat)
@@ -41,6 +41,7 @@ func NewAsMapMethod() *Command {
 		cmdName, "generates method or functon that converts the struct type to a map",
 		flagSet,
 		func(g *generator.Generator, hmodel *struc.HierarchicalModel) error {
+			excludedFields := make(map[struc.FieldName]struct{})
 			model := toFlatModel(hmodel, *flat)
 			if structPackage, err := g.StructPackage(model); err != nil {
 				return err
@@ -58,11 +59,10 @@ func NewAsMapMethod() *Command {
 					return err
 				} else if rewriter, err := coderewriter.New(*fieldValueRewriters); err != nil {
 					return err
-				} else if typeLink, funcName, funcBody, err := g.GenerateAsMapFunc(
-					model, structPackage, *name, kType, rewriter, *export, *snake, *ref, *fun, *all, *nolint, *hardcode,
-				); err != nil {
+				} else if funcBody, err := g.GenerateAsMapFunc(
+					model, structPackage, *name, kType, excludedFields, rewriter, *export, *snake, *ref, *fun, *all, *hardcode); err != nil {
 					return err
-				} else if err := g.AddFunc(generator.MethodName(typeLink, funcName), funcBody); err != nil {
+				} else if err := g.AddFuncDecl(funcBody); err != nil {
 					return err
 				}
 				return nil

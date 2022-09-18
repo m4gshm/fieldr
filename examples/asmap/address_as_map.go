@@ -9,9 +9,10 @@ const (
 	EmbeddedAddressFieldAddressLine EmbeddedAddressField = "AddressLine"
 )
 
-func (v *EmbeddedAddress) AsMap() map[EmbeddedAddressField]interface{} {
-	return map[EmbeddedAddressField]interface{}{
-		EmbeddedAddressFieldZipCode:     v.ZipCode,
-		EmbeddedAddressFieldAddressLine: v.AddressLine,
-	}
+func (v EmbeddedAddress) AsMap() map[EmbeddedAddressField]interface {
+	// contains filtered or unexported methods
+} {
+	return map[EmbeddedAddressField]interface {
+		// contains filtered or unexported methods
+	}{EmbeddedAddressFieldZipCode: v.ZipCode, EmbeddedAddressFieldAddressLine: v.AddressLine}
 }

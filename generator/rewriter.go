@@ -99,7 +99,7 @@ func NewCodeRewriter(fieldValueRewriters []string) (*CodeRewriter, error) {
 	return r, nil
 }
 
-func (rewrite *CodeRewriter) Transform(fieldName struc.FieldName, fieldType struc.FieldType, fieldRef string) string {
+func (rewrite *CodeRewriter) Transform(fieldName struc.FieldName, fieldType struc.FieldType, fieldRef string) (string, bool) {
 	byFieldName := rewrite.byFieldName
 	byFieldType := rewrite.byFieldType
 	var rewriters []func(string) string
@@ -112,12 +112,14 @@ func (rewrite *CodeRewriter) Transform(fieldName struc.FieldName, fieldType stru
 	}
 
 	if len(rewriters) == 0 {
-		return fieldRef
+		return fieldRef, false
 	}
-	for _, t := range rewriters {
+	rewrited := false
+	for _, rewrite := range rewriters {
 		before := fieldRef
-		fieldRef = t(fieldRef)
+		fieldRef = rewrite(fieldRef)
 		logger.Debugf("transforming field value: field %s, value before %s, after %s", fieldName, before, fieldRef)
+		rewrited = rewrited || before != fieldRef
 	}
-	return fieldRef
+	return fieldRef, rewrited
 }

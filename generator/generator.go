@@ -21,8 +21,6 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-const oneLineSize = 3
-
 const Autoname = "."
 
 type Generator struct {
@@ -36,7 +34,6 @@ type Generator struct {
 	body *bytes.Buffer
 
 	excludedTagValues map[string]bool
-	excludedFields    map[struc.FieldName]interface{}
 
 	rewrite CodeRewriter
 
@@ -49,6 +46,7 @@ type Generator struct {
 	typeValues map[string]string
 	funcNames  []string
 	funcValues map[string]string
+	funcDecls  map[string]*ast.FuncDecl
 
 	imports map[string]string
 
@@ -88,9 +86,9 @@ func New(name, outBuildTags string, outFile *ast.File, outFileInfo *token.File, 
 		typeValues:        make(map[string]string),
 		funcNames:         make([]string, 0),
 		funcValues:        make(map[string]string),
+		funcDecls:         make(map[string]*ast.FuncDecl),
 		imports:           map[string]string{},
 		excludedTagValues: make(map[string]bool),
-		excludedFields:    make(map[struc.FieldName]interface{}),
 	}
 	g.isRewrite = g.IsRewrite(outFile, outFileInfo)
 	return g
@@ -232,7 +230,9 @@ func (g *Generator) WriteBody(outPackageName string) error {
 			return err
 		}
 		g.writeVars()
-		g.writeFunctions()
+		if err := g.writeFunctions(); err != nil {
+			return err
+		}
 	} else {
 		//injects
 		chunks, err := g.getInjectChunks(g.outFile, g.outFileInfo.Base())
@@ -258,7 +258,9 @@ func (g *Generator) WriteBody(outPackageName string) error {
 			return err
 		}
 		g.writeVars()
-		g.writeFunctions()
+		if err := g.writeFunctions(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -455,6 +457,8 @@ func (g *Generator) addReceiveFuncOnRewrite(list []*ast.Field, name string, chun
 	return false, nil
 }
 
+func MethodName(typ, fun string) string { return typ + "." + fun }
+
 func getReceiverName(typ ast.Expr) (string, error) {
 	switch tt := typ.(type) {
 	case *ast.StarExpr:
@@ -604,16 +608,20 @@ func (g *Generator) writeVars() {
 	}
 }
 
-func (g *Generator) writeFunctions() {
-	names := g.funcNames
-	values := g.funcValues
-
-	for _, name := range names {
-		if value, ok := values[name]; ok {
+func (g *Generator) writeFunctions() error {
+	for _, name := range g.funcNames {
+		if value, ok := g.funcValues[name]; ok {
 			g.writeBody(value)
+		} else if funcDecl, ok := g.funcDecls[name]; ok {
+			if value, err := stringifyAst(funcDecl); err != nil {
+				return err
+			} else {
+				g.writeBody(value)
+			}
 		}
 		g.writeBody("\n")
 	}
+	return nil
 }
 
 func (g *Generator) writeTypes() error {
@@ -681,10 +689,6 @@ func camel(name string) string {
 	return result
 }
 
-func quoted(value interface{}) string {
-	return "\"" + fmt.Sprintf("%v", value) + "\""
-}
-
 func (g *Generator) addConstDelim() {
 	if len(g.constNames) > 0 {
 		g.constNames = append(g.constNames, "")
@@ -706,14 +710,48 @@ func (g *Generator) addConst(name, value, typ string) error {
 	return nil
 }
 
-func (g *Generator) GetConstValue(value string) (constValue string) {
-	return "\"" + value + "\""
-}
-
 func (g *Generator) addVarDelim() {
 	if len(g.varNames) > 0 {
 		g.varNames = append(g.varNames, "")
 	}
+}
+
+func (g *Generator) AddFuncDecl(node *ast.FuncDecl) error {
+	funcName := FuncDeclName(node)
+	if exists, ok := g.funcDecls[node.Name.Name]; ok && exists != node {
+		es, err := stringifyAst(exists)
+		if err != nil {
+			es = err.Error()
+		}
+		ns, err := stringifyAst(node)
+		if err != nil {
+			ns = err.Error()
+		}
+		return errors.Errorf("duplicated func with different value; func %s, declarations: %s, %s", funcName, es, ns)
+	}
+	g.funcNames = append(g.funcNames, funcName)
+	g.funcDecls[funcName] = node
+	return nil
+}
+
+func FuncDeclName(funcDecl *ast.FuncDecl) string {
+	name := funcDecl.Name.Name
+	if funcDecl.Recv != nil && len(funcDecl.Recv.List) > 0 {
+		name = funcDecl.Recv.List[0].Names[0].Name + "." + name
+	}
+	return name
+}
+
+func stringifyAst(node ast.Node) (string, error) {
+	fset := token.NewFileSet()
+	out := &bytes.Buffer{}
+	if node == nil {
+		return "", nil
+	}
+	if err := printer.Fprint(out, fset, node); err != nil {
+		return "", err
+	}
+	return out.String(), nil
 }
 
 func (g *Generator) AddFunc(funcName, funcValue string) error {
@@ -732,17 +770,8 @@ func (g *Generator) AddImport(pack, alias string) {
 	g.imports[pack] = alias
 }
 
-func (g *Generator) isFieldExcluded(fieldName struc.FieldName, allFields bool) bool {
-	_, excluded := g.excludedFields[fieldName]
-	return isFieldExcluded(fieldName, allFields) || excluded
-}
-
 func isFieldExcluded(fieldName struc.FieldName, includePrivate bool) bool {
 	return (!includePrivate && !token.IsExported(string(fieldName)))
-}
-
-func (g *Generator) Transform(fieldName struc.FieldName, fieldType struc.FieldType, fieldRef string) string {
-	return g.rewrite.Transform(fieldName, fieldType, fieldRef)
 }
 
 func renameFuncByConfig(funcName, renameTo string) string {
@@ -778,7 +807,7 @@ func (g *Generator) getTagTemplateConstName(typeName string, fieldName struc.Fie
 	return goName(typeName+tagsPart+getIdentPart(fieldName, snake), export)
 }
 
-func (g *Generator) getUsedFieldConstName(typeName string, fieldName struc.FieldName, hardcodeValues, export, snake bool) string {
+func getUsedFieldConstName(typeName string, fieldName struc.FieldName, hardcodeValues, export, snake bool) string {
 	if hardcodeValues {
 		return quoted(fieldName)
 	}
@@ -797,7 +826,7 @@ func (g *Generator) filterInjected() {
 
 }
 
-func (g *Generator) noLint(nolint bool) string {
+func noLint(nolint bool) string {
 	if nolint {
 		return "//nolint"
 	}
@@ -857,4 +886,8 @@ func newImport(name, path string) *ast.ImportSpec {
 		Name: &ast.Ident{Name: name},
 		Path: &ast.BasicLit{Kind: token.STRING, Value: path},
 	}
+}
+
+func quoted(value string) (constValue string) {
+	return "\"" + value + "\""
 }

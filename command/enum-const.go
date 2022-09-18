@@ -26,15 +26,15 @@ func NewEnumConst() *Command {
 		compact     = flagSet.Bool("compact", false, "generate single line code in aggregate functions, constants")
 		export      = params.ExportCont(flagSet, "constants")
 		private     = params.WithPrivate(flagSet)
-		nolint      = params.Nolint(flagSet)
-		flat        = params.MultiVal(flagSet, "flat", []string{}, "apply generator to fields of nested structs")
+		// nolint      = params.Nolint(flagSet)
+		flat = params.MultiVal(flagSet, "flat", []string{}, "apply generator to fields of nested structs")
 	)
 	c := New(
 		name, "generate constants based on template applied to struct fields",
 		flagSet,
 		func(g *generator.Generator, m *struc.HierarchicalModel) error {
 			return g.GenerateFieldConstant(
-				toFlatModel(m, *flat), *constValue, *constName, *constType, *funcList, *export, false, *nolint, *compact, *private, *refAccessor, *valAccessor,
+				toFlatModel(m, *flat), *constValue, *constName, *constType, *funcList, *export, false, *compact, *private, *refAccessor, *valAccessor,
 			)
 		},
 	)
