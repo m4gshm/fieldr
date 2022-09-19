@@ -23,10 +23,15 @@ const (
 )
 
 func entityCols() []EntityCol {
-	return []EntityCol{ENTITY_COL_ID, ENTITY_COL_UPDATED_AT, ENTITY_COL_NAME, ENTITY_COL_SURNAME}
+	return []EntityCol{
+		ENTITY_COL_ID,
+		ENTITY_COL_UPDATED_AT,
+		ENTITY_COL_NAME,
+		ENTITY_COL_SURNAME,
+	}
 }
 
-func (c EntityCol) field() string {
+func (c EntityCol) field() string { //nolint
 	switch c {
 	case ENTITY_COL_ID:
 		return "ID"
@@ -36,12 +41,11 @@ func (c EntityCol) field() string {
 		return "Name"
 	case ENTITY_COL_SURNAME:
 		return "Surname"
-	default:
-		return ""
 	}
+	return ""
 }
 
-func (c EntityCol) val(s *Entity) interface{} {
+func (c EntityCol) val(s *Entity) interface{} { //nolint
 	switch c {
 	case ENTITY_COL_ID:
 		return s.ID
@@ -51,11 +55,11 @@ func (c EntityCol) val(s *Entity) interface{} {
 		return s.Name
 	case ENTITY_COL_SURNAME:
 		return s.Surname
-	default:
-		return nil
 	}
+	return nil
 }
-func (c EntityCol) ref(s *Entity) interface{} {
+
+func (c EntityCol) ref(s *Entity) interface{} { //nolint
 	switch c {
 	case ENTITY_COL_ID:
 		return &s.ID
@@ -65,10 +69,15 @@ func (c EntityCol) ref(s *Entity) interface{} {
 		return &s.Name
 	case ENTITY_COL_SURNAME:
 		return &s.Surname
-	default:
-		return nil
 	}
+	return nil
 }
+
 func gormOrJsonList() []string {
-	return []string{EntityGormJsonID, EntityGormJsonUpdatedAt, EntityGormJsonName, EntityGormJsonSurname}
+	return []string{
+		EntityGormJsonID,
+		EntityGormJsonUpdatedAt,
+		EntityGormJsonName,
+		EntityGormJsonSurname,
+	}
 }

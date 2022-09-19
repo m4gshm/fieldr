@@ -23,7 +23,7 @@ func cols() []Col {
 		colVersionedVersion,
 	}
 }
-func (c Col) field() string {
+func (c Col) field() string { //nolint
 	switch c {
 	case colID:
 		return "ID"
@@ -37,7 +37,7 @@ func (c Col) field() string {
 	return ""
 }
 
-func (c Col) val(s *squirrel.Entity) interface{} {
+func (c Col) val(s *squirrel.Entity) interface{} { //nolint
 	switch c {
 	case colID:
 		return s.ID
@@ -51,7 +51,7 @@ func (c Col) val(s *squirrel.Entity) interface{} {
 	return nil
 }
 
-func (c Col) ref(s *squirrel.Entity) interface{} {
+func (c Col) ref(s *squirrel.Entity) interface{} { //nolint
 	switch c {
 	case colID:
 		return &s.ID

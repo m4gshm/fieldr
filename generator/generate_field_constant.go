@@ -3,8 +3,6 @@ package generator
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
-	"go/token"
 	"regexp"
 	"strings"
 	"text/template"
@@ -46,7 +44,7 @@ func (g *Generator) GenerateFieldConstants(model *struc.Model, typ string, field
 type constResult struct{ name, field, value string }
 
 func (g *Generator) GenerateFieldConstant(
-	model *struc.Model, value, name, typ, funcList string, export, snake, compact, usePrivate, refAccessor, valAccessor bool,
+	model *struc.Model, value, name, typ, funcList string, export, snake, nolint, compact, usePrivate, refAccessor, valAccessor bool,
 ) error {
 	valueTmpl := wrapTemplate(value)
 	nameTmpl := wrapTemplate(name)
@@ -157,18 +155,18 @@ func (g *Generator) GenerateFieldConstant(
 				return fmt.Errorf("list function autoname is unsupported without constant type definition")
 			}
 		}
-		if funcBody, err := generateAggregateFunc(funcName, typ, constants); err != nil {
+		if funcBody, funcName, err := generateAggregateFunc(funcName, typ, constants, exportFunc, compact, nolint); err != nil {
 			return err
-		} else if err := g.AddFuncDecl(funcBody); err != nil {
+		} else if err := g.AddFunc(funcName, funcBody); err != nil {
 			return err
 		}
 		g.addFunсDelim()
 	}
 
 	if wrapType {
-		if funcBody, err := g.generateConstFieldFunc(typ, constants, exportFunc); err != nil {
+		if funcBody, funcName, err := g.aenerateConstFieldFunc(typ, constants, exportFunc, nolint); err != nil {
 			return err
-		} else if err := g.AddFuncDecl(funcBody); err != nil {
+		} else if err := g.AddFunc(funcName, funcBody); err != nil {
 			return err
 		}
 		g.addFunсDelim()
@@ -179,16 +177,16 @@ func (g *Generator) GenerateFieldConstant(
 				return err
 			}
 			if valAccessor {
-				if funcBody, err := g.generateConstValueFunc(model, structPackage, typ, constants, exportFunc, false); err != nil {
+				if funcBody, funcName, err := g.GenerateConstValueFunc(model, structPackage, typ, constants, exportFunc, nolint, false); err != nil {
 					return err
-				} else if err := g.AddFuncDecl(funcBody); err != nil {
+				} else if err := g.AddFunc(funcName, funcBody); err != nil {
 					return err
 				}
 			}
 			if refAccessor {
-				if funcBody, err := g.generateConstValueFunc(model, structPackage, typ, constants, exportFunc, true); err != nil {
+				if funcBody, funcName, err := g.GenerateConstValueFunc(model, structPackage, typ, constants, exportFunc, nolint, true); err != nil {
 					return err
-				} else if err := g.AddFuncDecl(funcBody); err != nil {
+				} else if err := g.AddFunc(funcName, funcBody); err != nil {
 					return err
 				}
 			}
@@ -331,99 +329,91 @@ func wrapTemplate(text string) string {
 	return text
 }
 
-func generateAggregateFunc(funcName, typ string, constants []constResult) (*ast.FuncDecl, error) {
-	elements := []ast.Expr{}
-	for _, constant := range constants {
-		elements = append(elements, &ast.Ident{
-			Name: constant.name,
-		})
+func generateAggregateFunc(funcName, typ string, constants []constResult, export, compact, nolint bool) (string, string, error) {
+	var arrayType = "[]" + typ
+
+	arrayBody := arrayType + "{"
+
+	compact = compact || len(constants) <= oneLineSize
+	if !compact {
+		arrayBody += "\n"
 	}
-	return &ast.FuncDecl{
-		Name: &ast.Ident{Name: funcName},
-		Type: &ast.FuncType{
-			Results: &ast.FieldList{List: []*ast.Field{{Type: &ast.ArrayType{Elt: &ast.Ident{Name: typ}}}}},
-		},
-		Body: &ast.BlockStmt{
-			List: []ast.Stmt{
-				&ast.ReturnStmt{Results: []ast.Expr{&ast.CompositeLit{Type: &ast.ArrayType{Elt: &ast.Ident{Name: typ}}, Elts: elements}}},
-			},
-		},
-	}, nil
+
+	i := 0
+	for _, constant := range constants {
+		if compact && i > 0 {
+			arrayBody += ", "
+		}
+		arrayBody += constant.name
+		if !compact {
+			arrayBody += ",\n"
+		}
+		i++
+	}
+	arrayBody += "}"
+
+	return "func " + funcName + "() " + arrayType + " { return " + arrayBody + "}", funcName, nil
 }
 
-func (g *Generator) generateConstFieldFunc(typ string, constants []constResult, export bool) (*ast.FuncDecl, error) {
+func (g *Generator) aenerateConstFieldFunc(typ string, constants []constResult, export, nolint bool) (string, string, error) {
 	var (
-		funcName    = goName("Field", export)
-		receiverVar = "c"
-		returnType  = BaseConstType
+		funcName     = goName("Field", export)
+		receiverVar  = "c"
+		returnType   = BaseConstType
+		returnNoCase = "\"\""
 	)
 
-	elements := []ast.Stmt{}
+	funcBody := "func (" + receiverVar + " " + typ + ") " + funcName + "() " + returnType
+	funcBody += " {" + noLint(nolint) + "\n" +
+		"switch " + receiverVar + " {\n" +
+		""
+
 	for _, constant := range constants {
-		elements = append(elements, &ast.CaseClause{
-			List: []ast.Expr{&ast.Ident{Name: constant.name}},
-			Body: []ast.Stmt{&ast.ReturnStmt{
-				Results: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: quoted(constant.field)}},
-			}},
-		})
+		if len(constant.value) == 0 {
+			continue
+		}
+		funcBody += "case " + constant.name + ":\n" +
+			"return \"" + constant.field + "\"\n"
 	}
-	elements = append(elements, &ast.CommClause{
-		Body: []ast.Stmt{&ast.ReturnStmt{
-			Results: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: quoted("")}},
-		}},
-	})
-	return &ast.FuncDecl{
-		Name: &ast.Ident{Name: funcName},
-		Recv: &ast.FieldList{
-			List: []*ast.Field{{Names: []*ast.Ident{{Name: receiverVar}}, Type: &ast.Ident{Name: typ}}},
-		},
-		Type: &ast.FuncType{
-			Results: &ast.FieldList{List: []*ast.Field{{Type: &ast.Ident{Name: returnType}}}},
-		},
-		Body: &ast.BlockStmt{List: []ast.Stmt{
-			&ast.SwitchStmt{Tag: &ast.Ident{Name: receiverVar}, Body: &ast.BlockStmt{List: elements}},
-		}},
-	}, nil
+
+	funcBody += "}\n"
+	funcBody += "" +
+		"return " + returnNoCase +
+		"}\n"
+
+	return funcBody, MethodName(typ, funcName), nil
 }
 
-func (g *Generator) generateConstValueFunc(
-	model *struc.Model, pkg, typ string, constants []constResult, export, ref bool,
-) (*ast.FuncDecl, error) {
+func (g *Generator) GenerateConstValueFunc(model *struc.Model, pkg, typ string, constants []constResult, export, nolint, ref bool) (string, string, error) {
 	var (
 		funcName     = goName("Val", export)
 		receiverVar  = "c"
 		argName      = "s"
-		argType      = getTypeName(model.TypeName, pkg)
+		argType      = "*" + getTypeName(model.TypeName, pkg)
+		returnTypes  = "interface{}"
 		returnNoCase = "nil"
+		pref         = ""
 	)
 
-	elements := []ast.Stmt{}
-	for _, constant := range constants {
-		var expr ast.Expr = &ast.SelectorExpr{X: &ast.Ident{Name: argName}, Sel: &ast.Ident{Name: constant.field}}
-		if ref {
-			expr = &ast.UnaryExpr{Op: token.AND, X: expr}
-		}
-		elements = append(elements, &ast.CaseClause{
-			List: []ast.Expr{&ast.Ident{Name: constant.name}},
-			Body: []ast.Stmt{&ast.ReturnStmt{Results: []ast.Expr{expr}}},
-		})
+	if ref {
+		pref = "&"
+		funcName = goName("Ref", export)
 	}
-	elements = append(elements, &ast.CommClause{
-		Body: []ast.Stmt{&ast.ReturnStmt{
-			Results: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: returnNoCase}},
-		}},
-	})
-	return &ast.FuncDecl{
-		Name: &ast.Ident{Name: funcName},
-		Recv: &ast.FieldList{List: []*ast.Field{{Names: []*ast.Ident{{Name: receiverVar}}, Type: &ast.Ident{Name: typ}}}},
-		Type: &ast.FuncType{
-			Params: &ast.FieldList{
-				List: []*ast.Field{{Names: []*ast.Ident{{Name: argName}}, Type: &ast.StarExpr{X: &ast.Ident{Name: argType}}}},
-			},
-			Results: &ast.FieldList{List: []*ast.Field{{Type: &ast.InterfaceType{Methods: &ast.FieldList{}}}}},
-		},
-		Body: &ast.BlockStmt{
-			List: []ast.Stmt{&ast.SwitchStmt{Tag: &ast.Ident{Name: receiverVar}, Body: &ast.BlockStmt{List: elements}}},
-		},
-	}, nil
+
+	funcBody := "func (" + receiverVar + " " + typ + ") " + funcName + "(" + argName + " " + argType + ") " + returnTypes
+	funcBody += " {" + noLint(nolint) + "\n" +
+		"switch " + receiverVar + " {\n" +
+		""
+
+	for _, constant := range constants {
+		funcBody += "case " + constant.name + ":\n" +
+			"return " + pref + argName + "." + constant.field + "\n"
+	}
+
+	funcBody += "}\n"
+	funcBody += "" +
+		"return " + returnNoCase +
+		"}\n"
+
+	return funcBody, MethodName(typ, funcName), nil
 }

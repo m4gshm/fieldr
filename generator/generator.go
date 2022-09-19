@@ -21,6 +21,8 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+const oneLineSize = 3
+
 const Autoname = "."
 
 type Generator struct {
@@ -45,12 +47,33 @@ type Generator struct {
 	typeNames  []string
 	typeValues map[string]string
 	funcNames  []string
-	funcValues map[string]string
-	funcDecls  map[string]*ast.FuncDecl
+	funcValues funcBodies
 
 	imports map[string]string
 
-	isRewrite bool
+	rewriteOutFile bool
+}
+
+type funcBodies map[string]funcBody
+
+func (c funcBodies) names() map[string]string {
+	r := make(map[string]string, len(c))
+	for k, _ := range c {
+		r[k] = k
+	}
+	return r
+}
+
+type funcBody struct {
+	body string
+	node *ast.FuncDecl
+}
+
+func (f *funcBody) String() (string, error) {
+	if len(f.body) > 0 {
+		return f.body, nil
+	}
+	return stringifyAst(f.node)
 }
 
 type constant struct {
@@ -60,15 +83,11 @@ type constant struct {
 type constants map[string]constant
 
 func (c constants) nvMap() map[string]string {
-
 	r := make(map[string]string, len(c))
-
 	for k, v := range c {
 		r[k] = v.value
 	}
-
 	return r
-
 }
 
 func New(name, outBuildTags string, outFile *ast.File, outFileInfo *token.File, outPkg *packages.Package) *Generator {
@@ -85,12 +104,11 @@ func New(name, outBuildTags string, outFile *ast.File, outFileInfo *token.File, 
 		typeNames:         make([]string, 0),
 		typeValues:        make(map[string]string),
 		funcNames:         make([]string, 0),
-		funcValues:        make(map[string]string),
-		funcDecls:         make(map[string]*ast.FuncDecl),
+		funcValues:        make(map[string]funcBody),
 		imports:           map[string]string{},
 		excludedTagValues: make(map[string]bool),
 	}
-	g.isRewrite = g.IsRewrite(outFile, outFileInfo)
+	g.rewriteOutFile = g.IsRewrite(outFile, outFileInfo)
 	return g
 }
 
@@ -177,7 +195,7 @@ func (g *Generator) StructPackage(model *struc.Model) (string, error) {
 		structPackage = model.PackageName
 	}
 
-	if !g.isRewrite && needImport {
+	if !g.rewriteOutFile && needImport {
 		alias, found, err := g.findImportPackageAlias(model, outFile)
 		if err != nil {
 			return "", err
@@ -218,7 +236,7 @@ func (g *Generator) StructPackage(model *struc.Model) (string, error) {
 }
 
 func (g *Generator) WriteBody(outPackageName string) error {
-	if g.isRewrite {
+	if g.rewriteOutFile {
 		g.body = &bytes.Buffer{}
 		if err := g.writeHead(outPackageName); err != nil {
 			return err
@@ -418,9 +436,13 @@ func (g *Generator) getInjectChunks(outFile *ast.File, base int) (map[int]map[in
 				if _, err := g.addReceiveFuncOnRewrite(recv.List, name, chunks, start, end); err != nil {
 					return nil, err
 				}
-			} else if funcDecl, hasFuncDecl := g.funcValues[name]; hasFuncDecl {
-				chunks[start] = map[int]string{end: funcDecl}
-				delete(g.funcValues, name)
+			} else if f, ok := g.funcValues[name]; ok {
+				if b, err := f.String(); err != nil {
+					return nil, err
+				} else {
+					chunks[start] = map[int]string{end: b}
+					delete(g.funcValues, name)
+				}
 			}
 		}
 	}
@@ -448,10 +470,14 @@ func (g *Generator) addReceiveFuncOnRewrite(list []*ast.Field, name string, chun
 		return false, fmt.Errorf("func %v; %w", name, err)
 	}
 	mName := MethodName(receiverName, name)
-	if funcDecl, hasFuncDecl := g.funcValues[mName]; hasFuncDecl {
-		chunks[start] = map[int]string{end: funcDecl}
-		delete(g.funcValues, mName)
-		return true, nil
+	if f, ok := g.funcValues[mName]; ok {
+		if b, err := f.String(); err != nil {
+			return false, err
+		} else {
+			chunks[start] = map[int]string{end: b}
+			delete(g.funcValues, mName)
+			return true, nil
+		}
 
 	}
 	return false, nil
@@ -610,13 +636,11 @@ func (g *Generator) writeVars() {
 
 func (g *Generator) writeFunctions() error {
 	for _, name := range g.funcNames {
-		if value, ok := g.funcValues[name]; ok {
-			g.writeBody(value)
-		} else if funcDecl, ok := g.funcDecls[name]; ok {
-			if value, err := stringifyAst(funcDecl); err != nil {
+		if f, ok := g.funcValues[name]; ok {
+			if b, err := f.String(); err != nil {
 				return err
 			} else {
-				g.writeBody(value)
+				g.writeBody(b)
 			}
 		}
 		g.writeBody("\n")
@@ -718,8 +742,8 @@ func (g *Generator) addVarDelim() {
 
 func (g *Generator) AddFuncDecl(node *ast.FuncDecl) error {
 	funcName := FuncDeclName(node)
-	if exists, ok := g.funcDecls[node.Name.Name]; ok && exists != node {
-		es, err := stringifyAst(exists)
+	if exists, ok := g.funcValues[funcName]; ok {
+		es, err := stringifyAst(exists.node)
 		if err != nil {
 			es = err.Error()
 		}
@@ -727,10 +751,12 @@ func (g *Generator) AddFuncDecl(node *ast.FuncDecl) error {
 		if err != nil {
 			ns = err.Error()
 		}
-		return errors.Errorf("duplicated func with different value; func %s, declarations: %s, %s", funcName, es, ns)
+		if es != ns {
+			return errors.Errorf("duplicated func with different value; func %s, declarations: %s, %s", funcName, es, ns)
+		}
 	}
 	g.funcNames = append(g.funcNames, funcName)
-	g.funcDecls[funcName] = node
+	g.funcValues[funcName] = funcBody{node: node}
 	return nil
 }
 
@@ -755,11 +781,11 @@ func stringifyAst(node ast.Node) (string, error) {
 }
 
 func (g *Generator) AddFunc(funcName, funcValue string) error {
-	if exists, ok := g.funcValues[funcName]; ok && exists != funcValue {
-		return errors.Errorf("duplicated func with different value; const %v, values: %v, %v", funcName, exists, funcValue)
+	if exists, ok := g.funcValues[funcName]; ok && exists.body != funcValue {
+		return errors.Errorf("duplicated func with different value; const %v, values: %v, %v", funcName, exists.body, funcValue)
 	}
 	g.funcNames = append(g.funcNames, funcName)
-	g.funcValues[funcName] = funcValue
+	g.funcValues[funcName] = funcBody{body: funcValue}
 	return nil
 }
 
@@ -822,7 +848,7 @@ func (g *Generator) filterInjected() {
 	g.typeNames = filterNotExisted(g.typeNames, g.typeValues)
 	g.constNames = filterNotExisted(g.constNames, g.constants.nvMap())
 	g.varNames = filterNotExisted(g.varNames, g.varValues)
-	g.funcNames = filterNotExisted(g.funcNames, g.funcValues)
+	g.funcNames = filterNotExisted(g.funcNames, g.funcValues.names())
 
 }
 
