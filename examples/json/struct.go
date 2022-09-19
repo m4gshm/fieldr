@@ -15,4 +15,4 @@ type Struct struct {
 
 //go:generate fieldr -type Struct -out struct_util.go
 
-//go:fieldr enum-const -type structJson -val "rexp \"[^-]+\" (OR tag.json field.name)" -func-list . -val-access
+//go:fieldr enum-const -type structJson -val "rexp \"[^-]+\" (OR tag.json field.name)" -list . -val-access

@@ -1,6 +1,6 @@
 package sql
 
-//go:generate fieldr -type Entity -out entity_fields.go enum-const -name "{{ join \"col\" field.name }}" -val "tag.db" -type col -func-list . -val-access -ref-access -flat Versioned
+//go:generate fieldr -type Entity -out entity_fields.go enum-const -name "{{ join \"col\" field.name }}" -val "tag.db" -type col -list . -val-access -ref-access -flat Versioned
 
 import (
 	"database/sql"

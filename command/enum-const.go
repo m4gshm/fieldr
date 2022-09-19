@@ -22,7 +22,7 @@ func NewEnumConst() *Command {
 		constType   = flagSet.String("type", "", "constant type template")
 		refAccessor = flagSet.Bool("ref-access", false, "extends generated type with field reference accessor method")
 		valAccessor = flagSet.Bool("val-access", false, "extends generated type with field value accessor method")
-		funcList    = flagSet.String("func-list", "", "generate function that return list of all generated constant values, use "+generator.Autoname+" for autoname")
+		funcList    = flagSet.String("list", "", "generate function that return list of all generated constant values, use "+generator.Autoname+" for autoname")
 		compact     = flagSet.Bool("compact", false, "generate single line code in aggregate functions, constants")
 		export      = params.ExportCont(flagSet, "constants")
 		private     = params.WithPrivate(flagSet)
