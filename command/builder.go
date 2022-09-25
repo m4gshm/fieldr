@@ -2,6 +2,7 @@ package command
 
 import (
 	"flag"
+	"fmt"
 
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/struc"
@@ -47,22 +48,12 @@ func NewBuilderStruct() *Command {
 			constrMethodName := "Build"
 			constrMethodBody := "func (" + rec + " " + builderName + ") " + constrMethodName + "() *" + buildedType + " {\n" +
 				"return &" + buildedType + " {\n"
-			for i, fieldName := range model.FieldNames {
-				if i > 0 {
-					builderBody += "\n"
-					constrMethodBody += ",\n"
-				}
-				fieldType := model.FieldsType[fieldName]
-				fullFieldType := fieldType.Name
-				if typ, err := g.Repack(fieldType.Type, model.Package.Name); err != nil {
-					return err
-				} else {
-					fullFieldType = struc.TypeString(typ, model.Package.Name)
-				}
-				builderField := generator.IdentName(fieldName, true)
-				builderBody += builderField + " " + fullFieldType
-				constrMethodBody += fieldName + ": " + rec + "." + builderField
+			c, b, err := generateBuilderParts(g, model, rec)
+			if err != nil {
+				return err
 			}
+			constrMethodBody += c
+			builderBody += b
 
 			builderBody += "}"
 			constrMethodBody += "}\n}"
@@ -75,4 +66,47 @@ func NewBuilderStruct() *Command {
 			return g.AddStruct(s)
 		},
 	)
+}
+
+func generateBuilderParts(g *generator.Generator, model *struc.Model, rec string) (string, string, error) {
+	uniques := map[string]string{}
+	constrMethodBody := ""
+	builderBody := ""
+	for i, fieldName := range model.FieldNames {
+		if i > 0 {
+			builderBody += "\n"
+		}
+		fieldType := model.FieldsType[fieldName]
+		fullFieldType := fieldType.Name
+
+		if fieldType.Embedded {
+			init := fullFieldType
+			if fieldType.Ref {
+				init = "&" + init
+			}
+			constrMethodBody += fieldName + ": " + init + "{\n"
+			c, b, err := generateBuilderParts(g, fieldType.Model, rec)
+			if err != nil {
+				return "", "", err
+			}
+			constrMethodBody += c
+			builderBody += b
+			constrMethodBody += "\n}"
+		} else {
+			if typ, err := g.Repack(fieldType.Type, model.Package.Name); err != nil {
+				return "", "", err
+			} else {
+				fullFieldType = struc.TypeString(typ, model.Package.Name)
+			}
+			builderField := generator.IdentName(fieldName, true)
+			if dupl, ok := uniques[builderField]; ok {
+				return "", "", fmt.Errorf("duplicated builder fields: name '%s', first type '%s', second '%s'", builderField, dupl, fullFieldType)
+			}
+			uniques[builderField] = fullFieldType
+			builderBody += builderField + " " + fullFieldType
+			constrMethodBody += fieldName + ": " + rec + "." + builderField
+		}
+		constrMethodBody += ",\n"
+	}
+	return constrMethodBody, builderBody, nil
 }

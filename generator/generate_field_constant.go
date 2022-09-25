@@ -446,7 +446,7 @@ func generateAggregateFunc(funcName, typ string, constants []fieldConst, export,
 	}
 	arrayBody += "}"
 
-	return "func " + funcName + "() " + arrayType + " { return " + arrayBody + "}", funcName, nil
+	return "func " + funcName + "() " + arrayType + " { " + NoLint(nolint) + "\n return " + arrayBody + "}", funcName, nil
 }
 
 func (g *Generator) generateConstFieldMethod(typ string, constants []fieldConst, export, nolint bool) (string, string, error) {
@@ -458,7 +458,7 @@ func (g *Generator) generateConstFieldMethod(typ string, constants []fieldConst,
 	)
 
 	body := "func (" + receiverVar + " " + typ + ") " + name + "() " + returnType
-	body += " {" + noLint(nolint) + "\n" +
+	body += " {" + NoLint(nolint) + "\n" +
 		"switch " + receiverVar + " {\n" +
 		""
 
@@ -504,7 +504,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgAlias, typ s
 	}
 
 	body := "func (" + receiverVar + " " + typ + ") " + name + "(" + argName + " " + argType + ") " + returnTypes
-	body += " {" + noLint(nolint) + "\n" +
+	body += " {" + NoLint(nolint) + "\n" +
 		"switch " + receiverVar + " {\n" +
 		""
 

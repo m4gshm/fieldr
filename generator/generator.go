@@ -1047,7 +1047,7 @@ func (g *Generator) Repack(typ types.Type, basePackageName string) (types.Type, 
 	return typ, nil
 }
 
-func noLint(nolint bool) string {
+func NoLint(nolint bool) string {
 	if nolint {
 		return "//nolint"
 	}

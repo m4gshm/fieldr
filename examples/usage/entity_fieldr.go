@@ -7,4 +7,6 @@ const (
 	entityJsonName = "name"
 )
 
-func jsons() []string { return []string{entityJsonId, entityJsonName} }
+func jsons() []string {
+	return []string{entityJsonId, entityJsonName}
+}

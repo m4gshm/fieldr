@@ -20,7 +20,7 @@ const (
 	EntityGormJsonSurname           = "SURNAME"
 )
 
-func entityCols() []EntityCol {
+func entityCols() []EntityCol { //nolint
 	return []EntityCol{
 		ENTITY_COL_ID,
 		ENTITY_COL_NAME,

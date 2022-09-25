@@ -29,7 +29,8 @@ func (g *Generator) GenerateAsMapFunc(
 	} else {
 		body = "func (" + receiverVar + " *" + typeLink + ") " + funcName + "() map[" + keyType + "]interface{}"
 	}
-	body += " {" + "\n" +
+	body += " {" + NoLint(nolint)
+	body += "\n" +
 		mapVar + " := map[" + keyType + "]interface{}{}\n"
 
 	bodyPart, err := generateMapInits(g, mapVar, receiverRef, rewriter, constants)

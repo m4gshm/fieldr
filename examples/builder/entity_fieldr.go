@@ -9,26 +9,29 @@ import (
 )
 
 type EntityBuilder struct {
-	BaseEntity *BaseEntity
-	NoDB       *NoDBFieldsEntity
-	Name       StringBasedType
-	Surname    string
-	Values     []int32
-	Ts         []*time.Time
-	Versioned  sql_base.VersionedEntity
-	Chan       chan map[time.Time]string
-	SomeMap    map[StringBasedType]bytes.Buffer
+	ID        int32
+	NoDB      *NoDBFieldsEntity
+	Name      StringBasedType
+	Surname   string
+	Values    []int32
+	Ts        []*time.Time
+	Versioned sql_base.VersionedEntity
+	Chan      chan map[time.Time]string
+	SomeMap   map[StringBasedType]bytes.Buffer
 }
 
 func (b EntityBuilder) Build() *Entity {
 	return &Entity{
-		BaseEntity: b.BaseEntity,
-		NoDB:       b.NoDB,
-		Name:       b.Name,
-		Surname:    b.Surname,
-		Values:     b.Values,
-		Ts:         b.Ts,
-		Versioned:  b.Versioned,
-		Chan:       b.Chan,
-		SomeMap:    b.SomeMap}
+		BaseEntity: &BaseEntity{
+			ID: b.ID,
+		},
+		NoDB:      b.NoDB,
+		Name:      b.Name,
+		Surname:   b.Surname,
+		Values:    b.Values,
+		Ts:        b.Ts,
+		Versioned: b.Versioned,
+		Chan:      b.Chan,
+		SomeMap:   b.SomeMap,
+	}
 }
