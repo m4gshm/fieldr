@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-type EntityBuilder struct {
-	ID        int32
+type EntityBuilder[ID any] struct {
+	ID        ID
 	NoDB      *NoDBFieldsEntity
 	Name      StringBasedType
 	Surname   string
@@ -20,9 +20,9 @@ type EntityBuilder struct {
 	SomeMap   map[StringBasedType]bytes.Buffer
 }
 
-func (b EntityBuilder) Build() *Entity {
-	return &Entity{
-		BaseEntity: &BaseEntity{
+func (b EntityBuilder[ID]) Build() *Entity[ID] {
+	return &Entity[ID]{
+		BaseEntity: &BaseEntity[ID]{
 			ID: b.ID,
 		},
 		NoDB:      b.NoDB,

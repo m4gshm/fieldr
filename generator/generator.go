@@ -31,7 +31,7 @@ type Generator struct {
 
 	outFile      *ast.File
 	outFileInfo  *token.File
-	outPkg       *packages.Package
+	OutPkg       *packages.Package
 	outBuildTags string
 
 	body *bytes.Buffer
@@ -114,7 +114,7 @@ func New(name, outBuildTags string, outFile *ast.File, outFileInfo *token.File, 
 		outBuildTags:   outBuildTags,
 		outFile:        outFile,
 		outFileInfo:    outFileInfo,
-		outPkg:         outPkg,
+		OutPkg:         outPkg,
 		constNames:     []string{},
 		constants:      map[string]constant{},
 		varNames:       []string{},
@@ -203,7 +203,7 @@ func OutPackageName(outPackageName string, outPackage *packages.Package) string 
 }
 
 func (g *Generator) GetPackageAlias(pkgName, pkgPath string) (string, error) {
-	needImport := pkgPath != g.outPkg.PkgPath
+	needImport := pkgPath != g.OutPkg.PkgPath
 	if !needImport {
 		return "", nil
 	}
@@ -852,6 +852,7 @@ func (g *Generator) AddImport(pack, alias string) (string, error) {
 		return exists, nil
 	}
 	g.imports[pack] = alias
+	logger.Debugf("add import: package %s, alias %s", pack, alias)
 	return alias, nil
 }
 
@@ -911,8 +912,8 @@ func (g *Generator) filterInjected() {
 
 }
 
-func (g *Generator) ImportPack(pkg *types.Package, basePackageName string) (*types.Package, error) {
-	if pkg.Name() == basePackageName {
+func (g *Generator) ImportPack(pkg *types.Package, basePackagePath string) (*types.Package, error) {
+	if pkg.Path() == basePackagePath {
 		return pkg, nil
 	}
 	pkgPath := pkg.Path()
@@ -924,9 +925,9 @@ func (g *Generator) ImportPack(pkg *types.Package, basePackageName string) (*typ
 	return pkg, nil
 }
 
-func (g *Generator) RepackObj(typName *types.TypeName, basePackageName string) (*types.TypeName, error) {
+func (g *Generator) RepackObj(typName *types.TypeName, basePackagePath string) (*types.TypeName, error) {
 	pkg := typName.Pkg()
-	if ipgk, err := g.ImportPack(pkg, basePackageName); err != nil {
+	if ipgk, err := g.ImportPack(pkg, basePackagePath); err != nil {
 		return nil, err
 	} else if pkg != ipgk {
 		return types.NewTypeName(typName.Pos(), ipgk, typName.Name(), typName.Type()), nil
@@ -934,9 +935,9 @@ func (g *Generator) RepackObj(typName *types.TypeName, basePackageName string) (
 	return typName, nil
 }
 
-func (g *Generator) RepackVar(vr *types.Var, basePackageName string) (*types.Var, error) {
+func (g *Generator) RepackVar(vr *types.Var, basePackagePath string) (*types.Var, error) {
 	pkg := vr.Pkg()
-	if ipgk, err := g.ImportPack(pkg, basePackageName); err != nil {
+	if ipgk, err := g.ImportPack(pkg, basePackagePath); err != nil {
 		return nil, err
 	} else if pkg != ipgk {
 		return types.NewVar(vr.Pos(), ipgk, vr.Name(), vr.Type()), nil
@@ -944,12 +945,12 @@ func (g *Generator) RepackVar(vr *types.Var, basePackageName string) (*types.Var
 	return vr, nil
 }
 
-func (g *Generator) RepackTuple(vr *types.Tuple, basePackageName string) (*types.Tuple, error) {
+func (g *Generator) RepackTuple(vr *types.Tuple, basePackagePath string) (*types.Tuple, error) {
 	repacked := false
 	r := make([]*types.Var, 0, vr.Len())
 	for i := 0; i < vr.Len(); i++ {
 		v := vr.At(i)
-		rv, err := g.RepackVar(v, basePackageName)
+		rv, err := g.RepackVar(v, basePackagePath)
 		if err != nil {
 			return nil, err
 		}
@@ -963,11 +964,11 @@ func (g *Generator) RepackTuple(vr *types.Tuple, basePackageName string) (*types
 	return vr, nil
 }
 
-func (g *Generator) Repack(typ types.Type, basePackageName string) (types.Type, error) {
+func (g *Generator) Repack(typ types.Type, basePackagePath string) (types.Type, error) {
 	switch tt := typ.(type) {
 	case *types.Named:
 		obj := tt.Obj()
-		if repaked, err := g.RepackObj(tt.Obj(), basePackageName); err != nil {
+		if repaked, err := g.RepackObj(tt.Obj(), basePackagePath); err != nil {
 			return nil, err
 		} else if repaked != obj {
 			methods := make([]*types.Func, tt.NumMethods())
@@ -978,28 +979,28 @@ func (g *Generator) Repack(typ types.Type, basePackageName string) (types.Type, 
 		}
 	case *types.Pointer:
 		e := tt.Elem()
-		if re, err := g.Repack(e, basePackageName); err != nil {
+		if re, err := g.Repack(e, basePackagePath); err != nil {
 			return nil, err
 		} else if re != e {
 			return types.NewPointer(re), nil
 		}
 	case *types.Array:
 		e := tt.Elem()
-		if re, err := g.Repack(e, basePackageName); err != nil {
+		if re, err := g.Repack(e, basePackagePath); err != nil {
 			return nil, err
 		} else if re != e {
 			return types.NewArray(re, tt.Len()), nil
 		}
 	case *types.Slice:
 		e := tt.Elem()
-		if re, err := g.Repack(e, basePackageName); err != nil {
+		if re, err := g.Repack(e, basePackagePath); err != nil {
 			return nil, err
 		} else if re != e {
 			return types.NewSlice(re), nil
 		}
 	case *types.Chan:
 		e := tt.Elem()
-		if re, err := g.Repack(e, basePackageName); err != nil {
+		if re, err := g.Repack(e, basePackagePath); err != nil {
 			return nil, err
 		} else if re != e {
 			return types.NewChan(tt.Dir(), re), nil
@@ -1007,10 +1008,10 @@ func (g *Generator) Repack(typ types.Type, basePackageName string) (types.Type, 
 	case *types.Map:
 		k := tt.Key()
 		e := tt.Elem()
-		if re, err := g.Repack(e, basePackageName); err != nil {
+		if re, err := g.Repack(e, basePackagePath); err != nil {
 			return nil, err
 		} else {
-			if rk, err := g.Repack(k, basePackageName); err != nil {
+			if rk, err := g.Repack(k, basePackagePath); err != nil {
 				return nil, err
 			} else if re != e || rk != k {
 				return types.NewMap(rk, re), nil
@@ -1019,24 +1020,24 @@ func (g *Generator) Repack(typ types.Type, basePackageName string) (types.Type, 
 	// case *types.Func:
 	// 	pkg := tt.Pkg()
 	// 	sign := tt.Type().(*types.Signature)
-	// 	if rsign, err := g.Repack(sign, basePackageName); err != nil {
+	// 	if rsign, err := g.Repack(sign, basePackagePath); err != nil {
 	// 		return nil, err
 	// 	} else if rsign != sign {
 	// 		return types.NewFunc(tt.Pos(), pkg, tt.Name(), rsign), nil
 	// 	}
 	case *types.Signature:
 		recv := tt.Recv()
-		rrecv, err := g.RepackVar(recv, basePackageName)
+		rrecv, err := g.RepackVar(recv, basePackagePath)
 		if err != nil {
 			return nil, err
 		}
 		rparams := tt.Params()
-		rtuple, err := g.RepackTuple(rparams, basePackageName)
+		rtuple, err := g.RepackTuple(rparams, basePackagePath)
 		if err != nil {
 			return nil, err
 		}
 		res := tt.Results()
-		rres, err := g.RepackTuple(res, basePackageName)
+		rres, err := g.RepackTuple(res, basePackagePath)
 		if err != nil {
 			return nil, err
 		}

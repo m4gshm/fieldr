@@ -31,11 +31,10 @@ type (
 
 	//Model struct type model.
 	Model struct {
-		Typ      *types.Named
-		TypeName string
-		// Signature      string
+		Typ            *types.Named
+		TypeName       string
 		Package        Package
-		RootPackage    *types.Package
+		OutPkgPath     string
 		FieldsTagValue map[FieldName]map[TagName]TagValue
 		TagsFieldValue map[TagName]map[FieldName]TagValue
 		FieldNames     []FieldName
@@ -44,7 +43,7 @@ type (
 )
 
 // New - Model's default constructor.
-func New(filePackages map[*ast.File]*packages.Package, files []*ast.File, fileSet *token.FileSet, typeName string) (*Model, error) {
+func New(outPkgPath string, filePackages map[*ast.File]*packages.Package, files []*ast.File, fileSet *token.FileSet, typeName string) (*Model, error) {
 	for _, file := range files {
 		var (
 			filePackage = filePackages[file]
@@ -59,7 +58,7 @@ func New(filePackages map[*ast.File]*packages.Package, files []*ast.File, fileSe
 			return nil, err
 		} else if structType == nil {
 			return nil, fmt.Errorf("type '%s' is not struct", typeName)
-		} else if builder, err := newBuilder(pkg, handledStructs{}); err != nil {
+		} else if builder, err := newBuilder(outPkgPath, handledStructs{}); err != nil {
 			return nil, fmt.Errorf("new builder of %v: %w", typeName, err)
 		} else if structModel, err := builder.newModel(pkg, structType); err != nil {
 			return nil, fmt.Errorf("new model of %v: %w", typeName, err)

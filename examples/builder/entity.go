@@ -18,12 +18,12 @@ type NoDBFieldsEntity struct {
 	OldID int32
 }
 
-type BaseEntity struct {
-	ID int32 `db:"id" pk:"" json:"id,omitempty"`
+type BaseEntity[ID any] struct {
+	ID ID `db:"id" pk:"" json:"id,omitempty"`
 }
 
-type Entity struct {
-	*BaseEntity
+type Entity[ID any] struct {
+	*BaseEntity[ID]
 	NoDB      *NoDBFieldsEntity
 	Name      StringBasedType  `db:"name" json:"name,omitempty"`
 	Surname   StringBasedAlias `db:"surname" json:"surname,omitempty"`

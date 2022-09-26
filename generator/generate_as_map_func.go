@@ -14,16 +14,17 @@ func (g *Generator) GenerateAsMapFunc(
 	export, snake, returnRefs, noReceiver, nolint, hardcodeValues bool,
 ) (string, string, string, error) {
 
-	// pkgAlias, err := g.GetPackageAlias(model.Package.Name, model.Package.Path)
-	// if err != nil {
-	// return "", "", "", err
-	// }
+	pkgAlias, err := g.GetPackageAlias(model.Package.Name, model.Package.Path)
+	if err != nil {
+		return "", "", "", err
+	}
 
 	receiverVar := "v"
 	receiverRef := AsRefIfNeed(receiverVar, returnRefs)
 
 	funcName := renameFuncByConfig(IdentName("AsMap", export), name)
-	typeLink := parametrizedVarType(model.Typ) // GetTypeName(model.TypeName, pkgAlias)
+
+	typeLink := GetTypeName(model.TypeName, pkgAlias) + TypeParamsString(model.Typ.TypeParams(), pkgAlias)
 	mapVar := "m"
 	var body string
 	if noReceiver {
@@ -49,27 +50,25 @@ func (g *Generator) GenerateAsMapFunc(
 	return typeLink, funcName, body, nil
 }
 
-func parametrizedVarType(typ *types.Named) string {
-	obj := typ.Obj()
-
-	n := obj.Name()
-
-	tpl := typ.TypeParams()
-	l := tpl.Len()
-	if l > 0 {
-		n += "["
+func TypeParamsString(tparams *types.TypeParamList, basePkgPath string) string {
+	l := tparams.Len()
+	if l == 0 {
+		return ""
 	}
+	s := "["
 	for i := 0; i < l; i++ {
-		tp := tpl.At(i)
+		tpar := tparams.At(i)
 		if i > 0 {
-			n += ","
+			s += ", "
 		}
-		n += tp.Obj().Name()
+		if tpar == nil {
+			s += "/*error: nil type parameter*/"
+			continue
+		}
+		s += struc.TypeString(tpar, basePkgPath)
 	}
-	if l > 0 {
-		n += "]"
-	}
-	return n
+	s += "]"
+	return s
 }
 
 func generateMapInits(

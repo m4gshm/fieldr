@@ -7,11 +7,11 @@ import (
 )
 
 func TestBuilderEmpty(t *testing.T) {
-	actual := EntityBuilder{}.Build()
-	assert.Equal(t, &Entity{BaseEntity: &BaseEntity{}}, actual)
+	actual := EntityBuilder[int32]{}.Build()
+	assert.Equal(t, &Entity[int32]{BaseEntity: &BaseEntity[int32]{}}, actual)
 }
 
 func TestBuilderFields(t *testing.T) {
-	actual := EntityBuilder{ID: 1, Name: "2"}.Build()
-	assert.Equal(t, &Entity{BaseEntity: &BaseEntity{ID: 1}, Name: "2"}, actual)
+	actual := EntityBuilder[int32]{ID: 1, Name: "2"}.Build()
+	assert.Equal(t, &Entity[int32]{BaseEntity: &BaseEntity[int32]{ID: 1}, Name: "2"}, actual)
 }

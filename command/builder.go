@@ -3,6 +3,7 @@ package command
 import (
 	"flag"
 	"fmt"
+	"go/types"
 
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/struc"
@@ -43,11 +44,28 @@ func NewBuilderStruct() *Command {
 				builderName = *name
 			}
 
-			builderBody := "type " + builderName + " struct {\n"
+			typ := model.Typ
+			obj := typ.Obj()
+
+			btyp := types.NewNamed(
+				types.NewTypeName(obj.Pos(), obj.Pkg(), builderName, types.NewStruct(nil, nil)), typ.Underlying(), nil,
+			)
+
+			tparams := typ.TypeParams()
+			btparams := make([]*types.TypeParam, tparams.Len())
+			for i := range btparams {
+				tp := tparams.At(i)
+				btparams[i] = types.NewTypeParam(tp.Obj(), tp.Constraint())
+			}
+
+			btyp.SetTypeParams(btparams)
+
+			builderBody := "type " + struc.TypeString(btyp, g.OutPkg.PkgPath) + " struct {\n"
 			rec := "b"
 			constrMethodName := "Build"
-			constrMethodBody := "func (" + rec + " " + builderName + ") " + constrMethodName + "() *" + buildedType + " {\n" +
-				"return &" + buildedType + " {\n"
+			typeParams := generator.TypeParamsString(model.Typ.TypeParams(), g.OutPkg.PkgPath)
+			constrMethodBody := "func (" + rec + " " + builderName + typeParams + ") " + constrMethodName + "() *" + buildedType + typeParams + " {\n" +
+				"return &" + buildedType + typeParams + " {\n"
 			c, b, err := generateBuilderParts(g, model, rec)
 			if err != nil {
 				return err
@@ -80,7 +98,8 @@ func generateBuilderParts(g *generator.Generator, model *struc.Model, rec string
 		fullFieldType := fieldType.Name
 
 		if fieldType.Embedded {
-			init := fullFieldType
+			typeParams := generator.TypeParamsString(model.Typ.TypeParams(), g.OutPkg.PkgPath)
+			init := fullFieldType + typeParams
 			if fieldType.Ref {
 				init = "&" + init
 			}
@@ -93,10 +112,10 @@ func generateBuilderParts(g *generator.Generator, model *struc.Model, rec string
 			builderBody += b
 			constrMethodBody += "\n}"
 		} else {
-			if typ, err := g.Repack(fieldType.Type, model.Package.Name); err != nil {
+			if typ, err := g.Repack(fieldType.Type, g.OutPkg.PkgPath); err != nil {
 				return "", "", err
 			} else {
-				fullFieldType = struc.TypeString(typ, model.Package.Name)
+				fullFieldType = struc.TypeString(typ, g.OutPkg.PkgPath)
 			}
 			builderField := generator.IdentName(fieldName, true)
 			if dupl, ok := uniques[builderField]; ok {

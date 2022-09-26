@@ -30,7 +30,7 @@ func (c *Context) Model() (*struc.Model, error) {
 	if len(typ) == 0 {
 		return nil, use.Err("no type arg")
 	}
-	model, err := struc.New(c.FilePackages, c.Files, c.FileSet, *c.Config.Type)
+	model, err := struc.New(c.Generator.OutPkg.PkgPath, c.FilePackages, c.Files, c.FileSet, *c.Config.Type)
 	if err != nil {
 		return nil, err
 	} else if model == nil {

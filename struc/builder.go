@@ -13,14 +13,14 @@ type handledStructs = map[types.Type]*Model
 type structModelBuilder struct {
 	model       *Model
 	deep        bool
-	rootPack    *types.Package
+	outPkgPath  string
 	loopControl handledStructs
 }
 
-func newBuilder(rootPack *types.Package, loopControl handledStructs) (*structModelBuilder, error) {
+func newBuilder(outPkgPath string, loopControl handledStructs) (*structModelBuilder, error) {
 	return &structModelBuilder{
 		deep:        true,
-		rootPack:    rootPack,
+		outPkgPath:  outPkgPath,
 		loopControl: loopControl,
 	}, nil
 }
@@ -62,7 +62,7 @@ func (b *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
 				for _, fieldTagName := range fieldTagNames {
 					b.populateTags(fldName, fieldTagName, tagValues[fieldTagName])
 				}
-				fieldTypeName := TypeString(fieldType, b.rootPack.Name())
+				fieldTypeName := TypeString(fieldType, b.outPkgPath)
 				ref := false
 				if structType, p, err := GetStructTypeName(fieldType); err != nil {
 					return err
@@ -78,7 +78,7 @@ func (b *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
 						if model, ok := b.loopControl[structType]; ok {
 							logger.Debugf("found handled type %v", typeName)
 							fieldModel = model
-						} else if nestedBuilder, err := newBuilder(b.rootPack, b.loopControl); err != nil {
+						} else if nestedBuilder, err := newBuilder(b.outPkgPath, b.loopControl); err != nil {
 							return err
 						} else if model, err = nestedBuilder.newModel(pkg, structType); err != nil {
 							return fmt.Errorf("nested field %v.%v; %w", typeName, fldName, err)
@@ -90,7 +90,7 @@ func (b *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
 
 				ft := FieldType{
 					Embedded: embedded, Ref: ref, Name: fieldTypeName,
-					FullName: TypeString(fieldType, b.rootPack.Name()),
+					FullName: TypeString(fieldType, b.outPkgPath),
 					Type:     fieldType, Model: fieldModel,
 				}
 				b.model.FieldsType[fldName] = ft
@@ -123,11 +123,10 @@ func (b *structModelBuilder) newModel(typPack *types.Package, typ *types.Named) 
 		return nil, fmt.Errorf("already handled type %v", typName)
 	}
 	model := &Model{
-		Typ:      typ,
-		TypeName: typName,
-		// Signature:      TypeString(typ, b.rootPack.Name()),
+		Typ:            typ,
+		TypeName:       typName,
 		Package:        Package{Name: typPack.Name(), Path: typPack.Path()},
-		RootPackage:    b.rootPack,
+		OutPkgPath:     b.outPkgPath,
 		FieldsTagValue: map[FieldName]map[TagName]TagValue{},
 		TagsFieldValue: map[TagName]map[FieldName]TagValue{},
 		FieldNames:     []FieldName{},
