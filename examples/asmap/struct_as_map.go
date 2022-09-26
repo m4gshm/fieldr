@@ -15,7 +15,7 @@ const (
 	FlatBank     StructField = "Bank"
 )
 
-func (v *Struct) AsMap() map[StructField]interface{} {
+func (v *Struct[n]) AsMap() map[StructField]interface{} {
 	m := map[StructField]interface{}{}
 	if v.BaseStruct != nil {
 		m[BaseStructID] = v.BaseStruct.ID

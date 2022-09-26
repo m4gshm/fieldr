@@ -17,22 +17,8 @@ type structModelBuilder struct {
 	loopControl handledStructs
 }
 
-func newBuilder(rootPack, modelPack *types.Package, typ types.Type, typeName string, filePath string, loopControl handledStructs) (*structModelBuilder, error) {
-	if _, ok := loopControl[typ]; ok {
-		return nil, fmt.Errorf("already handled type %v", typeName)
-	}
-	model := &Model{
-		TypeName:       typeName,
-		FilePath:       filePath,
-		Package:        Package{Name: modelPack.Name(), Path: modelPack.Path()},
-		FieldsTagValue: map[FieldName]map[TagName]TagValue{},
-		TagsFieldValue: map[TagName]map[FieldName]TagValue{},
-		FieldNames:     []FieldName{},
-		FieldsType:     map[FieldName]FieldType{},
-	}
-	loopControl[typ] = model
+func newBuilder(rootPack *types.Package, loopControl handledStructs) (*structModelBuilder, error) {
 	return &structModelBuilder{
-		model:       model,
 		deep:        true,
 		rootPack:    rootPack,
 		loopControl: loopControl,
@@ -92,12 +78,12 @@ func (b *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
 						if model, ok := b.loopControl[structType]; ok {
 							logger.Debugf("found handled type %v", typeName)
 							fieldModel = model
-						} else if nestedBuilder, err := newBuilder(b.rootPack, pkg, structType, typeName, "", b.loopControl); err != nil {
+						} else if nestedBuilder, err := newBuilder(b.rootPack, b.loopControl); err != nil {
 							return err
-						} else if err = nestedBuilder.populateByType(structType); err != nil {
+						} else if model, err = nestedBuilder.newModel(pkg, structType); err != nil {
 							return fmt.Errorf("nested field %v.%v; %w", typeName, fldName, err)
 						} else {
-							fieldModel = nestedBuilder.getModel()
+							fieldModel = model
 						}
 					}
 				}
@@ -131,19 +117,34 @@ func (b *structModelBuilder) populateByType(t types.Type) error {
 	}
 }
 
-func (b *structModelBuilder) newModel(t types.Type) (*Model, error) {
-	if err := b.populateByType(t); err != nil {
+func (b *structModelBuilder) newModel(typPack *types.Package, typ *types.Named) (*Model, error) {
+	typName := typ.Obj().Name()
+	if _, ok := b.loopControl[typ]; ok {
+		return nil, fmt.Errorf("already handled type %v", typName)
+	}
+	model := &Model{
+		Typ:      typ,
+		TypeName: typName,
+		// Signature:      TypeString(typ, b.rootPack.Name()),
+		Package:        Package{Name: typPack.Name(), Path: typPack.Path()},
+		RootPackage:    b.rootPack,
+		FieldsTagValue: map[FieldName]map[TagName]TagValue{},
+		TagsFieldValue: map[TagName]map[FieldName]TagValue{},
+		FieldNames:     []FieldName{},
+		FieldsType:     map[FieldName]FieldType{},
+	}
+	b.loopControl[typ] = model
+	b.model = model
+
+	if err := b.populateByType(typ); err != nil {
 		return nil, err
 	}
-	return b.getModel(), nil
+
+	return b.model, nil
 }
 
-func (b *structModelBuilder) getModel() *Model {
-	return b.model
-}
-
-func GetStructTypeName(fieldType types.Type) (*types.Named, bool, error) {
-	switch ftt := fieldType.(type) {
+func GetStructTypeName(typ types.Type) (*types.Named, bool, error) {
+	switch ftt := typ.(type) {
 	case *types.Named:
 		und := ftt.Underlying()
 		if _, ok := und.(*types.Struct); ok {

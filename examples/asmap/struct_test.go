@@ -7,7 +7,7 @@ import (
 )
 
 func TestStructAsMapEmpty(t *testing.T) {
-	s := Struct{}
+	s := Struct[string]{}
 	m := s.AsMap()
 	assert.Equal(t, map[StructField]interface{}{
 		Name:      "",
@@ -19,7 +19,7 @@ func TestStructAsMapEmpty(t *testing.T) {
 }
 
 func TestStructAsMapEmptyEmbeddedRef(t *testing.T) {
-	s := Struct{BaseStruct: &BaseStruct{}, Name: "N", Address: &EmbeddedAddress{}}
+	s := Struct[string]{BaseStruct: &BaseStruct{}, Name: "N", Address: &EmbeddedAddress{}}
 	m := s.AsMap()
 	assert.Equal(t, map[StructField]interface{}{
 		BaseStructID: 0,

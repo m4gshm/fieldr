@@ -20,9 +20,9 @@ type FlatPart struct {
 	Bank    string
 }
 
-type Struct struct {
+type Struct[n string] struct {
 	*BaseStruct
-	Name     string
+	Name     n
 	Surname  string
 	noExport string //nolint
 	NoTag    string

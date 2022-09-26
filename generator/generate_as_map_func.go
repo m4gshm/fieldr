@@ -1,6 +1,8 @@
 package generator
 
 import (
+	"go/types"
+
 	"github.com/m4gshm/fieldr/struc"
 )
 
@@ -12,16 +14,16 @@ func (g *Generator) GenerateAsMapFunc(
 	export, snake, returnRefs, noReceiver, nolint, hardcodeValues bool,
 ) (string, string, string, error) {
 
-	pkgAlias, err := g.GetPackageAlias(model.Package.Name, model.Package.Path)
-	if err != nil {
-		return "", "", "", err
-	}
+	// pkgAlias, err := g.GetPackageAlias(model.Package.Name, model.Package.Path)
+	// if err != nil {
+	// return "", "", "", err
+	// }
 
 	receiverVar := "v"
 	receiverRef := AsRefIfNeed(receiverVar, returnRefs)
 
 	funcName := renameFuncByConfig(IdentName("AsMap", export), name)
-	typeLink := GetTypeName(model.TypeName, pkgAlias)
+	typeLink := parametrizedVarType(model.Typ) // GetTypeName(model.TypeName, pkgAlias)
 	mapVar := "m"
 	var body string
 	if noReceiver {
@@ -45,6 +47,29 @@ func (g *Generator) GenerateAsMapFunc(
 		funcName = MethodName(model.TypeName, funcName)
 	}
 	return typeLink, funcName, body, nil
+}
+
+func parametrizedVarType(typ *types.Named) string {
+	obj := typ.Obj()
+
+	n := obj.Name()
+
+	tpl := typ.TypeParams()
+	l := tpl.Len()
+	if l > 0 {
+		n += "["
+	}
+	for i := 0; i < l; i++ {
+		tp := tpl.At(i)
+		if i > 0 {
+			n += ","
+		}
+		n += tp.Obj().Name()
+	}
+	if l > 0 {
+		n += "]"
+	}
+	return n
 }
 
 func generateMapInits(

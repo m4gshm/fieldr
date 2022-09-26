@@ -31,9 +31,11 @@ type (
 
 	//Model struct type model.
 	Model struct {
-		TypeName       string
+		Typ      *types.Named
+		TypeName string
+		// Signature      string
 		Package        Package
-		FilePath       string
+		RootPackage    *types.Package
 		FieldsTagValue map[FieldName]map[TagName]TagValue
 		TagsFieldValue map[TagName]map[FieldName]TagValue
 		FieldNames     []FieldName
@@ -41,7 +43,7 @@ type (
 	}
 )
 
-// New - HierarchicalModel's default constructor.
+// New - Model's default constructor.
 func New(filePackages map[*ast.File]*packages.Package, files []*ast.File, fileSet *token.FileSet, typeName string) (*Model, error) {
 	for _, file := range files {
 		var (
@@ -52,13 +54,14 @@ func New(filePackages map[*ast.File]*packages.Package, files []*ast.File, fileSe
 		if lookup == nil {
 			continue
 		}
-		var (
-			fileInfo = fileSet.File(file.Pos())
-			filePath = fileInfo.Name()
-		)
-		if builder, err := newBuilder(pkg, pkg, nil, typeName, filePath, handledStructs{}); err != nil {
+		typ := lookup.Type()
+		if structType, _, err := GetStructTypeName(typ); err != nil {
+			return nil, err
+		} else if structType == nil {
+			return nil, fmt.Errorf("type '%s' is not struct", typeName)
+		} else if builder, err := newBuilder(pkg, handledStructs{}); err != nil {
 			return nil, fmt.Errorf("new builder of %v: %w", typeName, err)
-		} else if structModel, err := builder.newModel(lookup.Type()); err != nil {
+		} else if structModel, err := builder.newModel(pkg, structType); err != nil {
 			return nil, fmt.Errorf("new model of %v: %w", typeName, err)
 		} else if structModel != nil {
 			return structModel, nil
