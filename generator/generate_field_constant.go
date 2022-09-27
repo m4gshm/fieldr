@@ -515,25 +515,12 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgAlias, typ s
 	for _, constant := range constants {
 		body += "case " + constant.name + ":\n"
 
-		condition := ""
-		fieldPath := ""
-		for _, p := range constant.fieldPath {
-			if len(fieldPath) > 0 {
-				fieldPath += "."
-			}
-			fieldPath += p.name
-			if p.typ.Ref {
-				if len(condition) > 0 {
-					condition += " && "
-				}
-				condition += recVar + "." + fieldPath + " != nil "
-			}
-		}
+		fullFieldPath, condition := FiledPathAndAcceddCheckCondition(recVar, constant.fieldPath)
 
 		if len(condition) > 0 {
 			body += "if " + condition + " {\n"
 		}
-		body += "return " + pref + recVar + "." + fieldPath + "\n"
+		body += "return " + pref + fullFieldPath + "\n"
 		if len(condition) > 0 {
 			body += "}\n"
 		}
@@ -545,4 +532,31 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgAlias, typ s
 		"}\n"
 
 	return body, name, nil
+}
+
+func FiledPathAndAcceddCheckCondition(recVar string, fieldPathInfo []fieldInfo) (string, string) {
+	condition := ""
+	fieldPath := ""
+	fullFieldPath := recVar + "."
+	for _, p := range fieldPathInfo {
+		if len(fieldPath) > 0 {
+			fieldPath += "."
+			fullFieldPath += "."
+		}
+		fieldPath += p.name
+		fullFieldPath += p.name
+		if p.typ.RefCount > 0 {
+			if len(condition) > 0 {
+				condition += " && "
+			}
+			condition += fullFieldPath + " != nil "
+			for ri := 1; ri < p.typ.RefCount; ri++ {
+				condition += " && "
+				fullFieldPath = "*(" + fullFieldPath + ")"
+				condition += fullFieldPath + " != nil "
+				fullFieldPath = "(" + fullFieldPath + ")"
+			}
+		}
+	}
+	return fullFieldPath, condition
 }

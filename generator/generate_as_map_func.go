@@ -72,26 +72,13 @@ func TypeParamsString(tparams *types.TypeParamList, basePkgPath string) string {
 }
 
 func generateMapInits(
-	g *Generator, mapVar, receiverRef string, rewriter *CodeRewriter, constants []fieldConst,
+	g *Generator, mapVar, recVar string, rewriter *CodeRewriter, constants []fieldConst,
 ) (string, error) {
 	body := ""
 	for _, constant := range constants {
 		field := constant.fieldPath[len(constant.fieldPath)-1]
-		condition := ""
-		fieldPath := ""
-		for _, p := range constant.fieldPath {
-			if len(fieldPath) > 0 {
-				fieldPath += "."
-			}
-			fieldPath += p.name
-			if p.typ.Ref {
-				if len(condition) > 0 {
-					condition += " && "
-				}
-				condition += receiverRef + "." + fieldPath + " != nil "
-			}
-		}
-		revr, _ := rewriter.Transform(field.name, field.typ, receiverRef+"."+fieldPath)
+		fullFieldPath, condition := FiledPathAndAcceddCheckCondition(recVar, constant.fieldPath)
+		revr, _ := rewriter.Transform(field.name, field.typ, fullFieldPath)
 		if len(condition) > 0 {
 			body += "if " + condition + " {\n"
 		}

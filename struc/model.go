@@ -23,7 +23,8 @@ type (
 	FieldName = string
 	Package   struct{ Name, Path string }
 	FieldType struct {
-		Embedded, Ref  bool
+		Embedded       bool
+		RefCount       int
 		Name, FullName string
 		Model          *Model
 		Type           types.Type
@@ -33,6 +34,7 @@ type (
 	Model struct {
 		Typ            *types.Named
 		TypeName       string
+		RefCount       int
 		Package        Package
 		OutPkgPath     string
 		FieldsTagValue map[FieldName]map[TagName]TagValue
@@ -54,7 +56,7 @@ func New(outPkgPath string, filePackages map[*ast.File]*packages.Package, files 
 			continue
 		}
 		typ := lookup.Type()
-		if structType, _, err := GetStructTypeName(typ); err != nil {
+		if structType, _, err := GetStructTypeNamed(typ); err != nil {
 			return nil, err
 		} else if structType == nil {
 			return nil, fmt.Errorf("type '%s' is not struct", typeName)

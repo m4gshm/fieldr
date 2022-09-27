@@ -41,10 +41,10 @@ func (b *structModelBuilder) populateFields(fldName FieldName, fieldTagNames []T
 	}
 }
 
-func (b *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
-	numFields := typeStruct.NumFields()
+func (b *structModelBuilder) populateByStruct(typ *types.Struct) error {
+	numFields := typ.NumFields()
 	for i := 0; i < numFields; i++ {
-		fieldVar := typeStruct.Field(i)
+		fieldVar := typ.Field(i)
 		fldName := fieldVar.Name()
 		if fieldVar.IsField() {
 			fieldType := fieldVar.Type()
@@ -53,7 +53,7 @@ func (b *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
 			if _, ok := b.model.FieldsType[fldName]; ok {
 				logger.Infof("duplicated field '%s'", fldName)
 			} else {
-				tag := typeStruct.Tag(i)
+				tag := typ.Tag(i)
 
 				b.model.FieldNames = append(b.model.FieldNames, fldName)
 
@@ -63,8 +63,8 @@ func (b *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
 					b.populateTags(fldName, fieldTagName, tagValues[fieldTagName])
 				}
 				fieldTypeName := TypeString(fieldType, b.outPkgPath)
-				ref := false
-				if structType, p, err := GetStructTypeName(fieldType); err != nil {
+				ref := 0
+				if structType, p, err := GetStructTypeNamed(fieldType); err != nil {
 					return err
 				} else if structType != nil {
 					ref = p
@@ -87,9 +87,8 @@ func (b *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
 						}
 					}
 				}
-
 				ft := FieldType{
-					Embedded: embedded, Ref: ref, Name: fieldTypeName,
+					Embedded: embedded, RefCount: ref, Name: fieldTypeName,
 					FullName: TypeString(fieldType, b.outPkgPath),
 					Type:     fieldType, Model: fieldModel,
 				}
@@ -102,25 +101,14 @@ func (b *structModelBuilder) populateByStruct(typeStruct *types.Struct) error {
 	return nil
 }
 
-func (b *structModelBuilder) populateByType(t types.Type) error {
-	switch tt := t.(type) {
-	case *types.Struct:
-		return b.populateByStruct(tt)
-	case types.Type:
-		underlying := tt.Underlying()
-		if underlying == t {
-			return nil
-		}
-		return b.populateByType(underlying)
-	default:
-		return nil
-	}
-}
-
 func (b *structModelBuilder) newModel(typPack *types.Package, typ *types.Named) (*Model, error) {
 	typName := typ.Obj().Name()
 	if _, ok := b.loopControl[typ]; ok {
 		return nil, fmt.Errorf("already handled type %v", typName)
+	}
+	st, rc, err := GetStructType(typ)
+	if err != nil {
+		return nil, err
 	}
 	model := &Model{
 		Typ:            typ,
@@ -131,36 +119,63 @@ func (b *structModelBuilder) newModel(typPack *types.Package, typ *types.Named) 
 		TagsFieldValue: map[TagName]map[FieldName]TagValue{},
 		FieldNames:     []FieldName{},
 		FieldsType:     map[FieldName]FieldType{},
+		RefCount:       rc,
 	}
 	b.loopControl[typ] = model
 	b.model = model
 
-	if err := b.populateByType(typ); err != nil {
+	if err := b.populateByStruct(st); err != nil {
 		return nil, err
 	}
-
 	return b.model, nil
 }
 
-func GetStructTypeName(typ types.Type) (*types.Named, bool, error) {
+func GetStructTypeNamed(typ types.Type) (*types.Named, int, error) {
 	switch ftt := typ.(type) {
 	case *types.Named:
 		und := ftt.Underlying()
 		if _, ok := und.(*types.Struct); ok {
-			return ftt, false, nil
-		} else if sund, _, err := GetStructTypeName(und); err != nil {
-			return nil, false, err
+			return ftt, 0, nil
+		} else if sund, p, err := GetStructTypeNamed(und); err != nil {
+			return nil, 0, err
 		} else if sund != nil {
-			return ftt, false, nil
+			return ftt, p, nil
 		}
-		return nil, false, nil
+		return nil, 0, nil
 	case *types.Pointer:
-		t, _, err := GetStructTypeName(ftt.Elem())
+		t, p, err := GetStructTypeNamed(ftt.Elem())
 		if err != nil {
-			return nil, true, err
+			return nil, 0, err
 		}
-		return t, true, nil
+		return t, p + 1, nil
 	default:
-		return nil, false, nil
+		return nil, 0, nil
+	}
+}
+
+func GetStructType(t types.Type) (*types.Struct, int, error) {
+	switch tt := t.(type) {
+	case *types.Struct:
+		return tt, 0, nil
+	case *types.Pointer:
+		s, pc, err := GetStructType(tt.Elem())
+		if err != nil {
+			return nil, 0, err
+		}
+		return s, pc + 1, nil
+	case *types.Named:
+		underlying := tt.Underlying()
+		if underlying == t {
+			return nil, 0, nil
+		}
+		return GetStructType(underlying)
+	case types.Type:
+		underlying := tt.Underlying()
+		if underlying == t {
+			return nil, 0, nil
+		}
+		return GetStructType(underlying)
+	default:
+		return nil, 0, nil
 	}
 }

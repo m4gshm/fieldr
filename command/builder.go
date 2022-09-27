@@ -100,7 +100,7 @@ func generateBuilderParts(g *generator.Generator, model *struc.Model, rec string
 		if fieldType.Embedded {
 			typeParams := generator.TypeParamsString(model.Typ.TypeParams(), g.OutPkg.PkgPath)
 			init := fullFieldType + typeParams
-			if fieldType.Ref {
+			if fieldType.RefCount > 0 {
 				init = "&" + init
 			}
 			constrMethodBody += fieldName + ": " + init + "{\n"
