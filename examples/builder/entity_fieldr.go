@@ -11,13 +11,13 @@ import (
 type EntityBuilder[ID any] struct {
 	ID        ID
 	NoDB      *NoDBFieldsEntity
-	Name      StringBasedType
+	Name      StringBasedType[string]
 	Surname   string
 	Values    []int32
 	Ts        []*time.Time
 	Versioned sql_base.VersionedEntity
 	Chan      chan map[time.Time]string
-	SomeMap   map[StringBasedType]bytes.Buffer
+	SomeMap   map[StringBasedType[string]]bytes.Buffer
 }
 
 func (b EntityBuilder[ID]) Build() *Entity[ID] {

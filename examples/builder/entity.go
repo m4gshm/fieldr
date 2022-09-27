@@ -11,7 +11,7 @@ import (
 	"example/sql_base"
 )
 
-type StringBasedType string
+type StringBasedType[s string] string
 type StringBasedAlias = string
 
 type NoDBFieldsEntity struct {
@@ -25,11 +25,11 @@ type BaseEntity[ID any] struct {
 type Entity[ID any] struct {
 	*BaseEntity[ID]
 	NoDB      *NoDBFieldsEntity
-	Name      StringBasedType  `db:"name" json:"name,omitempty"`
-	Surname   StringBasedAlias `db:"surname" json:"surname,omitempty"`
-	Values    []int32          `db:"values" json:"values,omitempty"`
-	Ts        []*t.Time        `db:"ts" json:"ts"`
+	Name      StringBasedType[string] `db:"name" json:"name,omitempty"`
+	Surname   StringBasedAlias        `db:"surname" json:"surname,omitempty"`
+	Values    []int32                 `db:"values" json:"values,omitempty"`
+	Ts        []*t.Time               `db:"ts" json:"ts"`
 	Versioned sql_base.VersionedEntity
 	Chan      chan map[t.Time]string
-	SomeMap   map[StringBasedType]bytes.Buffer
+	SomeMap   map[StringBasedType[string]]bytes.Buffer
 }
