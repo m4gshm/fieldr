@@ -24,7 +24,7 @@ func (g *Generator) GenerateAsMapFunc(
 
 	funcName := renameFuncByConfig(IdentName("AsMap", export), name)
 
-	typeLink := GetTypeName(model.TypeName, pkgAlias) + TypeParamsString(model.Typ.TypeParams(), pkgAlias)
+	typeLink := GetTypeName(model.TypeName, pkgAlias) + TypeParamsString(model.Typ.TypeParams(), g.OutPkg.PkgPath)
 	mapVar := "m"
 	var body string
 	if noReceiver {

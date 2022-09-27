@@ -59,7 +59,7 @@ func isEmpty(v interface{}) bool {
 	}
 }
 
-func (s *Struct) MarshalJSON() ([]byte, error) {
+func (s *Struct[S]) MarshalJSON() ([]byte, error) {
 	var builder strings.Builder
 
 	builder.Grow(len(jsonFields) * 16)
@@ -72,7 +72,7 @@ func (s *Struct) MarshalJSON() ([]byte, error) {
 	return []byte(builder.String()), nil
 }
 
-func (s *Struct) MarshalJSONToBuilder(builder *strings.Builder) error {
+func (s *Struct[S]) MarshalJSONToBuilder(builder *strings.Builder) error {
 	err := s.writeJson(builder)
 	if err != nil {
 		return err
@@ -80,11 +80,11 @@ func (s *Struct) MarshalJSONToBuilder(builder *strings.Builder) error {
 	return nil
 }
 
-func (s *Struct) writeJson(builder *strings.Builder) error {
+func (s *Struct[S]) writeJson(builder *strings.Builder) error {
 	builder.WriteString("{")
 	j := 0
 	for i, field := range jsonFields {
-		fieldValue := field.val(s)
+		fieldValue := s.val(field)
 
 		if jsonOmitEmpty[i] && isEmpty(fieldValue) {
 			continue

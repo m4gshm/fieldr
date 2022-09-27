@@ -43,8 +43,8 @@ func (c EntityCol) field() string { //nolint
 	return ""
 }
 
-func (c EntityCol) val(s *Entity) interface{} { //nolint
-	switch c {
+func (s *Entity) val(f EntityCol) interface{} { //nolint
+	switch f {
 	case ENTITY_COL_ID:
 		if s.BaseEntity != nil {
 			return s.BaseEntity.ID
@@ -61,8 +61,8 @@ func (c EntityCol) val(s *Entity) interface{} { //nolint
 	return nil
 }
 
-func (c EntityCol) ref(s *Entity) interface{} { //nolint
-	switch c {
+func (s *Entity) ref(f EntityCol) interface{} { //nolint
+	switch f {
 	case ENTITY_COL_ID:
 		if s.BaseEntity != nil {
 			return &s.BaseEntity.ID

@@ -34,8 +34,8 @@ func (c Col) field() string {
 	return ""
 }
 
-func (c Col) val(s *Entity) interface{} {
-	switch c {
+func (s *Entity) val(f Col) interface{} {
+	switch f {
 	case colID:
 		return s.ID
 	case colName:
@@ -48,8 +48,8 @@ func (c Col) val(s *Entity) interface{} {
 	return nil
 }
 
-func (c Col) ref(s *Entity) interface{} {
-	switch c {
+func (s *Entity) ref(f Col) interface{} {
+	switch f {
 	case colID:
 		return &s.ID
 	case colName:

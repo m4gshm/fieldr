@@ -51,7 +51,7 @@ func (e *Entity) vals() []interface{} {
 	cols := cols()
 	r := make([]interface{}, len(cols))
 	for i, c := range cols {
-		r[i] = c.val(e)
+		r[i] = e.val(c)
 	}
 	return r
 }
@@ -60,7 +60,7 @@ func (e *Entity) refs() []interface{} {
 	cols := cols()
 	r := make([]interface{}, len(cols))
 	for i, c := range cols {
-		r[i] = c.ref(e)
+		r[i] = e.ref(c)
 	}
 	return r
 }

@@ -18,13 +18,13 @@ type Address struct {
 	City, Street, Home string
 }
 
-type Struct struct {
+type Struct[S string] struct {
 	*MiddleStruct
-	Name     NameS  `json:"name,omitempty"`
-	Surname  string `json:"surname,omitempty"`
-	NoJson   string `json:"-"`
-	noExport string `json:"no_export"` //nolint
-	NoTag    string
+	Name     NameS `json:"name,omitempty"`
+	Surname  S     `json:"surname,omitempty"`
+	NoJson   S     `json:"-"`
+	noExport S     `json:"no_export"` //nolint
+	NoTag    S
 	Address  *Address `json:"address,omitempty"`
 }
 

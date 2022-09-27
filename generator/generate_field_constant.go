@@ -490,9 +490,9 @@ func (g *Generator) generateConstFieldMethod(typ string, constants []fieldConst,
 func (g *Generator) generateConstValueMethod(model *struc.Model, pkgAlias, typ string, constants []fieldConst, export, nolint, ref bool) (string, string, error) {
 	var (
 		name         = IdentName("Val", export)
-		receiverVar  = "c"
-		argName      = "s"
-		argType      = "*" + GetTypeName(model.TypeName, pkgAlias)
+		argVar       = "f"
+		recVar       = "s"
+		recType      = "*" + GetTypeName(model.TypeName, pkgAlias) + TypeParamsString(model.Typ.TypeParams(), g.OutPkg.PkgPath)
 		returnTypes  = "interface{}"
 		returnNoCase = "nil"
 		pref         = ""
@@ -503,9 +503,13 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgAlias, typ s
 		name = IdentName("Ref", export)
 	}
 
-	body := "func (" + receiverVar + " " + typ + ") " + name + "(" + argName + " " + argType + ") " + returnTypes
+	funSign := "func (" + recVar + " " + recType + ") " + name + "(" + argVar + " " + typ + ") " + returnTypes
+	if len(pkgAlias) > 0 {
+		funSign = "func " + name + "(" + recVar + " " + recType + ", " + argVar + " " + typ + ") " + returnTypes
+	}
+	body := funSign
 	body += " {" + NoLint(nolint) + "\n" +
-		"switch " + receiverVar + " {\n" +
+		"switch " + argVar + " {\n" +
 		""
 
 	for _, constant := range constants {
@@ -522,14 +526,14 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgAlias, typ s
 				if len(condition) > 0 {
 					condition += " && "
 				}
-				condition += argName + "." + fieldPath + " != nil "
+				condition += recVar + "." + fieldPath + " != nil "
 			}
 		}
 
 		if len(condition) > 0 {
 			body += "if " + condition + " {\n"
 		}
-		body += "return " + pref + argName + "." + fieldPath + "\n"
+		body += "return " + pref + recVar + "." + fieldPath + "\n"
 		if len(condition) > 0 {
 			body += "}\n"
 		}

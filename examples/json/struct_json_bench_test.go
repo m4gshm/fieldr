@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-var benchStruct = Struct{
+var benchStruct = Struct[string]{
 	MiddleStruct: &MiddleStruct{BaseStruct{&IDAware{ID: 1}}},
 	Name:         "Name",
 	NoJson:       "NoJson",

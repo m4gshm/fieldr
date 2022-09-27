@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var testStruct = Struct{
+var testStruct = Struct[string]{
 	MiddleStruct: &MiddleStruct{BaseStruct{&IDAware{ID: 1}}},
 	Name:         "NameValue",
 	NoJson:       "NoJsonValue",

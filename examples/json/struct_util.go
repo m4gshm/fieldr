@@ -38,8 +38,8 @@ func (c structJson) field() string {
 	return ""
 }
 
-func (c structJson) val(s *Struct) interface{} {
-	switch c {
+func (s *Struct[S]) val(f structJson) interface{} {
+	switch f {
 	case structJsonID:
 		if s.MiddleStruct != nil && s.MiddleStruct.BaseStruct.IDAware != nil {
 			return s.MiddleStruct.BaseStruct.IDAware.ID
