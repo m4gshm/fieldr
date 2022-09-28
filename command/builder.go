@@ -16,8 +16,10 @@ func NewBuilderStruct() *Command {
 	)
 
 	var (
-		flagSet = flag.NewFlagSet(cmdName, flag.ContinueOnError)
-		name    = flagSet.String("name", generator.Autoname, "generated type name, use "+generator.Autoname+" for autoname")
+		flagSet      = flag.NewFlagSet(cmdName, flag.ContinueOnError)
+		name         = flagSet.String("name", generator.Autoname, "generated type name, use "+generator.Autoname+" for autoname")
+		nomethods    = flagSet.Bool("nomethods", false, "don't generate field methods")
+		exportFields = flagSet.Bool("export-fields", false, "export builder fields")
 		// flat    = params.Flat(flagSet)
 		// export  = params.Export(flagSet)
 		// snake   = params.Snake(flagSet)
@@ -66,7 +68,8 @@ func NewBuilderStruct() *Command {
 			typeParams := generator.TypeParamsString(model.Typ.TypeParams(), g.OutPkg.PkgPath)
 			constrMethodBody := "func (" + rec + " " + builderName + typeParams + ") " + constrMethodName + "() *" + buildedType + typeParams + " {\n" +
 				"return &" + buildedType + typeParams + " {\n"
-			c, b, err := generateBuilderParts(g, model, rec)
+			uniques := map[string]string{}
+			c, b, fmn, fmb, err := generateBuilderParts(g, model, uniques, rec, builderName+typeParams, *nomethods, true, *exportFields)
 			if err != nil {
 				return err
 			}
@@ -81,15 +84,26 @@ func NewBuilderStruct() *Command {
 				return err
 			}
 
+			for i := range fmn {
+				fieldMethodName := fmn[i]
+				fieldMethodBody := fmb[i]
+				if err := s.AddMethod(fieldMethodName, fieldMethodBody); err != nil {
+					return err
+				}
+			}
 			return g.AddStruct(s)
 		},
 	)
 }
 
-func generateBuilderParts(g *generator.Generator, model *struc.Model, rec string) (string, string, error) {
-	uniques := map[string]string{}
+func generateBuilderParts(
+	g *generator.Generator, model *struc.Model, uniques map[string]string, builderRecVar, builderType string, noMethods, exportMethods, exportFields bool,
+) (string, string, []string, []string, error) {
+
 	constrMethodBody := ""
 	builderBody := ""
+	fieldMethodBodies := []string{}
+	fieldMethodNames := []string{}
 	for i, fieldName := range model.FieldNames {
 		if i > 0 {
 			builderBody += "\n"
@@ -104,28 +118,45 @@ func generateBuilderParts(g *generator.Generator, model *struc.Model, rec string
 				init = "&" + init
 			}
 			constrMethodBody += fieldName + ": " + init + "{\n"
-			c, b, err := generateBuilderParts(g, fieldType.Model, rec)
+			c, b, fmn, fmb, err := generateBuilderParts(g, fieldType.Model, uniques, builderRecVar, builderType, noMethods, exportMethods, exportFields)
 			if err != nil {
-				return "", "", err
+				return "", "", nil, nil, err
 			}
 			constrMethodBody += c
 			builderBody += b
 			constrMethodBody += "\n}"
+			if !noMethods {
+				fieldMethodBodies = append(fieldMethodBodies, fmb...)
+				fieldMethodNames = append(fieldMethodNames, fmn...)
+			}
 		} else {
 			if typ, err := g.Repack(fieldType.Type, g.OutPkg.PkgPath); err != nil {
-				return "", "", err
+				return "", "", nil, nil, err
 			} else {
 				fullFieldType = struc.TypeString(typ, g.OutPkg.PkgPath)
 			}
-			builderField := generator.IdentName(fieldName, true)
+			builderField := generator.LegalIdentName(generator.IdentName(fieldName, exportFields))
 			if dupl, ok := uniques[builderField]; ok {
-				return "", "", fmt.Errorf("duplicated builder fields: name '%s', first type '%s', second '%s'", builderField, dupl, fullFieldType)
+				return "", "", nil, nil, fmt.Errorf("duplicated builder fields: name '%s', first type '%s', second '%s'", builderField, dupl, fullFieldType)
 			}
 			uniques[builderField] = fullFieldType
 			builderBody += builderField + " " + fullFieldType
-			constrMethodBody += fieldName + ": " + rec + "." + builderField
+			constrMethodBody += fieldName + ": " + builderRecVar + "." + builderField
+			if !noMethods {
+				prefix := ""
+				if exportFields {
+					prefix = "Set"
+				}
+				fieldMethodName := generator.LegalIdentName(generator.IdentName(prefix+builderField, exportMethods))
+				arg := "a"
+				fieldMethod := "func (" + builderRecVar + " " + builderType + ") " + fieldMethodName + "(" + arg + " " + fullFieldType + ") " + builderType + " {\n"
+				fieldMethod += builderRecVar + "." + builderField + "=" + arg + "\n"
+				fieldMethod += "return " + builderRecVar + "\n}\n"
+				fieldMethodBodies = append(fieldMethodBodies, fieldMethod)
+				fieldMethodNames = append(fieldMethodNames, fieldMethodName)
+			}
 		}
 		constrMethodBody += ",\n"
 	}
-	return constrMethodBody, builderBody, nil
+	return constrMethodBody, builderBody, fieldMethodNames, fieldMethodBodies, nil
 }

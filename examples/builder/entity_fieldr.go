@@ -35,3 +35,47 @@ func (b EntityBuilder[ID]) Build() *Entity[ID] {
 		SomeMap:   b.SomeMap,
 	}
 }
+func (b EntityBuilder[ID]) SetID(a ID) EntityBuilder[ID] {
+	b.ID = a
+	return b
+}
+
+func (b EntityBuilder[ID]) SetNoDB(a *NoDBFieldsEntity) EntityBuilder[ID] {
+	b.NoDB = a
+	return b
+}
+
+func (b EntityBuilder[ID]) SetName(a StringBasedType[string]) EntityBuilder[ID] {
+	b.Name = a
+	return b
+}
+
+func (b EntityBuilder[ID]) SetSurname(a string) EntityBuilder[ID] {
+	b.Surname = a
+	return b
+}
+
+func (b EntityBuilder[ID]) SetValues(a []int32) EntityBuilder[ID] {
+	b.Values = a
+	return b
+}
+
+func (b EntityBuilder[ID]) SetTs(a []*time.Time) EntityBuilder[ID] {
+	b.Ts = a
+	return b
+}
+
+func (b EntityBuilder[ID]) SetVersioned(a sql_base.VersionedEntity) EntityBuilder[ID] {
+	b.Versioned = a
+	return b
+}
+
+func (b EntityBuilder[ID]) SetChan(a chan map[time.Time]string) EntityBuilder[ID] {
+	b.Chan = a
+	return b
+}
+
+func (b EntityBuilder[ID]) SetSomeMap(a map[StringBasedType[string]]bytes.Buffer) EntityBuilder[ID] {
+	b.SomeMap = a
+	return b
+}

@@ -711,7 +711,7 @@ func generatedMarker(name string) string {
 }
 
 func GetFieldType(typeName string, export, snake bool) string {
-	return IdentName(typeName+getIdentPart("Field", snake), export)
+	return LegalIdentName(IdentName(typeName+getIdentPart("Field", snake), export))
 }
 
 func getIdentPart(suffix string, snake bool) string {
@@ -730,6 +730,25 @@ func IdentName(name string, export bool) string {
 	}
 	result := string(first) + name[1:]
 	return result
+}
+
+var illegals = map[string]struct{}{
+	"return": {},
+	"type":   {},
+	"chan":   {},
+	"struct": {},
+	"false":  {},
+	"true":   {},
+	"func":   {},
+}
+
+func LegalIdentName(name string) string {
+	for {
+		if _, ok := illegals[name]; !ok {
+			return name
+		}
+		name = name + "_"
+	}
 }
 
 func camel(name string) string {
@@ -890,7 +909,7 @@ func (g *Generator) getTagTemplateConstName(typeName string, fieldName struc.Fie
 	for _, tag := range tags {
 		tagsPart += getIdentPart(tag, snake)
 	}
-	return IdentName(typeName+tagsPart+getIdentPart(fieldName, snake), export)
+	return LegalIdentName(IdentName(typeName+tagsPart+getIdentPart(fieldName, snake), export))
 }
 
 func getUsedFieldConstName(typeName string, fieldName struc.FieldName, hardcodeValues, export, snake bool) string {
@@ -1073,7 +1092,7 @@ func filterNotExisted(names []string, values map[string]string) []string {
 
 func GetFieldConstName(typeName string, fieldName struc.FieldName, export, snake bool) string {
 	fieldName = convertFieldPathToGoIdent(fieldName)
-	return IdentName(GetFieldType(typeName, export, snake)+getIdentPart(fieldName, snake), isExport(fieldName) && export)
+	return LegalIdentName(IdentName(GetFieldType(typeName, export, snake)+getIdentPart(fieldName, snake), isExport(fieldName) && export))
 }
 
 func isExport(fieldName struc.FieldName) bool {
