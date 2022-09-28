@@ -1,4 +1,4 @@
-package gorm
+package multiply_tags
 
 import "time"
 
