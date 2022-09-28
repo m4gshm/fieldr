@@ -54,6 +54,9 @@ func (c EntityCol) field() string { //nolint
 }
 
 func (s *Entity) val(f EntityCol) interface{} { //nolint
+	if s == nil {
+		return nil
+	}
 	switch f {
 	case ENTITY_COL_ID:
 		if s.BaseEntity != nil {
@@ -80,6 +83,9 @@ func (s *Entity) val(f EntityCol) interface{} { //nolint
 }
 
 func (s *Entity) ref(f EntityCol) interface{} { //nolint
+	if s == nil {
+		return nil
+	}
 	switch f {
 	case ENTITY_COL_ID:
 		if s.BaseEntity != nil {

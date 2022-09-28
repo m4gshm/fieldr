@@ -508,8 +508,9 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgAlias, typ s
 		funSign = "func " + name + "(" + recVar + " " + recType + ", " + argVar + " " + typ + ") " + returnTypes
 	}
 	body := funSign
-	body += " {" + NoLint(nolint) + "\n" +
-		"switch " + argVar + " {\n" +
+	body += " {" + NoLint(nolint) + "\n"
+	body += "if " + recVar + " == nil {\nreturn nil\n}\n"
+	body += "switch " + argVar + " {\n" +
 		""
 
 	for _, constant := range constants {
@@ -549,11 +550,11 @@ func FiledPathAndAcceddCheckCondition(recVar string, fieldPathInfo []fieldInfo) 
 			if len(condition) > 0 {
 				condition += " && "
 			}
-			condition += fullFieldPath + " != nil "
+			condition += fullFieldPath + " != nil"
 			for ri := 1; ri < p.typ.RefCount; ri++ {
 				condition += " && "
 				fullFieldPath = "*(" + fullFieldPath + ")"
-				condition += fullFieldPath + " != nil "
+				condition += fullFieldPath + " != nil"
 				fullFieldPath = "(" + fullFieldPath + ")"
 			}
 		}

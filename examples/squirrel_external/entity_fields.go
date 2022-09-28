@@ -37,6 +37,9 @@ func (c Col) field() string { //nolint
 }
 
 func val(s *squirrel.Entity, f Col) interface{} { //nolint
+	if s == nil {
+		return nil
+	}
 	switch f {
 	case colID:
 		return s.ID
@@ -51,6 +54,9 @@ func val(s *squirrel.Entity, f Col) interface{} { //nolint
 }
 
 func ref(s *squirrel.Entity, f Col) interface{} { //nolint
+	if s == nil {
+		return nil
+	}
 	switch f {
 	case colID:
 		return &s.ID

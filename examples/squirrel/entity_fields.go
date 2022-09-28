@@ -35,6 +35,9 @@ func (c Col) field() string {
 }
 
 func (s *Entity) val(f Col) interface{} {
+	if s == nil {
+		return nil
+	}
 	switch f {
 	case colID:
 		return s.ID
@@ -49,6 +52,9 @@ func (s *Entity) val(f Col) interface{} {
 }
 
 func (s *Entity) ref(f Col) interface{} {
+	if s == nil {
+		return nil
+	}
 	switch f {
 	case colID:
 		return &s.ID

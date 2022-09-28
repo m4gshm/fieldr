@@ -39,6 +39,9 @@ func (c structJson) field() string {
 }
 
 func (s *Struct[S]) val(f structJson) interface{} {
+	if s == nil {
+		return nil
+	}
 	switch f {
 	case structJsonID:
 		if s.MiddleStruct != nil && s.MiddleStruct.BaseStruct.IDAware != nil {

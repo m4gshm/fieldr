@@ -16,6 +16,9 @@ const (
 )
 
 func (v *Struct[n]) AsMap() map[StructField]interface{} {
+	if v == nil {
+		return nil
+	}
 	m := map[StructField]interface{}{}
 	if v.BaseStruct != nil {
 		m[BaseStructID] = v.BaseStruct.ID

@@ -20,7 +20,7 @@ func Test_UseDeepRefAccess(t *testing.T) {
 
 	// ue := new(UpdateableEntity)
 	// uer1 := UpdateableEntityRef(ue)
-	uer2 := new(UpdateableEntityRef)//&uer1
+	uer2 := new(UpdateableEntityRef) //&uer1
 	uer3 := &uer2
 	e.Upd = &uer3
 
