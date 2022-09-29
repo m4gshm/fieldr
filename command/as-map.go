@@ -67,7 +67,7 @@ func NewAsMapMethod() *Command {
 				model, *name, kType, constants, excludedFields, flatsSet, rewriter, *export, *snake, *ref, *fun, *nolint, *hardcode,
 			); err != nil {
 				return err
-			} else if err := g.AddFunc(funcName, funcBody); err != nil {
+			} else if err := g.AddFuncOrMethod(funcName, funcBody); err != nil {
 				return err
 			}
 			return nil

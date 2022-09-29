@@ -82,30 +82,30 @@ func run() error {
 
 	fileSet := token.NewFileSet()
 	buildTags := *config.BuildTags
-	pkg, err := extractPackage(fileSet, buildTags, *config.PackagePattern)
+	srcPkg, err := extractPackage(fileSet, buildTags, *config.PackagePattern)
 	if err != nil {
 		return err
 	}
-	packageName := pkg.Name
-	files := pkg.Syntax
-	if len(files) == 0 {
+	packageName := srcPkg.Name
+	srcFiles := srcPkg.Syntax
+	if len(srcFiles) == 0 {
 		log.Printf("no src files in package %s", packageName)
 		return nil
 	}
 
 	filePackages := make(map[*ast.File]*packages.Package)
-	for _, file := range files {
-		filePackages[file] = pkg
+	for _, file := range srcFiles {
+		filePackages[file] = srcPkg
 	}
 
 	inputs := *config.Input
 
-	files, err = loadSrcFiles(inputs, buildTags, fileSet, files, filePackages)
+	srcFiles, err = loadSrcFiles(inputs, buildTags, fileSet, srcFiles, filePackages)
 	if err != nil {
 		return err
 	}
 
-	filesCmdArgs, err := newFilesCommentsConfig(files)
+	filesCmdArgs, err := newFilesCommentsConfig(srcFiles)
 	if err != nil {
 		return err
 	} else if len(filesCmdArgs) > 0 {
@@ -152,7 +152,7 @@ func run() error {
 
 	var outFile *ast.File
 	var outFileInfo *token.File
-	for _, file := range files {
+	for _, file := range srcFiles {
 		if info := fileSet.File(file.Pos()); info.Name() == outputName {
 			outFileInfo = info
 			outFile = file
@@ -198,7 +198,7 @@ func run() error {
 
 	g := generator.New(params.Name, *config.OutBuildTags, outFile, outFileInfo, outPkg)
 
-	ctx := &command.Context{Config: config, Generator: g, FilePackages: filePackages, Files: files, FileSet: fileSet}
+	ctx := &command.Context{Config: config, Generator: g, FilePackages: filePackages, Files: srcFiles, FileSet: fileSet}
 	for _, c := range commands {
 		if err := c.Run(ctx); err != nil {
 			return err

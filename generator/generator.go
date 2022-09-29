@@ -384,20 +384,22 @@ func (g *Generator) getInjectChunks(outFile *ast.File, base int) (map[int]map[in
 		switch dt := decl.(type) {
 		case *ast.GenDecl:
 			if dt.Tok == token.IMPORT {
-				var start int
-				var end int
-				if len(dt.Specs) == 0 {
-					start = int(dt.Pos()) - base
-					end = int(dt.End()) - base
-				} else {
-					if dt.Rparen != token.NoPos {
-						start = int(dt.Rparen) - base
-						end = start
-					}
+				start := int(dt.Pos()) - base
+				end := int(dt.End()) - base
+				imports := g.getImports()
+				if len(imports.Specs) == 0 {
+					imports.Specs = []ast.Spec{}
 				}
-				if expr, err := g.getImportsExpr(); err != nil {
+				imports.Specs = append(imports.Specs, dt.Specs...)
+				out := &bytes.Buffer{}
+				if err := writeSpecs(imports, out); err != nil {
 					return nil, err
-				} else if len(expr) > 0 {
+				}
+				if out.Len() > 0 {
+					out.WriteString("\n")
+				}
+				expr := out.String()
+				if len(expr) > 0 {
 					chunks[start] = map[int]string{end: expr}
 				}
 				importInjected = true
@@ -455,7 +457,7 @@ func (g *Generator) getInjectChunks(outFile *ast.File, base int) (map[int]map[in
 			name := dt.Name.Name
 			recv := dt.Recv
 			if recv != nil {
-				if _, err := g.addReceiveFuncOnRewrite(recv.List, name, chunks, start, end); err != nil {
+				if _, err := g.addReceiverFuncOnRewrite(recv.List, name, chunks, start, end); err != nil {
 					return nil, err
 				}
 			} else if f, ok := g.funcBodies[name]; ok {
@@ -481,7 +483,7 @@ func (g *Generator) getInjectChunks(outFile *ast.File, base int) (map[int]map[in
 	return chunks, nil
 }
 
-func (g *Generator) addReceiveFuncOnRewrite(list []*ast.Field, name string, chunks map[int]map[int]string, start int, end int) (bool, error) {
+func (g *Generator) addReceiverFuncOnRewrite(list []*ast.Field, name string, chunks map[int]map[int]string, start int, end int) (bool, error) {
 	if len(list) == 0 {
 		return false, nil
 	}
@@ -513,6 +515,8 @@ func getReceiverName(typ ast.Expr) (string, error) {
 		return getReceiverName(tt.X)
 	case *ast.Ident:
 		return tt.Name, nil
+	case *ast.IndexExpr:
+		return getReceiverName(tt.X)
 	case *ast.SelectorExpr:
 		name := tt.Sel.Name
 		x := tt.X
@@ -530,7 +534,7 @@ func getReceiverName(typ ast.Expr) (string, error) {
 		}
 		return name, nil
 	default:
-		return "", errors.Errorf("receiver name; unexpecte type %v, value %v", reflect.TypeOf(tt), tt)
+		return "", errors.Errorf("receiver name; unexpected type %v, value %v", reflect.TypeOf(tt), tt)
 	}
 }
 
@@ -574,13 +578,12 @@ func (g *Generator) writeHead(packageName string) error {
 }
 
 func (g *Generator) getImportsExpr() (string, error) {
-	fset := token.NewFileSet()
-	out := &bytes.Buffer{}
 	imports := g.getImports()
-	if imports == nil {
+	if len(imports.Specs) == 0 {
 		return "", nil
 	}
-	if err := printer.Fprint(out, fset, imports); err != nil {
+	out := &bytes.Buffer{}
+	if err := writeSpecs(imports, out); err != nil {
 		return "", err
 	}
 	return out.String(), nil
@@ -591,26 +594,26 @@ func (g *Generator) getImports() *ast.GenDecl {
 	for pack, alias := range g.imports {
 		specs = append(specs, newImport(alias, pack))
 	}
-	if len(specs) == 0 {
-		return nil
-	}
+	// if len(specs) == 0 {
+	// 	return nil
+	// }
 	return &ast.GenDecl{Tok: token.IMPORT, Specs: specs}
 }
 
-func (g *Generator) writeSpecs(specs ast.Node) error {
+func writeSpecs(specs ast.Node, out *bytes.Buffer) error {
 	if specs == nil || (reflect.ValueOf(specs).Kind() == reflect.Ptr && reflect.ValueOf(specs).IsNil()) {
 		return nil
 	}
 	fset := token.NewFileSet()
-	if err := printer.Fprint(g.body, fset, specs); err != nil {
+	if err := printer.Fprint(out, fset, specs); err != nil {
 		return err
 	}
-	g.writeBody("\n")
+	out.WriteString("\n")
 	return nil
 }
 
 func (g *Generator) writeConstants() error {
-	return g.writeSpecs(g.getConstants())
+	return writeSpecs(g.getConstants(), g.body)
 }
 
 func (g *Generator) getConstants() *ast.GenDecl {
@@ -670,7 +673,7 @@ func (g *Generator) writeFunctions() error {
 }
 
 func (g *Generator) writeTypes() error {
-	return g.writeSpecs(g.getTypes())
+	return writeSpecs(g.getTypes(), g.body)
 }
 
 func (g *Generator) writeStructs() error {
@@ -847,12 +850,12 @@ func (g *Generator) AddStruct(s Structure) error {
 }
 
 func (g *Generator) AddMethod(typ, name, body string) error {
-	return g.AddFunc(MethodName(typ, name), body)
+	return g.AddFuncOrMethod(MethodName(typ, name), body)
 }
 
-func (g *Generator) AddFunc(name, body string) error {
+func (g *Generator) AddFuncOrMethod(name, body string) error {
 	if exists, ok := g.funcBodies[name]; ok && exists.body != body {
-		return errors.Errorf("duplicated func with different value; const %s, exist '%s', new '%s'", name, exists.body, body)
+		return errors.Errorf("duplicated func with different value; func %s, exist '%s', new '%s'", name, exists.body, body)
 	} else if !ok {
 		g.funcNames = append(g.funcNames, name)
 		g.funcBodies[name] = funcBody{body: body}
@@ -928,7 +931,6 @@ func (g *Generator) filterInjected() {
 	g.constNames = filterNotExisted(g.constNames, g.constants.nvMap())
 	g.varNames = filterNotExisted(g.varNames, g.varValues)
 	g.funcNames = filterNotExisted(g.funcNames, g.funcBodies.names())
-
 }
 
 func (g *Generator) ImportPack(pkg *types.Package, basePackagePath string) (*types.Package, error) {
