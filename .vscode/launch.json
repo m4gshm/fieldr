@@ -78,7 +78,13 @@
             "mode": "debug",
             "program": "main.go",
             "cwd": "examples/builder",
-            "args": ["-type", "Entity", "builder"]
+            "args": [
+                "-type",
+                "Entity",
+                "builder",
+                "-export",
+                "all"
+            ]
         },               
         {
             "name": "Launch Package",

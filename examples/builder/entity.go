@@ -1,8 +1,8 @@
 package builder
 
-//go:generate fieldr -type Entity
+//go:generate fieldr -type Entity -export all
 
-//go:fieldr builder -export-fields
+//go:fieldr builder
 
 import (
 	"bytes"

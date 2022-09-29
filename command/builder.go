@@ -6,20 +6,25 @@ import (
 	"go/types"
 
 	"github.com/m4gshm/fieldr/generator"
+	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/struc"
 )
 
 func NewBuilderStruct() *Command {
 	const (
-		cmdName    = "builder"
-		genContent = "struct"
+		cmdName     = "builder"
+		genContent  = "struct"
+		defMethPref = "Set"
 	)
+
+	exportVals := []string{"all", "fields", "methods"}
 
 	var (
 		flagSet      = flag.NewFlagSet(cmdName, flag.ContinueOnError)
 		name         = flagSet.String("name", generator.Autoname, "generated type name, use "+generator.Autoname+" for autoname")
-		nomethods    = flagSet.Bool("nomethods", false, "don't generate field methods")
-		exportFields = flagSet.Bool("export-fields", false, "export builder fields")
+		methodPrefix = flagSet.String("method-prefix", generator.Autoname, "generated methods prefix, use "+generator.Autoname+" for autoselect")
+		ligth        = flagSet.Bool("ligth", false, "don't generate builder methods, only fields")
+		exports      = params.MultiValFixed(flagSet, "export", []string{}, exportVals, "export generated content")
 		// flat    = params.Flat(flagSet)
 		// export  = params.Export(flagSet)
 		// snake   = params.Snake(flagSet)
@@ -68,8 +73,30 @@ func NewBuilderStruct() *Command {
 			typeParams := generator.TypeParamsString(model.Typ.TypeParams(), g.OutPkg.PkgPath)
 			constrMethodBody := "func (" + rec + " " + builderName + typeParams + ") " + constrMethodName + "() *" + buildedType + typeParams + " {\n" +
 				"return &" + buildedType + typeParams + " {\n"
+
+			var exportMethods, exportFields bool
+			for _, e := range *exports {
+				switch e {
+				case "all":
+					exportMethods = true
+					exportFields = true
+				case "methods":
+					exportMethods = true
+				case "fields":
+					exportFields = true
+				default:
+					return fmt.Errorf("unsupported ")
+				}
+			}
 			uniques := map[string]string{}
-			c, b, fmn, fmb, err := generateBuilderParts(g, model, uniques, rec, builderName+typeParams, *nomethods, true, *exportFields)
+			prefix := ""
+			if len(*methodPrefix) > 0 && (*methodPrefix) != generator.Autoname {
+				prefix = *methodPrefix
+			}
+			if exportFields == exportMethods && prefix == "" {
+				prefix = defMethPref
+			}
+			c, b, fmn, fmb, err := generateBuilderParts(g, model, uniques, rec, builderName+typeParams, *ligth, exportMethods, exportFields, prefix)
 			if err != nil {
 				return err
 			}
@@ -97,7 +124,7 @@ func NewBuilderStruct() *Command {
 }
 
 func generateBuilderParts(
-	g *generator.Generator, model *struc.Model, uniques map[string]string, builderRecVar, builderType string, noMethods, exportMethods, exportFields bool,
+	g *generator.Generator, model *struc.Model, uniques map[string]string, builderRecVar, builderType string, noMethods, exportMethods, exportFields bool, prefix string,
 ) (string, string, []string, []string, error) {
 
 	constrMethodBody := ""
@@ -118,7 +145,7 @@ func generateBuilderParts(
 				init = "&" + init
 			}
 			constrMethodBody += fieldName + ": " + init + "{\n"
-			c, b, fmn, fmb, err := generateBuilderParts(g, fieldType.Model, uniques, builderRecVar, builderType, noMethods, exportMethods, exportFields)
+			c, b, fmn, fmb, err := generateBuilderParts(g, fieldType.Model, uniques, builderRecVar, builderType, noMethods, exportMethods, exportFields, prefix)
 			if err != nil {
 				return "", "", nil, nil, err
 			}
@@ -143,10 +170,6 @@ func generateBuilderParts(
 			builderBody += builderField + " " + fullFieldType
 			constrMethodBody += fieldName + ": " + builderRecVar + "." + builderField
 			if !noMethods {
-				prefix := ""
-				if exportFields {
-					prefix = "Set"
-				}
 				fieldMethodName := generator.LegalIdentName(generator.IdentName(prefix+builderField, exportMethods))
 				arg := "a"
 				fieldMethod := "func (" + builderRecVar + " " + builderType + ") " + fieldMethodName + "(" + arg + " " + fullFieldType + ") " + builderType + " {\n"
