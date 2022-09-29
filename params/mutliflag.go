@@ -66,6 +66,9 @@ func MultiValFixed(flagSet *flag.FlagSet, name string, defValues, expected []str
 	if len(expecteUniq) > 0 {
 		suffix = "(expected: " + strings.Join(expected, ", ") + ")"
 	}
+	if len(usage) > 0 {
+		suffix = " " + suffix
+	}
 	flagSet.Var(&values, name, usage+suffix)
 	return &values.values
 }

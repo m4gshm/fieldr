@@ -20,13 +20,13 @@ func NewBuilderStruct() *Command {
 	exportVals := []string{"all", "fields", "methods"}
 
 	var (
-		flagSet      = flag.NewFlagSet(cmdName, flag.ContinueOnError)
-		name         = flagSet.String("name", generator.Autoname, "generated type name, use "+generator.Autoname+" for autoname")
-		methodPrefix = flagSet.String("method-prefix", generator.Autoname, "generated methods prefix, use "+generator.Autoname+" for autoselect")
-		ligth        = flagSet.Bool("ligth", false, "don't generate builder methods, only fields")
-		exports      = params.MultiValFixed(flagSet, "export", []string{}, exportVals, "export generated content")
+		flagSet       = flag.NewFlagSet(cmdName, flag.ContinueOnError)
+		name          = flagSet.String("name", generator.Autoname, "generated type name, use "+generator.Autoname+" for autoname")
+		methPrefix    = flagSet.String("method-prefix", generator.Autoname, "generated methods prefix, use "+generator.Autoname+" for autoselect")
+		valueReceiver = flagSet.Bool("value-receiver", false, "use value receiver in generate methods (default is pointer)")
+		ligth         = flagSet.Bool("ligth", false, "don't generate builder methods, only fields")
+		exports       = params.MultiValFixed(flagSet, "export", []string{}, exportVals, "export generated content")
 		// flat    = params.Flat(flagSet)
-		// export  = params.Export(flagSet)
 		// snake   = params.Snake(flagSet)
 		// nolint  = params.Nolint(flagSet)
 	)
@@ -85,18 +85,23 @@ func NewBuilderStruct() *Command {
 				case "fields":
 					exportFields = true
 				default:
-					return fmt.Errorf("unsupported ")
+					return fmt.Errorf("unexpected value %s", e)
 				}
 			}
 			uniques := map[string]string{}
-			prefix := ""
-			if len(*methodPrefix) > 0 && (*methodPrefix) != generator.Autoname {
-				prefix = *methodPrefix
+			methodPrefix := ""
+			if len(*methPrefix) > 0 && (*methPrefix) != generator.Autoname {
+				methodPrefix = *methPrefix
 			}
-			if exportFields == exportMethods && prefix == "" {
-				prefix = defMethPref
+			if exportFields == exportMethods && methodPrefix == "" {
+				methodPrefix = defMethPref
 			}
-			c, b, fmn, fmb, err := generateBuilderParts(g, model, uniques, rec, builderName+typeParams, *ligth, exportMethods, exportFields, prefix)
+
+			typePrefix := "*"
+			if *valueReceiver {
+				typePrefix = ""
+			}
+			c, b, fmn, fmb, err := generateBuilderParts(g, model, uniques, rec, typePrefix+builderName+typeParams, methodPrefix, *ligth, exportMethods, exportFields)
 			if err != nil {
 				return err
 			}
@@ -124,7 +129,7 @@ func NewBuilderStruct() *Command {
 }
 
 func generateBuilderParts(
-	g *generator.Generator, model *struc.Model, uniques map[string]string, builderRecVar, builderType string, noMethods, exportMethods, exportFields bool, prefix string,
+	g *generator.Generator, model *struc.Model, uniques map[string]string, builderRecVar, builderType, prefix string, noMethods, exportMethods, exportFields bool,
 ) (string, string, []string, []string, error) {
 
 	constrMethodBody := ""
@@ -145,7 +150,7 @@ func generateBuilderParts(
 				init = "&" + init
 			}
 			constrMethodBody += fieldName + ": " + init + "{\n"
-			c, b, fmn, fmb, err := generateBuilderParts(g, fieldType.Model, uniques, builderRecVar, builderType, noMethods, exportMethods, exportFields, prefix)
+			c, b, fmn, fmb, err := generateBuilderParts(g, fieldType.Model, uniques, builderRecVar, builderType, prefix, noMethods, exportMethods, exportFields)
 			if err != nil {
 				return "", "", nil, nil, err
 			}
@@ -171,7 +176,8 @@ func generateBuilderParts(
 			constrMethodBody += fieldName + ": " + builderRecVar + "." + builderField
 			if !noMethods {
 				fieldMethodName := generator.LegalIdentName(generator.IdentName(prefix+builderField, exportMethods))
-				arg := "a"
+				arg := generator.LegalIdentName(generator.IdentName(builderField, false))
+
 				fieldMethod := "func (" + builderRecVar + " " + builderType + ") " + fieldMethodName + "(" + arg + " " + fullFieldType + ") " + builderType + " {\n"
 				fieldMethod += builderRecVar + "." + builderField + "=" + arg + "\n"
 				fieldMethod += "return " + builderRecVar + "\n}\n"

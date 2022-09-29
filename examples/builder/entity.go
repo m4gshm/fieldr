@@ -2,7 +2,7 @@ package builder
 
 //go:generate fieldr -type Entity
 
-//go:fieldr builder -export all
+//go:fieldr builder -export all -value-receiver
 
 import (
 	"bytes"

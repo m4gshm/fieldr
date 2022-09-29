@@ -35,47 +35,47 @@ func (b EntityBuilder[ID]) Build() *Entity[ID] {
 		SomeMap:   b.SomeMap,
 	}
 }
-func (b EntityBuilder[ID]) SetID(a ID) EntityBuilder[ID] {
-	b.ID = a
+func (b EntityBuilder[ID]) SetID(iD ID) EntityBuilder[ID] {
+	b.ID = iD
 	return b
 }
 
-func (b EntityBuilder[ID]) SetNoDB(a *NoDBFieldsEntity) EntityBuilder[ID] {
-	b.NoDB = a
+func (b EntityBuilder[ID]) SetNoDB(noDB *NoDBFieldsEntity) EntityBuilder[ID] {
+	b.NoDB = noDB
 	return b
 }
 
-func (b EntityBuilder[ID]) SetName(a StringBasedType[string]) EntityBuilder[ID] {
-	b.Name = a
+func (b EntityBuilder[ID]) SetName(name StringBasedType[string]) EntityBuilder[ID] {
+	b.Name = name
 	return b
 }
 
-func (b EntityBuilder[ID]) SetSurname(a string) EntityBuilder[ID] {
-	b.Surname = a
+func (b EntityBuilder[ID]) SetSurname(surname string) EntityBuilder[ID] {
+	b.Surname = surname
 	return b
 }
 
-func (b EntityBuilder[ID]) SetValues(a []int32) EntityBuilder[ID] {
-	b.Values = a
+func (b EntityBuilder[ID]) SetValues(values []int32) EntityBuilder[ID] {
+	b.Values = values
 	return b
 }
 
-func (b EntityBuilder[ID]) SetTs(a []*time.Time) EntityBuilder[ID] {
-	b.Ts = a
+func (b EntityBuilder[ID]) SetTs(ts []*time.Time) EntityBuilder[ID] {
+	b.Ts = ts
 	return b
 }
 
-func (b EntityBuilder[ID]) SetVersioned(a sql_base.VersionedEntity) EntityBuilder[ID] {
-	b.Versioned = a
+func (b EntityBuilder[ID]) SetVersioned(versioned sql_base.VersionedEntity) EntityBuilder[ID] {
+	b.Versioned = versioned
 	return b
 }
 
-func (b EntityBuilder[ID]) SetChan(a chan map[time.Time]string) EntityBuilder[ID] {
-	b.Chan = a
+func (b EntityBuilder[ID]) SetChan(chan_ chan map[time.Time]string) EntityBuilder[ID] {
+	b.Chan = chan_
 	return b
 }
 
-func (b EntityBuilder[ID]) SetSomeMap(a map[StringBasedType[string]]bytes.Buffer) EntityBuilder[ID] {
-	b.SomeMap = a
+func (b EntityBuilder[ID]) SetSomeMap(someMap map[StringBasedType[string]]bytes.Buffer) EntityBuilder[ID] {
+	b.SomeMap = someMap
 	return b
 }
