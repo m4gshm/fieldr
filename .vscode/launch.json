@@ -73,7 +73,7 @@
             "mode": "debug",
             "program": "main.go",
             "cwd": "examples/json",
-            "args": ["-type", "Struct", "-out", "struct_util.go"]
+            "args": ["-type", "Struct", "-out", "struct_util.go", "-debug"]
         },        
         {
             "name": "Debug multiply_tags example",

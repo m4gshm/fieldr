@@ -80,8 +80,42 @@ func run() error {
 		logger.Debugf("unspent command line args %v\n", args)
 	}
 
+	workDir, err := os.Getwd()
+	if err != nil {
+		log.Println(err)
+	}
+
 	fileSet := token.NewFileSet()
 	buildTags := *config.BuildTags
+	wdSrcPkg, err := extractPackage(fileSet, buildTags, workDir)
+	if err != nil {
+		return err
+	}
+	wdSrcFiles := wdSrcPkg.Syntax
+
+	filesCmdArgs, err := newFilesCommentsConfig(wdSrcFiles, fileSet)
+	if err != nil {
+		return err
+	} else if len(filesCmdArgs) > 0 {
+		for _, f := range filesCmdArgs {
+			for _, cmt := range f.commentArgs {
+				cmtCommands, cmtArgs, err := parseCommands(cmt.args)
+				if err != nil {
+					var uErr *use.Error
+					if errors.As(err, &uErr) {
+						return use.FileCommentErr(uErr.Error(), f.file, cmt.comment)
+					}
+					return err
+				} else if len(cmtCommands) == 0 {
+					logger.Debugf("no comment generator commands: file %s, line: %d args %v\n", f.file.Name, cmt.comment.Pos(), cmtArgs)
+				} else if len(cmtArgs) > 0 {
+					logger.Debugf("unspent comment line args: %v\n", cmtArgs)
+				}
+				commands = append(commands, cmtCommands...)
+			}
+		}
+	}
+
 	srcPkg, err := extractPackage(fileSet, buildTags, *config.PackagePattern)
 	if err != nil {
 		return err
@@ -103,29 +137,6 @@ func run() error {
 	srcFiles, err = loadSrcFiles(inputs, buildTags, fileSet, srcFiles, filePackages)
 	if err != nil {
 		return err
-	}
-
-	filesCmdArgs, err := newFilesCommentsConfig(srcFiles)
-	if err != nil {
-		return err
-	} else if len(filesCmdArgs) > 0 {
-		for _, f := range filesCmdArgs {
-			for _, cmt := range f.commentArgs {
-				cmtCommands, cmtArgs, err := parseCommands(cmt.args)
-				if err != nil {
-					var uErr *use.Error
-					if errors.As(err, &uErr) {
-						return use.FileCommentErr(uErr.Error(), f.file, cmt.comment)
-					}
-					return err
-				} else if len(cmtCommands) == 0 {
-					logger.Debugf("no comment generator commands: file %s, line: %d args %v\n", f.file.Name, cmt.comment.Pos(), cmtArgs)
-				} else if len(cmtArgs) > 0 {
-					logger.Debugf("unspent comment line args: %v\n", cmtArgs)
-				}
-				commands = append(commands, cmtCommands...)
-			}
-		}
 	}
 
 	if len(commands) == 0 {
@@ -244,10 +255,11 @@ type fileCmdArgs struct {
 	commentArgs []commentCmdArgs
 }
 
-func newFilesCommentsConfig(files []*ast.File) ([]fileCmdArgs, error) {
+func newFilesCommentsConfig(files []*ast.File, fileSet *token.FileSet) ([]fileCmdArgs, error) {
 	result := []fileCmdArgs{}
 	for _, file := range files {
-		if args, err := getFileCommentCmdArgs(file); err != nil {
+		ft := fileSet.File(file.Pos())
+		if args, err := getFileCommentCmdArgs(file, ft); err != nil {
 			return nil, err
 		} else if len(args) > 0 {
 			result = append(result, fileCmdArgs{file: file, commentArgs: args})
@@ -261,13 +273,16 @@ type commentCmdArgs struct {
 	args    []string
 }
 
-func getFileCommentCmdArgs(file *ast.File) ([]commentCmdArgs, error) {
+func getFileCommentCmdArgs(file *ast.File, fInfo *token.File) ([]commentCmdArgs, error) {
 	result := []commentCmdArgs{}
 	for _, commentGroup := range file.Comments {
 		for _, comment := range commentGroup.List {
 			if args, err := getCommentCmdArgs(comment.Text); err != nil {
 				return nil, err
 			} else if len(args) > 0 {
+				name := fInfo.Name()
+				line := fInfo.Line(comment.Pos())
+				logger.Debugf("extracted comment args: file %s, line %d, args %v", name, line, args)
 				result = append(result, commentCmdArgs{comment: comment, args: args})
 			}
 		}
