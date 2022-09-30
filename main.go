@@ -45,11 +45,7 @@ func main() {
 		var uErr *use.Error
 		if errors.As(err, &uErr) {
 			fmt.Fprintf(os.Stderr, "err: "+uErr.Error()+"\n")
-			// if uErr.cmd != nil {
-			// uErr.cmd.PrintUsage()
-			// } else {
 			flag.CommandLine.Usage()
-			// }
 		} else {
 			log.Fatal(err.Error())
 		}
@@ -116,16 +112,20 @@ func run() error {
 		}
 	}
 
+	if len(commands) == 0 {
+		return use.Err("no generator commands")
+	}
+
 	srcPkg, err := extractPackage(fileSet, buildTags, *config.PackagePattern)
 	if err != nil {
 		return err
 	}
-	packageName := srcPkg.Name
 	srcFiles := srcPkg.Syntax
-	if len(srcFiles) == 0 {
-		log.Printf("no src files in package %s", packageName)
-		return nil
-	}
+	// packageName := srcPkg.Name
+	// if len(srcFiles) == 0 {
+	// 	log.Printf("no src files in package %s", packageName)
+	// 	return nil
+	// }
 
 	filePackages := make(map[*ast.File]*packages.Package)
 	for _, file := range srcFiles {
@@ -137,10 +137,6 @@ func run() error {
 	srcFiles, err = loadSrcFiles(inputs, buildTags, fileSet, srcFiles, filePackages)
 	if err != nil {
 		return err
-	}
-
-	if len(commands) == 0 {
-		return use.Err("no generator commands")
 	}
 
 	logger.Debugw("using", "config", config)

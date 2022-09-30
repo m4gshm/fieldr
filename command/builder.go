@@ -31,7 +31,7 @@ func NewBuilderStruct() *Command {
 	)
 
 	return New(
-		cmdName, "generates structure that used as builder of any struct type of named arguments function caller",
+		cmdName, "generates builder API of a structure type",
 		flagSet,
 		func(context *Context) error {
 			model, err := context.Model()
