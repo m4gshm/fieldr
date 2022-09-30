@@ -489,14 +489,15 @@ func (g *Generator) generateConstFieldMethod(typ string, constants []fieldConst,
 
 func (g *Generator) generateConstValueMethod(model *struc.Model, pkgAlias, typ string, constants []fieldConst, export, nolint, ref bool) (string, string, error) {
 	var (
-		name         = IdentName("Val", export)
-		argVar       = "f"
-		recVar       = "s"
-		recType      = GetTypeName(model.TypeName, pkgAlias) + TypeParamsString(model.Typ.TypeParams(), g.OutPkg.PkgPath)
-		recTypeRef   = "*" + recType
-		returnTypes  = "interface{}"
-		returnNoCase = "nil"
-		pref         = ""
+		name            = IdentName("Val", export)
+		argVar          = "f"
+		recVar          = "s"
+		recType         = GetTypeName(model.TypeName, pkgAlias)
+		recParamType    = recType + TypeParamsString(model.Typ.TypeParams(), g.OutPkg.PkgPath)
+		recParamTypeRef = "*" + recParamType
+		returnTypes     = "interface{}"
+		returnNoCase    = "nil"
+		pref            = ""
 	)
 
 	if ref {
@@ -505,9 +506,9 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgAlias, typ s
 	}
 
 	isFunc := len(pkgAlias) > 0
-	funSign := "func (" + recVar + " " + recTypeRef + ") " + name + "(" + argVar + " " + typ + ") " + returnTypes
+	funSign := "func (" + recVar + " " + recParamTypeRef + ") " + name + "(" + argVar + " " + typ + ") " + returnTypes
 	if isFunc {
-		funSign = "func " + name + "(" + recVar + " " + recTypeRef + ", " + argVar + " " + typ + ") " + returnTypes
+		funSign = "func " + name + "(" + recVar + " " + recParamTypeRef + ", " + argVar + " " + typ + ") " + returnTypes
 	}
 	body := funSign
 	body += " {" + NoLint(nolint) + "\n"
