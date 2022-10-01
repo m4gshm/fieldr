@@ -85,6 +85,7 @@ func (b EntityBuilder) Build() *Entity {
 		Name: b.name,
 	}
 }
+
 func (b *EntityBuilder) Id(id int) *EntityBuilder {
 	b.id = id
 	return b

@@ -116,7 +116,7 @@ func NewBuilderStruct() *Command {
 			builderBody += b
 
 			builderBody += "}"
-			constrMethodBody += "}\n}"
+			constrMethodBody += "}\n}\n"
 
 			s := generator.Structure{Name: builderName, Body: builderBody}
 			if err := s.AddMethod(constrMethodName, constrMethodBody); err != nil {

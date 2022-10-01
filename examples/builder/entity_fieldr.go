@@ -33,6 +33,7 @@ func (b EntityBuilder[ID]) Build() *Entity[ID] {
 		SomeMap:   b.SomeMap,
 	}
 }
+
 func (b *EntityBuilder[ID]) SetID(iD ID) *EntityBuilder[ID] {
 	b.ID = iD
 	return b
