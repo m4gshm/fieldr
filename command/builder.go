@@ -26,7 +26,7 @@ func NewBuilderStruct() *Command {
 		setterPrefix    = flagSet.String("setter-prefix", generator.Autoname, "generated 'Set<Field>' methods prefix, use "+generator.Autoname+" for autoselect")
 		valueReceiver   = flagSet.Bool("value-receiver", false, "use value receiver in generate methods (default is pointer)")
 		ligth           = flagSet.Bool("ligth", false, "don't generate builder methods, only fields")
-		exports         = params.MultiValFixed(flagSet, "export", []string{}, exportVals, "export generated content")
+		exports         = params.MultiValFixed(flagSet, "export", []string{"methods"}, exportVals, "export generated content")
 		nolint          = params.Nolint(flagSet)
 	)
 
@@ -66,7 +66,7 @@ func NewBuilderStruct() *Command {
 
 			btyp.SetTypeParams(btparams)
 
-			builderBody := "type " + struc.TypeString(btyp, g.OutPkg.PkgPath) + " struct {" + generator.NoLint(*nolint) + "\n"
+			builderBody := struc.TypeString(btyp, g.OutPkg.PkgPath) + " struct {" + generator.NoLint(*nolint) + "\n"
 
 			var exportMethods, exportFields bool
 			for _, e := range *exports {

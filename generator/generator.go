@@ -299,6 +299,9 @@ func (g *Generator) WriteBody(outPackageName string) error {
 			return err
 		}
 		g.writeVars()
+		if err := g.writeStructs(); err != nil {
+			return err
+		}
 		if err := g.writeFunctions(); err != nil {
 			return err
 		}
@@ -404,21 +407,33 @@ func (g *Generator) getInjectChunks(outFile *ast.File, base int) (map[int]map[in
 				}
 				importInjected = true
 			} else {
-				for _, spec := range dt.Specs {
+				specs := dt.Specs
+				for _, spec := range specs {
+					struc := false
 					switch st := spec.(type) {
 					case *ast.TypeSpec:
 						switch st.Type.(type) {
 						case *ast.Ident, *ast.ArrayType:
+						case *ast.StructType:
+							struc = true
 						default:
 							continue
 						}
-
 						start := int(st.Type.Pos()) - base
 						end := int(st.Type.End()) - base
 						name := st.Name.Name
-						if newValue, found := g.typeValues[name]; found {
-							chunks[start] = map[int]string{end: newValue}
-							delete(g.typeValues, name)
+
+						if struc {
+							start = int(st.Pos()) - base
+							if newValue, found := g.structBodies[name]; found {
+								chunks[start] = map[int]string{end: newValue}
+								delete(g.structBodies, name)
+							}
+						} else {
+							if newValue, found := g.typeValues[name]; found {
+								chunks[start] = map[int]string{end: newValue}
+								delete(g.typeValues, name)
+							}
 						}
 					case *ast.ValueSpec:
 						names := st.Names
@@ -460,13 +475,8 @@ func (g *Generator) getInjectChunks(outFile *ast.File, base int) (map[int]map[in
 				if _, err := g.addReceiverFuncOnRewrite(recv.List, name, chunks, start, end); err != nil {
 					return nil, err
 				}
-			} else if f, ok := g.funcBodies[name]; ok {
-				if b, err := f.String(); err != nil {
-					return nil, err
-				} else {
-					chunks[start] = map[int]string{end: b}
-					delete(g.funcBodies, name)
-				}
+			} else if _, err := g.moveFuncToChunks(name, chunks, start, end); err != nil {
+				return nil, err
 			}
 		}
 	}
@@ -483,28 +493,28 @@ func (g *Generator) getInjectChunks(outFile *ast.File, base int) (map[int]map[in
 	return chunks, nil
 }
 
-func (g *Generator) addReceiverFuncOnRewrite(list []*ast.Field, name string, chunks map[int]map[int]string, start int, end int) (bool, error) {
+func (g *Generator) addReceiverFuncOnRewrite(list []*ast.Field, name string, chunks map[int]map[int]string, start, end int) (bool, error) {
 	if len(list) == 0 {
 		return false, nil
 	}
 	field := list[0]
-	typ := field.Type
-	receiverName, err := getReceiverName(typ)
+	receiverName, err := getReceiverName(field.Type)
 	if err != nil {
 		return false, fmt.Errorf("func %v; %w", name, err)
 	}
-	mName := MethodName(receiverName, name)
-	if f, ok := g.funcBodies[mName]; ok {
-		if b, err := f.String(); err != nil {
-			return false, err
-		} else {
-			chunks[start] = map[int]string{end: b}
-			delete(g.funcBodies, mName)
-			return true, nil
-		}
+	return g.moveFuncToChunks(MethodName(receiverName, name), chunks, start, end)
+}
 
+func (g *Generator) moveFuncToChunks(name string, chunks map[int]map[int]string, start, end int) (bool, error) {
+	if f, ok := g.funcBodies[name]; !ok {
+		return false, nil
+	} else if b, err := f.String(); err != nil {
+		return false, err
+	} else {
+		chunks[start] = map[int]string{end: b}
+		delete(g.funcBodies, name)
+		return true, nil
 	}
-	return false, nil
 }
 
 func MethodName(typ, fun string) string { return typ + "." + fun }
@@ -679,7 +689,7 @@ func (g *Generator) writeTypes() error {
 func (g *Generator) writeStructs() error {
 	for _, name := range g.structNames {
 		if s, ok := g.structBodies[name]; ok {
-			g.writeBody(s)
+			g.writeBody("type " + s)
 		}
 		g.writeBody("\n")
 	}
@@ -915,18 +925,12 @@ func (g *Generator) getTagTemplateConstName(typeName string, fieldName struc.Fie
 	return LegalIdentName(IdentName(typeName+tagsPart+getIdentPart(fieldName, snake), export))
 }
 
-func getUsedFieldConstName(typeName string, fieldName struc.FieldName, hardcodeValues, export, snake bool) string {
-	if hardcodeValues {
-		return Quoted(fieldName)
-	}
-	return GetFieldConstName(typeName, fieldName, isExport(fieldName) && export, snake)
-}
-
 func convertFieldPathToGoIdent(fieldName struc.FieldName) string {
 	return strings.ReplaceAll(fieldName, ".", "")
 }
 
 func (g *Generator) filterInjected() {
+	g.structNames = filterNotExisted(g.structNames, g.structBodies)
 	g.typeNames = filterNotExisted(g.typeNames, g.typeValues)
 	g.constNames = filterNotExisted(g.constNames, g.constants.nvMap())
 	g.varNames = filterNotExisted(g.varNames, g.varValues)

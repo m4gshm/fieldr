@@ -122,6 +122,27 @@
                 "-export",
                 "all"
             ]
+        },   
+        {
+            "name": "Debug usage example",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "examples/usage",
+            "args": [
+                "-type",
+                "Entity",
+                "enum-const",
+                "-val",
+                ".json",
+                "-list",
+                "jsons",
+                "--",
+                "builder",
+                "-export",
+                "methods"
+            ]
         },               
         {
             "name": "Launch Package",

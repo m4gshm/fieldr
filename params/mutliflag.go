@@ -9,9 +9,12 @@ import (
 var void struct{}
 
 type multiflag struct {
-	name                  string
-	values, expected      []string
-	uniques, expectedUniq map[string]struct{}
+	name           string
+	values         []string
+	expected       []string
+	uniques        map[string]struct{}
+	unusedDefaults map[string]struct{}
+	expectedUniq   map[string]struct{}
 }
 
 var _ flag.Value = (*multiflag)(nil)
@@ -21,15 +24,13 @@ func (f *multiflag) String() string {
 }
 
 func (f *multiflag) Set(s string) error {
-	if f.values == nil {
-		f.values = []string{}
+	if _, ok := f.unusedDefaults[s]; ok {
+		delete(f.unusedDefaults, s)
+		return nil
 	}
-
-	if err := checkDuplicated(s, f.uniques, f.name); err != nil {
+	if err := checkDuplicated("", s, f.uniques, f.name); err != nil {
 		return err
-	}
-
-	if len(f.expectedUniq) > 0 {
+	} else if len(f.expectedUniq) > 0 {
 		if _, ok := f.expectedUniq[s]; !ok {
 			return fmt.Errorf("flag %s: invalid value '%s', expected %s", f.name, s, strings.Join(f.expected, ", "))
 		}
@@ -40,28 +41,35 @@ func (f *multiflag) Set(s string) error {
 	return nil
 }
 
-func (f *multiflag) Get() interface{} { return f.values }
+func (f *multiflag) Get() interface{} {
+	return f.values
+}
 
 func MultiVal(flagSet *flag.FlagSet, name string, defValues []string, usage string) *[]string {
 	return MultiValFixed(flagSet, name, defValues, nil, usage)
 }
 
-func MultiValFixed(flagSet *flag.FlagSet, name string, defValues, expected []string, usage string) *[]string {
+func MultiValFixed(flagSet *flag.FlagSet, name string, defaulValues, expected []string, usage string) *[]string {
 	expecteUniq := map[string]struct{}{}
 	for _, e := range expected {
-		if err := checkDuplicated(e, expecteUniq, name); err != nil {
+		if err := checkDuplicated("expected", e, expecteUniq, name); err != nil {
 			panic(err)
 		}
 		expecteUniq[e] = void
 	}
 	uniques := map[string]struct{}{}
-	for _, defValue := range defValues {
-		if err := checkDuplicated(defValue, uniques, name); err != nil {
+	unusedDefaults := map[string]struct{}{}
+	for _, defValue := range defaulValues {
+		if err := checkDuplicated("default", defValue, uniques, name); err != nil {
 			panic(err)
 		}
 		uniques[defValue] = void
+		unusedDefaults[defValue] = void
 	}
-	values := multiflag{name: name, values: defValues, expected: expected, uniques: uniques, expectedUniq: expecteUniq}
+	values := multiflag{
+		name: name, values: defaulValues, expected: expected, uniques: uniques,
+		unusedDefaults: unusedDefaults, expectedUniq: expecteUniq,
+	}
 	suffix := ""
 	if len(expecteUniq) > 0 {
 		suffix = "(expected: " + strings.Join(expected, ", ") + ")"
@@ -73,10 +81,12 @@ func MultiValFixed(flagSet *flag.FlagSet, name string, defValues, expected []str
 	return &values.values
 }
 
-func checkDuplicated(value string, duplicateControl map[string]struct{}, name string) error {
-	_, ok := duplicateControl[value]
-	if ok {
-		return fmt.Errorf("duplicated value %v of parameter %v ", value, name)
+func checkDuplicated(typeVal, value string, duplicateControl map[string]struct{}, name string) error {
+	if _, ok := duplicateControl[value]; !ok {
+		return nil
 	}
-	return nil
+	if len(typeVal) > 0 {
+		typeVal += " "
+	}
+	return fmt.Errorf("duplicated %svalue '%s' of parameter '%s'", typeVal, value, name)
 }

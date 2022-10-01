@@ -1,4 +1,4 @@
-package usage
+package enum_const
 
 //go:generate fieldr -type Entity enum-const -val .json -list jsons
 type Entity struct {
