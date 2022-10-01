@@ -8,6 +8,12 @@ Generator of various enumerated constants, types, functions based on structure f
 * as-map - generates method or functon that converts the struct type to a map.
 * builder - generates builder API of a structure type.
 
+## Installation
+
+```bash
+go install github.com/m4gshm/fieldr@latest
+```
+
 ## Enum constant example
 
 create a file `entity.go` with the below content:
