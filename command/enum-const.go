@@ -17,7 +17,7 @@ func NewEnumConst() *Command {
 		flagSet     = flag.NewFlagSet(name, flag.ContinueOnError)
 		constName   = flagSet.String("name", "", "constant name template")
 		constValue  = flagSet.String("val", "", "constant value template; must be set")
-		constType   = flagSet.String("type", "", "constant type template")
+		constType   = flagSet.String("type", "", "constant type name")
 		refAccessor = flagSet.Bool("ref-access", false, "extends generated type with field reference accessor method")
 		valAccessor = flagSet.Bool("val-access", false, "extends generated type with field value accessor method")
 		funcList    = flagSet.String("list", "", "generate function that return list of all generated constant values, use "+generator.Autoname+" for autoname")
