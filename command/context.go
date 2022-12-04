@@ -14,7 +14,7 @@ import (
 )
 
 type Context struct {
-	Config       *params.Config
+	TypeConfig   params.TypeConfig
 	Generator    *generator.Generator
 	model        *struc.Model
 	FilePackages map[*ast.File]*packages.Package
@@ -26,11 +26,11 @@ func (c *Context) Model() (*struc.Model, error) {
 	if m := c.model; m != nil {
 		return m, nil
 	}
-	typ := *c.Config.Type
+	typ := c.TypeConfig.Type
 	if len(typ) == 0 {
 		return nil, use.Err("no type arg")
 	}
-	model, err := struc.New(c.Generator.OutPkg.PkgPath, c.FilePackages, c.Files, c.FileSet, *c.Config.Type)
+	model, err := struc.New(c.Generator.OutPkg.PkgPath, c.FilePackages, c.Files, c.FileSet, c.TypeConfig.Type)
 	if err != nil {
 		return nil, err
 	} else if model == nil {

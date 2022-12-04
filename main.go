@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/m4gshm/gollections/mutable/omap"
 	"golang.org/x/tools/go/packages"
 
 	"github.com/m4gshm/fieldr/command"
@@ -53,19 +54,26 @@ func main() {
 }
 
 func run() error {
-	cmdLine := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-	flag.CommandLine = cmdLine
-	cmdLine.Usage = usage(flag.CommandLine)
-	debugFlag := flag.Bool("debug", false, "enable debug logging")
-	config := params.NewConfig(cmdLine)
+	appFile := os.Args[0]
+	appArgs := os.Args[1:]
 
-	if err := cmdLine.Parse(os.Args[1:]); err != nil {
+	configParser := newConfigFlagSet(appFile)
+	flag.CommandLine = configParser
+
+	debugFlag := configParser.Bool("debug", false, "enable debug logging")
+	buildTags := params.MultiVal(configParser, "buildTag", []string{"fieldr"}, "include build tag")
+	inputs := params.InFlag(configParser)
+	packagePattern := configParser.String("package", ".", "used package")
+
+	commonTypeConfig := params.NewTypeConfig(configParser)
+	if err := configParser.Parse(appArgs); err != nil {
 		return err
 	}
 
 	logger.Init(*debugFlag)
+	logger.Debugf("common type config: type '%v', output '%v'", commonTypeConfig.Type, commonTypeConfig.Output)
 
-	commands, args, err := parseCommands(cmdLine.Args())
+	commands, args, err := parseCommands(configParser.Args())
 	if err != nil {
 		return err
 	}
@@ -82,150 +90,182 @@ func run() error {
 	}
 
 	fileSet := token.NewFileSet()
-	buildTags := *config.BuildTags
-	wdSrcPkg, err := extractPackage(fileSet, buildTags, workDir)
+
+	wdSrcPkg, err := extractPackage(fileSet, *buildTags, workDir)
 	if err != nil {
 		return err
 	}
 	wdSrcFiles := wdSrcPkg.Syntax
 
+	typeConfigs := omap.Empty[params.TypeConfig, []*command.Command]()
+
+	typeConfig := *commonTypeConfig
+
 	filesCmdArgs, err := newFilesCommentsConfig(wdSrcFiles, fileSet)
 	if err != nil {
 		return err
-	} else if len(filesCmdArgs) > 0 {
-		for _, f := range filesCmdArgs {
-			for _, cmt := range f.commentArgs {
-				cmtCommands, cmtArgs, err := parseCommands(cmt.args)
-				if err != nil {
-					var uErr *use.Error
-					if errors.As(err, &uErr) {
-						return use.FileCommentErr(uErr.Error(), f.file, cmt.comment)
-					}
-					return err
-				} else if len(cmtCommands) == 0 {
-					logger.Debugf("no comment generator commands: file %s, line: %d args %v\n", f.file.Name, cmt.comment.Pos(), cmtArgs)
-				} else if len(cmtArgs) > 0 {
-					logger.Debugf("unspent comment line args: %v\n", cmtArgs)
-				}
-				commands = append(commands, cmtCommands...)
+	}
+
+	for _, f := range filesCmdArgs {
+		for _, cmt := range f.commentArgs {
+			name := strings.Join(cmt.args, " ")
+			configParser := newConfigFlagSet(name)
+			commentConfig := params.NewTypeConfig(configParser)
+			if err := configParser.Parse(cmt.args); err != nil {
+				return err
 			}
+
+			if len(typeConfig.Type) == 0 && len(commentConfig.Type) != 0 {
+				typeConfig = *commentConfig
+			} else if commentConfig.Type == typeConfig.Type {
+				//skip
+			} else if len(commentConfig.Type) == 0 {
+				//skip
+			} else {
+				if len(commands) == 0 {
+					logger.Debugf("no  commands for type %v", typeConfig)
+				} else {
+					typeConfigs.Set(typeConfig, commands)
+				}
+				typeConfig = *commentConfig
+				commands = []*command.Command{}
+			}
+
+			unusedArgs := configParser.Args()
+			cmtCommands, cmtArgs, err := parseCommands(unusedArgs)
+
+			// cmtCommands, cmtArgs, err := parseCommands(cmt.args)
+			if err != nil {
+				var uErr *use.Error
+				if errors.As(err, &uErr) {
+					return use.FileCommentErr(uErr.Error(), f.file, cmt.comment)
+				}
+				return err
+			} else if len(cmtCommands) == 0 {
+				// logger.Debugf("no comment generator commands: file %s, line: %d args %v\n", f.file.Name, cmt.comment.Pos(), cmtArgs)
+			} else if len(cmtArgs) > 0 {
+				logger.Debugf("unspent comment line args: %v\n", cmtArgs)
+			}
+			commands = append(commands, cmtCommands...)
 		}
 	}
 
-	if len(commands) == 0 {
-		return use.Err("no generator commands")
-	}
+	typeConfigs.Set(typeConfig, commands)
 
-	srcPkg, err := extractPackage(fileSet, buildTags, *config.PackagePattern)
+	// if len(commands) == 0 {
+	// 	return use.Err("no generator commands")
+	// }
+
+	srcPkg, err := extractPackage(fileSet, *buildTags, *packagePattern)
 	if err != nil {
 		return err
 	}
 	srcFiles := srcPkg.Syntax
-	// packageName := srcPkg.Name
-	// if len(srcFiles) == 0 {
-	// 	log.Printf("no src files in package %s", packageName)
-	// 	return nil
-	// }
 
 	filePackages := make(map[*ast.File]*packages.Package)
 	for _, file := range srcFiles {
 		filePackages[file] = srcPkg
 	}
 
-	inputs := *config.Input
-
-	srcFiles, err = loadSrcFiles(inputs, buildTags, fileSet, srcFiles, filePackages)
+	srcFiles, err = loadSrcFiles(*inputs, *buildTags, fileSet, srcFiles, filePackages)
 	if err != nil {
 		return err
 	}
 
-	logger.Debugw("using", "config", config)
+	return typeConfigs.Track(func(typeConfig params.TypeConfig, commands []*command.Command) error {
+		logger.Debugw("using", "config", typeConfig)
 
-	outputName := *config.Output
-	if outputName == "" {
-
-		typeName := *config.Type
-		if len(typeName) == 0 {
-			return use.Err("no type arg")
-		}
-
-		baseName := typeName + params.DefaultFileSuffix
-		outputName = strings.ToLower(baseName)
-	}
-
-	if outputName, err = filepath.Abs(outputName); err != nil {
-		return err
-	}
-
-	var outFile *ast.File
-	var outFileInfo *token.File
-	for _, file := range srcFiles {
-		if info := fileSet.File(file.Pos()); info.Name() == outputName {
-			outFileInfo = info
-			outFile = file
-			break
-		}
-	}
-
-	var outPkg *packages.Package
-	if outFile != nil {
-		outPkg = filePackages[outFile]
-	} else {
-		var stat os.FileInfo
-		stat, err = os.Stat(outputName)
-		noExists := errors.Is(err, os.ErrNotExist)
-		if noExists {
-			dir := filepath.Dir(outputName)
-			outPkg, err = dirPackage(dir, nil)
-			if err != nil {
-				return err
-			} else if outPkg == nil {
-				return fmt.Errorf("canot detenrime output package, path '%v'", dir)
+		outputName := typeConfig.Output
+		if outputName == "" {
+			typeName := typeConfig.Type
+			if len(typeName) == 0 {
+				return use.Err("no type arg")
 			}
-		} else if err != nil {
+
+			baseName := typeName + params.DefaultFileSuffix
+			outputName = strings.ToLower(baseName)
+		}
+
+		if outputName, err = filepath.Abs(outputName); err != nil {
 			return err
+		}
+
+		var outFile *ast.File
+		var outFileInfo *token.File
+		for _, file := range srcFiles {
+			if info := fileSet.File(file.Pos()); info.Name() == outputName {
+				outFileInfo = info
+				outFile = file
+				break
+			}
+		}
+
+		var outPkg *packages.Package
+		if outFile != nil {
+			outPkg = filePackages[outFile]
 		} else {
-			if stat.IsDir() {
-				return fmt.Errorf("output file is directory")
-			}
-			outFileSet := token.NewFileSet()
-			outFile, outPkg, err = loadFile(outputName, nil, outFileSet)
-			if err != nil {
+			var stat os.FileInfo
+			stat, err = os.Stat(outputName)
+			noExists := errors.Is(err, os.ErrNotExist)
+			if noExists {
+				dir := filepath.Dir(outputName)
+				outPkg, err = dirPackage(dir, nil)
+				if err != nil {
+					return err
+				} else if outPkg == nil {
+					return fmt.Errorf("canot detenrime output package, path '%v'", dir)
+				}
+			} else if err != nil {
 				return err
-			}
-			if outFile != nil {
-				pos := outFile.Pos()
-				outFileInfo = outFileSet.File(pos)
-				if outFileInfo == nil {
-					return fmt.Errorf("error of reading metadata of output file %v", outputName)
+			} else {
+				if stat.IsDir() {
+					return fmt.Errorf("output file is directory")
+				}
+				outFileSet := token.NewFileSet()
+				outFile, outPkg, err = loadFile(outputName, nil, outFileSet)
+				if err != nil {
+					return err
+				}
+				if outFile != nil {
+					pos := outFile.Pos()
+					outFileInfo = outFileSet.File(pos)
+					if outFileInfo == nil {
+						return fmt.Errorf("error of reading metadata of output file %v", outputName)
+					}
 				}
 			}
 		}
-	}
 
-	g := generator.New(params.Name, *config.OutBuildTags, outFile, outFileInfo, outPkg)
+		g := generator.New(params.Name, typeConfig.OutBuildTags, outFile, outFileInfo, outPkg)
 
-	ctx := &command.Context{Config: config, Generator: g, FilePackages: filePackages, Files: srcFiles, FileSet: fileSet}
-	for _, c := range commands {
-		if err := c.Run(ctx); err != nil {
+		ctx := &command.Context{TypeConfig: typeConfig, Generator: g, FilePackages: filePackages, Files: srcFiles, FileSet: fileSet}
+		for _, c := range commands {
+			if err := c.Run(ctx); err != nil {
+				return err
+			}
+		}
+
+		outPackageName := generator.OutPackageName(typeConfig.OutPackage, outPkg)
+		if err := g.WriteBody(outPackageName); err != nil {
 			return err
 		}
-	}
 
-	outPackageName := generator.OutPackageName(*config.OutPackage, outPkg)
-	if err := g.WriteBody(outPackageName); err != nil {
-		return err
-	}
+		src, fmtErr := g.FormatSrc()
 
-	src, fmtErr := g.FormatSrc()
+		const userWriteOtherRead = fs.FileMode(0644)
+		if writeErr := ioutil.WriteFile(outputName, src, userWriteOtherRead); writeErr != nil {
+			return fmt.Errorf("writing output: %s", writeErr)
+		} else if fmtErr != nil {
+			return fmt.Errorf("go src code formatting error: %s", fmtErr)
+		}
+		return nil
+	})
+}
 
-	const userWriteOtherRead = fs.FileMode(0644)
-	if writeErr := ioutil.WriteFile(outputName, src, userWriteOtherRead); writeErr != nil {
-		return fmt.Errorf("writing output: %s", writeErr)
-	} else if fmtErr != nil {
-		return fmt.Errorf("go src code formatting error: %s", fmtErr)
-	}
-	return nil
+func newConfigFlagSet(name string) *flag.FlagSet {
+	configParser := flag.NewFlagSet(name, flag.ContinueOnError)
+	configParser.Usage = usage(configParser)
+	return configParser
 }
 
 func parseCommands(args []string) ([]*command.Command, []string, error) {

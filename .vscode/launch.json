@@ -21,10 +21,11 @@
             "program": "main.go",
             "cwd": "examples/squirrel",
             "args": [
-                "-type",
-                "Entity",
-                "-out",
-                "entity_fields.go"
+                "-debug"
+                // "-type",
+                // "Entity",
+                // "-out",
+                // "entity_fields.go"
             ]
         },
         {
