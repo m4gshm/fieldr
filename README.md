@@ -13,7 +13,10 @@ Generator of various enumerated constants, types, functions based on structure f
 ```bash
 go install github.com/m4gshm/fieldr@latest
 ```
-
+or
+```bash
+go install github.com/m4gshm/fieldr@HEAD
+```
 ## Enum constant example
 
 create a file `entity.go` with the below content:

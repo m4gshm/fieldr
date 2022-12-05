@@ -6,6 +6,7 @@ import (
 	"go/types"
 
 	"github.com/m4gshm/fieldr/generator"
+	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/struc"
 )
@@ -22,10 +23,11 @@ func NewBuilderStruct() *Command {
 	var (
 		flagSet         = flag.NewFlagSet(cmdName, flag.ContinueOnError)
 		name            = flagSet.String("name", generator.Autoname, "generated type name, use "+generator.Autoname+" for autoname")
-		buildMethodName = flagSet.String("build-method-name", generator.Autoname, "generated build method name, use "+generator.Autoname+" for autoname")
+		buildMethodName = flagSet.String("build-method-name", generator.Autoname, "generated build (constructor) method name, use "+generator.Autoname+" for autoname")
 		setterPrefix    = flagSet.String("setter-prefix", generator.Autoname, "generated 'Set<Field>' methods prefix, use "+generator.Autoname+" for autoselect")
-		valueReceiver   = flagSet.Bool("value-receiver", false, "use value receiver in generate methods (default is pointer)")
-		ligth           = flagSet.Bool("ligth", false, "don't generate builder methods, only fields")
+		chainValue      = flagSet.Bool("chain-value", false, "returns value of the builder in generated methods (default is pointer)")
+		buildValue      = flagSet.Bool("build-value", false, "returns value of the builded type in the build (constructor) method (default is pointer)")
+		light           = flagSet.Bool("light", false, "don't generate builder methods, only fields")
 		exports         = params.MultiValFixed(flagSet, "export", []string{"methods"}, exportVals, "export generated content")
 		nolint          = params.Nolint(flagSet)
 	)
@@ -91,9 +93,10 @@ func NewBuilderStruct() *Command {
 			typeParams := generator.TypeParamsString(model.Typ.TypeParams(), g.OutPkg.PkgPath)
 
 			rec := "b"
-			constrMethodBody := "func (" + rec + " " + builderName + typeParams + ") " + constrMethodName + "() *" + buildedType + typeParams +
+			logger.Debugf("constrMethodName %v", constrMethodName)
+			constrMethodBody := "func (" + rec + " " + builderName + typeParams + ") " + constrMethodName + "() " + ifElse(*buildValue, "", "*") + buildedType + typeParams +
 				" {" + generator.NoLint(*nolint) + "\n"
-			constrMethodBody += "return &" + buildedType + typeParams + " {\n"
+			constrMethodBody += "return " + ifElse(*buildValue, "", "&") + buildedType + typeParams + " {\n"
 
 			uniques := map[string]string{}
 			methodPrefix := ""
@@ -104,11 +107,7 @@ func NewBuilderStruct() *Command {
 				methodPrefix = defMethPref
 			}
 
-			typePrefix := "*"
-			if *valueReceiver {
-				typePrefix = ""
-			}
-			c, b, fmn, fmb, err := generateBuilderParts(g, model, uniques, rec, typePrefix+builderName+typeParams, methodPrefix, *ligth, exportMethods, exportFields, *nolint)
+			c, b, fmn, fmb, err := generateBuilderParts(g, model, uniques, rec, ifElse(*chainValue, "", "*")+builderName+typeParams, methodPrefix, *light, exportMethods, exportFields, *nolint, *buildValue)
 			if err != nil {
 				return err
 			}
@@ -135,10 +134,17 @@ func NewBuilderStruct() *Command {
 	)
 }
 
-func generateBuilderParts(
-	g *generator.Generator, model *struc.Model, uniques map[string]string, builderRecVar, builderType, setterPrefix string, noMethods, exportMethods, exportFields, nolint bool,
-) (string, string, []string, []string, error) {
+func ifElse[T any](condition bool, first, second T) T {
+	if condition {
+		return first
+	}
+	return second
+}
 
+func generateBuilderParts(
+	g *generator.Generator, model *struc.Model, uniques map[string]string, builderRecVar, builderType, setterPrefix string, noMethods, exportMethods, exportFields, nolint, buildReceiver bool,
+) (string, string, []string, []string, error) {
+	logger.Debugf("generate builder parts: receiver %v, builderType %v, setterPrefix %v", builderRecVar, builderType, setterPrefix)
 	constrMethodBody := ""
 	builderBody := ""
 	fieldMethodBodies := []string{}
@@ -157,7 +163,7 @@ func generateBuilderParts(
 				init = "&" + init
 			}
 			constrMethodBody += fieldName + ": " + init + "{\n"
-			c, b, fmn, fmb, err := generateBuilderParts(g, fieldType.Model, uniques, builderRecVar, builderType, setterPrefix, noMethods, exportMethods, exportFields, nolint)
+			c, b, fmn, fmb, err := generateBuilderParts(g, fieldType.Model, uniques, builderRecVar, builderType, setterPrefix, noMethods, exportMethods, exportFields, nolint, buildReceiver)
 			if err != nil {
 				return "", "", nil, nil, err
 			}

@@ -115,12 +115,27 @@ func run() error {
 				return err
 			}
 
-			if len(typeConfig.Type) == 0 && len(commentConfig.Type) != 0 {
-				typeConfig = *commentConfig
-			} else if commentConfig.Type == typeConfig.Type {
+			notCmdLineType := len(typeConfig.Type) == 0
+			notCmdLineOut := len(typeConfig.OutPackage) == 0
+			if notCmdLineType && len(commentConfig.Type) != 0 {
+				typeConfig.Type = commentConfig.Type
+			}
+			if notCmdLineType && notCmdLineOut && len(commentConfig.OutPackage) != 0 {
+				typeConfig.OutPackage = commentConfig.OutPackage
+			} else if notCmdLineType && !notCmdLineOut && len(commentConfig.OutPackage) != 0 {
+				logger.Debugf("override com line out output by comment: cmd line '%v', comment '%v'", typeConfig.OutPackage, commentConfig.OutPackage)
+				typeConfig.OutPackage = commentConfig.OutPackage
+			}
+			if len(typeConfig.OutBuildTags) == 0 && len(commentConfig.OutBuildTags) != 0 {
+				typeConfig.OutBuildTags = commentConfig.OutBuildTags
+			}
+
+			if commentConfig.Type == typeConfig.Type && commentConfig.Output == typeConfig.Output {
+				logger.Debugf("skip comment config because its type and out are equal to prev: comment config %+v, prev %+v", commentConfig, typeConfig)
 				//skip
-			} else if len(commentConfig.Type) == 0 {
+			} else if len(commentConfig.Type) == 0 && commentConfig.Output == typeConfig.Output {
 				//skip
+				logger.Debugf("skip comment config because its out is equal to prev: comment config %+v, prev %+v", commentConfig, typeConfig)
 			} else {
 				if len(commands) == 0 {
 					logger.Debugf("no  commands for type %v", typeConfig)

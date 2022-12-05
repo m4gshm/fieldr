@@ -1,8 +1,10 @@
 package builder
 
-//go:generate fieldr -type Entity
+//go:generate fieldr -debug
 
-//go:fieldr builder -export all
+//go:fieldr -type Entity builder -export all
+//go:fieldr -out entity_tagged.go -out-build-tag integration builder -export all
+//go:fieldr -type EmbeddedEntity builder -build-value -chain-value -export all
 
 import (
 	"bytes"
@@ -32,4 +34,9 @@ type Entity[ID any] struct {
 	Versioned sql_base.VersionedEntity
 	Chan      chan map[t.Time]string
 	SomeMap   map[StringBasedType[string]]bytes.Buffer
+	Embedded  EmbeddedEntity
+}
+
+type EmbeddedEntity struct {
+	Metadata string
 }

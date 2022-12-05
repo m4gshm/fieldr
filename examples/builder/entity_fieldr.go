@@ -16,6 +16,7 @@ type EntityBuilder[ID any] struct {
 	Versioned sql_base.VersionedEntity
 	Chan      chan map[time.Time]string
 	SomeMap   map[StringBasedType[string]]bytes.Buffer
+	Embedded  EmbeddedEntity
 }
 
 func (b EntityBuilder[ID]) Build() *Entity[ID] {
@@ -31,6 +32,7 @@ func (b EntityBuilder[ID]) Build() *Entity[ID] {
 		Versioned: b.Versioned,
 		Chan:      b.Chan,
 		SomeMap:   b.SomeMap,
+		Embedded:  b.Embedded,
 	}
 }
 
@@ -76,5 +78,10 @@ func (b *EntityBuilder[ID]) SetChan(chan_ chan map[time.Time]string) *EntityBuil
 
 func (b *EntityBuilder[ID]) SetSomeMap(someMap map[StringBasedType[string]]bytes.Buffer) *EntityBuilder[ID] {
 	b.SomeMap = someMap
+	return b
+}
+
+func (b *EntityBuilder[ID]) SetEmbedded(embedded EmbeddedEntity) *EntityBuilder[ID] {
+	b.Embedded = embedded
 	return b
 }

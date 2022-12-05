@@ -576,7 +576,9 @@ func getSortedChunks(chunkVals map[int]map[int]string) []int {
 
 func (g *Generator) writeHead(packageName string) error {
 	g.writeBody("// %s'; DO NOT EDIT.\n\n", generatedMarker(g.name))
-	g.writeBody(g.outBuildTags)
+	if tags := strings.Trim(g.outBuildTags, " "); len(tags) > 0 {
+		g.writeBody("// +build " + tags + "\n")
+	}
 	g.writeBody("package %s\n", packageName)
 	if imps, err := g.getImportsExpr(); err != nil {
 		return err
