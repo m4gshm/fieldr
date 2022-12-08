@@ -14,18 +14,21 @@ func NewEnumConst() *Command {
 		flagName = "name"
 	)
 	var (
-		flagSet     = flag.NewFlagSet(name, flag.ContinueOnError)
-		constName   = flagSet.String("name", "", "constant name template")
-		constValue  = flagSet.String("val", "", "constant value template; must be set")
-		constType   = flagSet.String("type", "", "constant type name")
-		refAccessor = flagSet.Bool("ref-access", false, "extends generated type with field reference accessor method")
-		valAccessor = flagSet.Bool("val-access", false, "extends generated type with field value accessor method")
-		funcList    = flagSet.String("list", "", "generate function that return list of all generated constant values, use "+generator.Autoname+" for autoname")
-		compact     = flagSet.Bool("compact", false, "generate single line code in aggregate functions, constants")
-		export      = params.ExportCont(flagSet, "constants")
-		private     = params.WithPrivate(flagSet)
-		nolint      = params.Nolint(flagSet)
-		flat        = params.Flat(flagSet)
+		flagSet            = flag.NewFlagSet(name, flag.ContinueOnError)
+		constName          = flagSet.String("name", "", "constant name template")
+		constValue         = flagSet.String("val", "", "constant value template; must be set")
+		constType          = flagSet.String("type", "", "constant type name")
+		notDeclateConsType = flagSet.Bool("not-declare-type", false, "don't generate constant type declaration")
+		fieldNameAccess    = flagSet.String("field-name-access", "", "add a method that returns the associated struct field name, use "+generator.Autoname+" for autoname")
+		refAccessor        = flagSet.String("ref-access", "", "add a function or method that returns a reference to the struct field for each generated constant, use "+generator.Autoname+" for autoname")
+		valAccessor        = flagSet.String("val-access", "", "add a function or method that returns a value to the struct field for each generated constant, use "+generator.Autoname+" for autoname")
+		funcList           = flagSet.String("list", "", "generate function that return list of all generated constant values, use "+generator.Autoname+" for autoname")
+		compact            = flagSet.Bool("compact", false, "generate single line code in aggregate functions, constants")
+		export             = params.ExportCont(flagSet, "constants")
+		private            = params.WithPrivate(flagSet)
+		nolint             = params.Nolint(flagSet)
+		flat               = params.Flat(flagSet)
+		excluded           = params.MultiVal(flagSet, "exclude", []string{}, "excluded field")
 	)
 	c := New(
 		name, "generate constants based on template applied to struct fields",
@@ -37,7 +40,8 @@ func NewEnumConst() *Command {
 				return err
 			}
 			return g.GenerateFieldConstant(
-				m, *constValue, *constName, *constType, *funcList, *export, false, *nolint, *compact, *private, *refAccessor, *valAccessor, toSet(*flat),
+				m, *constValue, *constName, *constType, *funcList, *fieldNameAccess, *refAccessor, *valAccessor, *export, false, *nolint, *compact, *private, *notDeclateConsType,
+				toSet(*flat), toSet(*excluded),
 			)
 		},
 	)

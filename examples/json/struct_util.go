@@ -60,3 +60,26 @@ func (s *Struct[S]) val(f structJson) interface{} {
 	}
 	return nil
 }
+
+func (s *Struct[S]) ref(f structJson) interface{} {
+	if s == nil {
+		return nil
+	}
+	switch f {
+	case structJsonID:
+		if s.MiddleStruct != nil && s.MiddleStruct.BaseStruct.IDAware != nil {
+			return &s.MiddleStruct.BaseStruct.IDAware.ID
+		}
+	case structJsonName:
+		return &s.Name
+	case structJsonSurname:
+		return &s.Surname
+	case structJsonNoTag:
+		return &s.NoTag
+	case structJsonAddress:
+		if s.Address != nil {
+			return &s.Address
+		}
+	}
+	return nil
+}

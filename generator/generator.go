@@ -130,35 +130,6 @@ func New(name, outBuildTags string, outFile *ast.File, outFileInfo *token.File, 
 	}
 }
 
-const DefaultConstLength = 80
-
-type ContentConfig struct {
-	Constants       *[]string
-	EnumFieldConsts *[]string
-
-	Fields           *bool
-	Tags             *bool
-	FieldTagsMap     *bool
-	TagValuesMap     *bool
-	TagValues        *[]string
-	TagFieldsMap     *bool
-	FieldTagValueMap *bool
-
-	GetFieldValue              *bool
-	GetFieldValueByTagValue    *bool
-	GetFieldValuesByTag        *[]string
-	GetFieldValuesByTagGeneric *bool
-	AsMap                      *bool
-	AsTagMap                   *bool
-
-	Strings  *bool
-	Excludes *bool
-
-	EnumFields    *bool
-	EnumTags      *bool
-	EnumTagValues *bool
-}
-
 func (g *Generator) writeBody(format string, args ...interface{}) {
 	if _, err := fmt.Fprintf(g.body, format, args...); err != nil {
 		log.Print(fmt.Errorf("writeBody; %w", err))
@@ -888,10 +859,6 @@ func (g *Generator) AddImport(pack, alias string) (string, error) {
 	g.imports[pack] = alias
 	logger.Debugf("add import: package %s, alias %s", pack, alias)
 	return alias, nil
-}
-
-func isFieldExcluded(fieldName struc.FieldName, includePrivate bool) bool {
-	return (!includePrivate && !token.IsExported(string(fieldName)))
 }
 
 func renameFuncByConfig(funcName, renameTo string) string {

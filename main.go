@@ -106,6 +106,8 @@ func run() error {
 		return err
 	}
 
+	notCmdLineType := len(typeConfig.Type) == 0
+
 	for _, f := range filesCmdArgs {
 		for _, cmt := range f.commentArgs {
 			name := strings.Join(cmt.args, " ")
@@ -115,19 +117,21 @@ func run() error {
 				return err
 			}
 
-			notCmdLineType := len(typeConfig.Type) == 0
-			notCmdLineOut := len(typeConfig.OutPackage) == 0
-			if notCmdLineType && len(commentConfig.Type) != 0 {
-				typeConfig.Type = commentConfig.Type
-			}
-			if notCmdLineType && notCmdLineOut && len(commentConfig.OutPackage) != 0 {
-				typeConfig.OutPackage = commentConfig.OutPackage
-			} else if notCmdLineType && !notCmdLineOut && len(commentConfig.OutPackage) != 0 {
-				logger.Debugf("override com line out output by comment: cmd line '%v', comment '%v'", typeConfig.OutPackage, commentConfig.OutPackage)
-				typeConfig.OutPackage = commentConfig.OutPackage
-			}
-			if len(typeConfig.OutBuildTags) == 0 && len(commentConfig.OutBuildTags) != 0 {
-				typeConfig.OutBuildTags = commentConfig.OutBuildTags
+			if notCmdLineType {
+				if len(commentConfig.Type) != 0 {
+					typeConfig.Type = commentConfig.Type
+					if len(typeConfig.Output) == 0 {
+						typeConfig.Output = commentConfig.Output
+					}
+					if len(typeConfig.OutPackage) == 0 {
+						typeConfig.OutPackage = commentConfig.OutPackage
+					}
+					if len(typeConfig.OutBuildTags) == 0 {
+						typeConfig.OutBuildTags = commentConfig.OutBuildTags
+					}
+					logger.Debugf("init first type %+v by comment type %+v", typeConfig, *commentConfig)
+				}
+				notCmdLineType = false
 			}
 
 			if commentConfig.Type == typeConfig.Type && commentConfig.Output == typeConfig.Output {
@@ -136,14 +140,22 @@ func run() error {
 			} else if len(commentConfig.Type) == 0 && commentConfig.Output == typeConfig.Output {
 				//skip
 				logger.Debugf("skip comment config because its out is equal to prev: comment config %+v, prev %+v", commentConfig, typeConfig)
-			} else {
+			} else if len(commentConfig.Type) != 0 || len(commentConfig.Output) != 0 {
+				if len(commentConfig.Type) == 0 {
+					(*commentConfig).Type = typeConfig.Type
+				}
+
+				logger.Debugf("detect another type %+v\n", *commentConfig)
+
 				if len(commands) == 0 {
-					logger.Debugf("no  commands for type %v", typeConfig)
+					logger.Debugf("no commands for type %v", typeConfig)
+					typeConfig = *commentConfig
 				} else {
 					typeConfigs.Set(typeConfig, commands)
+					logger.Debugf("set type %+v, commands %d\n", typeConfig, len(commands))
+					typeConfig = *commentConfig
+					commands = []*command.Command{}
 				}
-				typeConfig = *commentConfig
-				commands = []*command.Command{}
 			}
 
 			unusedArgs := configParser.Args()
@@ -166,6 +178,7 @@ func run() error {
 	}
 
 	typeConfigs.Set(typeConfig, commands)
+	logger.Debugf("set type last %+v\n", typeConfig)
 
 	// if len(commands) == 0 {
 	// 	return use.Err("no generator commands")
@@ -188,7 +201,7 @@ func run() error {
 	}
 
 	return typeConfigs.Track(func(typeConfig params.TypeConfig, commands []*command.Command) error {
-		logger.Debugw("using", "config", typeConfig)
+		logger.Debugw("using type config %+v\n", typeConfig)
 
 		outputName := typeConfig.Output
 		if outputName == "" {

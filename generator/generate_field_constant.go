@@ -3,6 +3,7 @@ package generator
 import (
 	"bytes"
 	"fmt"
+	"go/token"
 	"regexp"
 	"strings"
 	"text/template"
@@ -10,6 +11,9 @@ import (
 
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/struc"
+	"github.com/m4gshm/gollections/c"
+	"github.com/m4gshm/gollections/immutable/set"
+	"github.com/m4gshm/gollections/mutable/oset"
 	"github.com/pkg/errors"
 )
 
@@ -29,7 +33,7 @@ func (c *stringer) String() string {
 
 var _ fmt.Stringer = (*stringer)(nil)
 
-func (g *Generator) GenerateFieldConstants(model *struc.Model, typ string, export, snake, allFields bool, flats map[string]struct{}) ([]fieldConst, error) {
+func (g *Generator) GenerateFieldConstants(model *struc.Model, typ string, export, snake, allFields bool, flats c.Set[string]) ([]fieldConst, error) {
 	constants, err := makeFieldConsts(g, model, export, snake, allFields, flats)
 	if err != nil {
 		return nil, err
@@ -50,18 +54,24 @@ func (g *Generator) GenerateFieldConstants(model *struc.Model, typ string, expor
 }
 
 func (g *Generator) GenerateFieldConstant(
-	model *struc.Model, valueTmpl, nameTmpl, typ, funcList string, export, snake, nolint, compact, usePrivate, refAccessor, valAccessor bool, flats map[string]struct{},
+	model *struc.Model, valueTmpl, nameTmpl, typ, funcList, typeMethod, refAccessor, valAccessor string,
+	export, snake, nolint, compact, usePrivate, notDeclateConsType bool,
+	flats, excludedFields c.Set[string],
 ) error {
 	valueTmpl, nameTmpl = wrapTemplate(valueTmpl), wrapTemplate(nameTmpl)
 
 	wrapType := len(typ) > 0
 	if !wrapType {
 		typ = BaseConstType
-	} else if err := g.AddType(typ, BaseConstType); err != nil {
-		return err
+	} else if !notDeclateConsType {
+		if err := g.AddType(typ, BaseConstType); err != nil {
+			return err
+		}
 	}
 
-	constants, err := makeFieldConstsTempl(g, model, model.TypeName, nameTmpl, valueTmpl, export, snake, usePrivate, flats)
+	logger.Debugf("GenerateFieldConstant wrapType %v, typ %v, nameTmpl %v valueTmpl %v\n", wrapType, typ, nameTmpl, valueTmpl)
+
+	constants, err := makeFieldConstsTempl(g, model, model.TypeName, nameTmpl, valueTmpl, export, snake, usePrivate, flats, excludedFields)
 	if err != nil {
 		return err
 	} else if err = checkDuplicates(constants); err != nil {
@@ -92,28 +102,40 @@ func (g *Generator) GenerateFieldConstant(
 		g.addFunсDelim()
 	}
 
-	if wrapType {
-		if funcBody, funcName, err := g.generateConstFieldMethod(typ, constants, exportFunc, nolint); err != nil {
+	if wrapType && len(typeMethod) > 0 {
+		funcName := typeMethod
+		if typeMethod == Autoname {
+			funcName = IdentName("Field", export)
+		}
+		if funcBody, err := g.generateConstFieldMethod(typ, funcName, constants, exportFunc, nolint); err != nil {
 			return err
 		} else if err := g.AddMethod(typ, funcName, funcBody); err != nil {
 			return err
 		}
 		g.addFunсDelim()
 
-		if refAccessor || valAccessor {
+		if len(refAccessor) != 0 || len(valAccessor) != 0 {
 			pkgAlias, err := g.GetPackageAlias(model.Package.Name, model.Package.Path)
 			if err != nil {
 				return err
 			}
-			if valAccessor {
-				if funcBody, funcName, err := g.generateConstValueMethod(model, pkgAlias, typ, constants, exportFunc, nolint, false); err != nil {
+			if len(valAccessor) != 0 {
+				funcName := valAccessor
+				if valAccessor == Autoname {
+					funcName = IdentName("Val", export)
+				}
+				if funcBody, funcName, err := g.generateConstValueMethod(model, pkgAlias, typ, funcName, constants, exportFunc, nolint, false); err != nil {
 					return err
 				} else if err := g.AddFuncOrMethod(funcName, funcBody); err != nil {
 					return err
 				}
 			}
-			if refAccessor {
-				if funcBody, funcName, err := g.generateConstValueMethod(model, pkgAlias, typ, constants, exportFunc, nolint, true); err != nil {
+			if len(refAccessor) != 0 {
+				funcName := refAccessor
+				if refAccessor == Autoname {
+					funcName = IdentName("Ref", export)
+				}
+				if funcBody, funcName, err := g.generateConstValueMethod(model, pkgAlias, typ, funcName, constants, exportFunc, nolint, true); err != nil {
 					return err
 				} else if err := g.AddFuncOrMethod(funcName, funcBody); err != nil {
 					return err
@@ -148,9 +170,10 @@ func checkDuplicates(constants []fieldConst) error {
 	return nil
 }
 
-func makeFieldConstsTempl(g *Generator, model *struc.Model, structType, nameTmpl, valueTmpl string, export, snake, usePrivate bool, flats map[string]struct{}) ([]fieldConst, error) {
-	usedTags := []string{}
-	usedTagsSet := map[string]struct{}{}
+func makeFieldConstsTempl(
+	g *Generator, model *struc.Model, structType, nameTmpl, valueTmpl string, export, snake, usePrivate bool, flats, excludedFields c.Set[string],
+) ([]fieldConst, error) {
+	usedTags := oset.Empty[struc.TagName]()
 
 	constants := make([]fieldConst, 0)
 
@@ -161,20 +184,26 @@ func makeFieldConstsTempl(g *Generator, model *struc.Model, structType, nameTmpl
 	for _, f := range model.FieldNames {
 		fieldName := f
 
-		if isFieldExcluded(fieldName, usePrivate) {
+		if !usePrivate && !token.IsExported(string(fieldName)) {
+			logger.Debugf("exclude private field %v\n", fieldName)
+			continue
+		}
+
+		if excludedFields.Contains(fieldName) {
+			logger.Debugf("optional exclude field %v\n", fieldName)
 			continue
 		}
 
 		fieldType := model.FieldsType[fieldName]
 		embedded := fieldType.Embedded
-		_, flat := flats[fieldName]
+		flat := flats.Contains(fieldName)
 		fieldModel := fieldType.Model
 		if flat || embedded {
-			subflats := map[string]struct{}{}
+			var subflats c.Set[string] = set.Of[string]()
 			if embedded {
 				subflats = flats
 			}
-			fieldConstants, err := makeFieldConstsTempl(g, fieldModel, structType, nameTmpl, valueTmpl, export, snake, usePrivate, subflats)
+			fieldConstants, err := makeFieldConstsTempl(g, fieldModel, structType, nameTmpl, valueTmpl, export, snake, usePrivate, subflats, excludedFields)
 			if err != nil {
 				return nil, err
 			}
@@ -192,9 +221,8 @@ func makeFieldConstsTempl(g *Generator, model *struc.Model, structType, nameTmpl
 						if !inExecute {
 							return
 						}
-						if _, ok := usedTagsSet[tag]; !ok {
-							usedTagsSet[tag] = struct{}{}
-							usedTags = append(usedTags, tag)
+						if ok := usedTags.Contains(tag); !ok {
+							usedTags.Add(tag)
 							logger.Debugf("use tag '%s'", tag)
 						}
 					}}
@@ -241,7 +269,7 @@ func makeFieldConstsTempl(g *Generator, model *struc.Model, structType, nameTmpl
 				}
 				constName = strings.ReplaceAll(parsedConst, ".", "")
 			} else {
-				constName = g.getTagTemplateConstName(structType, fieldName, usedTags, export, snake)
+				constName = g.getTagTemplateConstName(structType, fieldName, usedTags.Collect(), export, snake)
 				logger.Debugf("apply auto constant name '%s'", constName)
 			}
 
@@ -258,16 +286,16 @@ func makeFieldConstsTempl(g *Generator, model *struc.Model, structType, nameTmpl
 	return constants, nil
 }
 
-func makeFieldConsts(g *Generator, model *struc.Model, export, snake, allFields bool, flats map[string]struct{}) ([]fieldConst, error) {
+func makeFieldConsts(g *Generator, model *struc.Model, export, snake, allFields bool, flats c.Set[string]) ([]fieldConst, error) {
 	constants := []fieldConst{}
 	for _, fieldName := range model.FieldNames {
 		fieldType := model.FieldsType[fieldName]
 		embedded := fieldType.Embedded
-		_, flat := flats[fieldName]
+		flat := flats.Contains(fieldName)
 		fieldModel := fieldType.Model
 		filedInfo := fieldInfo{name: fieldName, typ: fieldType}
 		if flat || embedded {
-			subflats := map[string]struct{}{}
+			var subflats c.Set[string] = set.Of[string]()
 			if embedded {
 				subflats = flats
 			}
@@ -449,9 +477,9 @@ func generateAggregateFunc(funcName, typ string, constants []fieldConst, export,
 	return "func " + funcName + "() " + arrayType + " { " + NoLint(nolint) + "\n return " + arrayBody + "}", funcName, nil
 }
 
-func (g *Generator) generateConstFieldMethod(typ string, constants []fieldConst, export, nolint bool) (string, string, error) {
+func (g *Generator) generateConstFieldMethod(typ, name string, constants []fieldConst, export, nolint bool) (string, error) {
 	var (
-		name         = IdentName("Field", export)
+		// name         = IdentName("Field", export)
 		receiverVar  = "c"
 		returnType   = BaseConstType
 		returnNoCase = "\"\""
@@ -484,12 +512,12 @@ func (g *Generator) generateConstFieldMethod(typ string, constants []fieldConst,
 		"return " + returnNoCase +
 		"}\n"
 
-	return body, name, nil
+	return body, nil
 }
 
-func (g *Generator) generateConstValueMethod(model *struc.Model, pkgAlias, typ string, constants []fieldConst, export, nolint, ref bool) (string, string, error) {
+func (g *Generator) generateConstValueMethod(model *struc.Model, pkgAlias, typ, name string, constants []fieldConst, export, nolint, ref bool) (string, string, error) {
 	var (
-		name            = IdentName("Val", export)
+		// name            = IdentName("Val", export)
 		argVar          = "f"
 		recVar          = "s"
 		recType         = GetTypeName(model.TypeName, pkgAlias)
@@ -502,7 +530,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgAlias, typ s
 
 	if ref {
 		pref = "&"
-		name = IdentName("Ref", export)
+		// name = IdentName("Ref", export)
 	}
 
 	isFunc := len(pkgAlias) > 0

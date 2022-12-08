@@ -5,65 +5,10 @@ package squirrel
 type Col2 string
 
 const (
-	col2ID      Col2 = "ID"
-	col2Name    Col2 = "NAME"
-	col2Surname Col2 = "SURNAME"
-	col2Version Col2 = "version"
+	col2ID   Col2 = "ID"
+	col2Name Col2 = "NAME"
 )
 
 func col2s() []Col2 {
-	return []Col2{
-		col2ID,
-		col2Name,
-		col2Surname,
-		col2Version,
-	}
-}
-
-func (c Col2) field() string {
-	switch c {
-	case col2ID:
-		return "ID"
-	case col2Name:
-		return "Name"
-	case col2Surname:
-		return "Surname"
-	case col2Version:
-		return "Versioned.Version"
-	}
-	return ""
-}
-
-func (s *Entity2) val(f Col2) interface{} {
-	if s == nil {
-		return nil
-	}
-	switch f {
-	case col2ID:
-		return s.ID
-	case col2Name:
-		return s.Name
-	case col2Surname:
-		return s.Surname
-	case col2Version:
-		return s.Versioned.Version
-	}
-	return nil
-}
-
-func (s *Entity2) ref(f Col2) interface{} {
-	if s == nil {
-		return nil
-	}
-	switch f {
-	case col2ID:
-		return &s.ID
-	case col2Name:
-		return &s.Name
-	case col2Surname:
-		return &s.Surname
-	case col2Version:
-		return &s.Versioned.Version
-	}
-	return nil
+	return []Col2{col2ID, col2Name}
 }

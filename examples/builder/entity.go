@@ -1,6 +1,6 @@
 package builder
 
-//go:generate fieldr -debug
+//go:generate fieldr
 
 //go:fieldr -type Entity builder -export all
 //go:fieldr -out entity_tagged.go -out-build-tag integration builder -export all

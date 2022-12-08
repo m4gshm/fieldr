@@ -1,9 +1,10 @@
 package command
 
-func toSet(values []string) map[string]struct{} {
-	set := map[string]struct{}{}
-	for _, v := range values {
-		set[v] = struct{}{}
-	}
-	return set
+import (
+	"github.com/m4gshm/gollections/immutable"
+	"github.com/m4gshm/gollections/immutable/set"
+)
+
+func toSet(values []string) immutable.Set[string] {
+	return set.New[string](values)
 }

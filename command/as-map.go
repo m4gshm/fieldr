@@ -46,7 +46,7 @@ func NewAsMapMethod() *Command {
 			if err != nil {
 				return err
 			}
-			excludedFields := make(map[struc.FieldName]struct{})
+			// excludedFields := make(map[struc.FieldName]struct{})
 
 			kType := *keyType
 			if kType == generator.Autoname {
@@ -64,7 +64,7 @@ func NewAsMapMethod() *Command {
 			} else if rewriter, err := coderewriter.New(*fieldValueRewriters); err != nil {
 				return err
 			} else if _, funcName, funcBody, err := g.GenerateAsMapFunc(
-				model, *name, kType, constants, excludedFields, flatsSet, rewriter, *export, *snake, *ref, *fun, *nolint, *hardcode,
+				model, *name, kType, constants /*excludedFields, */, flatsSet, rewriter, *export, *snake, *ref, *fun, *nolint, *hardcode,
 			); err != nil {
 				return err
 			} else if err := g.AddFuncOrMethod(funcName, funcBody); err != nil {

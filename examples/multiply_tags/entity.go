@@ -3,7 +3,7 @@ package multiply_tags
 import "time"
 
 //go:generate fieldr -type Entity -out entity_fields.go
-//go:fieldr enum-const -name "{{(join struct.name \"Col\" name) | snake | toUpper}}" -val "{{.gorm | rexp \"column:(\\\\w+),?\" | OR name | snake | up}}" -type EntityCol -list . -ref-access -val-access -nolint -flat Upd -flat Upd2 -flat Upd3
+//go:fieldr enum-const -name "{{(join struct.name \"Col\" name) | snake | toUpper}}" -val "{{.gorm | rexp \"column:(\\\\w+),?\" | OR name | snake | up}}" -type EntityCol -list . -ref-access . -val-access . -nolint -flat Upd -flat Upd2 -flat Upd3
 //go:fieldr enum-const -export -val ".gorm | rexp \"column:(\\w+),?\" | OR name | snake | up"
 //go:fieldr enum-const -export -val "rexp \"(?P<v>\\w+),?\" .json"
 //go:fieldr enum-const -export -val "(OR (rexp \"column:(\\w+),?\" .gorm) (rexp \"(?P<v>\\w+),?\" .json))" -list gormOrJsonList
