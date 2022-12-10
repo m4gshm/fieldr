@@ -165,7 +165,7 @@ func run() error {
 			if err != nil {
 				var uErr *use.Error
 				if errors.As(err, &uErr) {
-					return use.FileCommentErr(uErr.Error(), f.file, cmt.comment)
+					return use.FileCommentErr(uErr.Error(), f.astFile, f.tokenFile, cmt.comment)
 				}
 				return err
 			} else if len(cmtCommands) == 0 {
@@ -315,7 +315,8 @@ func parseCommands(args []string) ([]*command.Command, []string, error) {
 }
 
 type fileCmdArgs struct {
-	file        *ast.File
+	astFile     *ast.File
+	tokenFile   *token.File
 	commentArgs []commentCmdArgs
 }
 
@@ -326,7 +327,8 @@ func newFilesCommentsConfig(files []*ast.File, fileSet *token.FileSet) ([]fileCm
 		if args, err := getFileCommentCmdArgs(file, ft); err != nil {
 			return nil, err
 		} else if len(args) > 0 {
-			result = append(result, fileCmdArgs{file: file, commentArgs: args})
+
+			result = append(result, fileCmdArgs{astFile: file, tokenFile: ft, commentArgs: args})
 		}
 	}
 	return result, nil
