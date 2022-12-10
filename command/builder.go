@@ -41,11 +41,11 @@ func NewBuilderStruct() *Command {
 				return err
 			}
 			g := context.Generator
-			pkgAlias, err := g.GetPackageAlias(model.Package.Name, model.Package.Path)
+			pkgName, err := g.GetPackageName(model.Package.Name, model.Package.Path)
 			if err != nil {
 				return err
 			}
-			buildedType := generator.GetTypeName(model.TypeName, pkgAlias)
+			buildedType := generator.GetTypeName(model.TypeName, pkgName)
 			builderName := model.TypeName + "Builder"
 
 			if *name != generator.Autoname {

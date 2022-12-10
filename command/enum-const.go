@@ -29,6 +29,7 @@ func NewEnumConst() *Command {
 		nolint             = params.Nolint(flagSet)
 		flat               = params.Flat(flagSet)
 		excluded           = params.MultiVal(flagSet, "exclude", []string{}, "excluded field")
+		uniqueValues       = flagSet.Bool("check-unique-val", false, "checks if generated constant values are unique")
 	)
 	c := New(
 		name, "generate constants based on template applied to struct fields",
@@ -40,7 +41,7 @@ func NewEnumConst() *Command {
 				return err
 			}
 			return g.GenerateFieldConstant(
-				m, *constValue, *constName, *constType, *funcList, *fieldNameAccess, *refAccessor, *valAccessor, *export, false, *nolint, *compact, *private, *notDeclateConsType,
+				m, *constValue, *constName, *constType, *funcList, *fieldNameAccess, *refAccessor, *valAccessor, *export, false, *nolint, *compact, *private, *notDeclateConsType, *uniqueValues,
 				toSet(*flat), toSet(*excluded),
 			)
 		},

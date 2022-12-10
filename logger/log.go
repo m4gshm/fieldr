@@ -19,7 +19,7 @@ func Init(debug bool) {
 		log.Fatal(err)
 	}
 	zap.ReplaceGlobals(l)
-	logger = zap.S()
+	logger = zap.S().WithOptions(zap.AddCallerSkip(1))
 }
 
 // Debugw writes a debug message to the output.

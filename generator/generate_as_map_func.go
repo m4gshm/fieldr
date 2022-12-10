@@ -15,7 +15,7 @@ func (g *Generator) GenerateAsMapFunc(
 	export, snake, returnRefs, noReceiver, nolint, hardcodeValues bool,
 ) (string, string, string, error) {
 
-	pkgAlias, err := g.GetPackageAlias(model.Package.Name, model.Package.Path)
+	pkgName, err := g.GetPackageName(model.Package.Name, model.Package.Path)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -25,7 +25,7 @@ func (g *Generator) GenerateAsMapFunc(
 
 	funcName := renameFuncByConfig(IdentName("AsMap", export), name)
 
-	typeLink := GetTypeName(model.TypeName, pkgAlias) + TypeParamsString(model.Typ.TypeParams(), g.OutPkg.PkgPath)
+	typeLink := GetTypeName(model.TypeName, pkgName) + TypeParamsString(model.Typ.TypeParams(), g.OutPkg.PkgPath)
 	mapVar := "m"
 	var body string
 	if noReceiver {

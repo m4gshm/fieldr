@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/m4gshm/gollections/mutable/omap"
+	"github.com/m4gshm/gollections/slice"
 	"golang.org/x/tools/go/packages"
 
 	"github.com/m4gshm/fieldr/command"
@@ -178,11 +179,8 @@ func run() error {
 	}
 
 	typeConfigs.Set(typeConfig, commands)
-	logger.Debugf("set type last %+v\n", typeConfig)
 
-	// if len(commands) == 0 {
-	// 	return use.Err("no generator commands")
-	// }
+	logger.Debugf("set type last %+v, commands: %s\n", typeConfig, strings.Join(slice.Map(commands, func(c *command.Command) string { return c.Name() }), ", "))
 
 	srcPkg, err := extractPackage(fileSet, *buildTags, *packagePattern)
 	if err != nil {
@@ -201,7 +199,7 @@ func run() error {
 	}
 
 	return typeConfigs.Track(func(typeConfig params.TypeConfig, commands []*command.Command) error {
-		logger.Debugw("using type config %+v\n", typeConfig)
+		logger.Debugf("using type config %+v\n", typeConfig)
 
 		outputName := typeConfig.Output
 		if outputName == "" {

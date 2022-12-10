@@ -37,7 +37,7 @@ func (g *Generator) GenerateFieldConstants(model *struc.Model, typ string, expor
 	constants, err := makeFieldConsts(g, model, export, snake, allFields, flats)
 	if err != nil {
 		return nil, err
-	} else if err := checkDuplicates(constants); err != nil {
+	} else if err := checkDuplicates(constants, true); err != nil {
 		return nil, err
 	}
 
@@ -55,7 +55,7 @@ func (g *Generator) GenerateFieldConstants(model *struc.Model, typ string, expor
 
 func (g *Generator) GenerateFieldConstant(
 	model *struc.Model, valueTmpl, nameTmpl, typ, funcList, typeMethod, refAccessor, valAccessor string,
-	export, snake, nolint, compact, usePrivate, notDeclateConsType bool,
+	export, snake, nolint, compact, usePrivate, notDeclateConsType, uniqueValues bool,
 	flats, excludedFields c.Set[string],
 ) error {
 	valueTmpl, nameTmpl = wrapTemplate(valueTmpl), wrapTemplate(nameTmpl)
@@ -74,7 +74,7 @@ func (g *Generator) GenerateFieldConstant(
 	constants, err := makeFieldConstsTempl(g, model, model.TypeName, nameTmpl, valueTmpl, export, snake, usePrivate, flats, excludedFields)
 	if err != nil {
 		return err
-	} else if err = checkDuplicates(constants); err != nil {
+	} else if err = checkDuplicates(constants, uniqueValues); err != nil {
 		return err
 	}
 	for _, constant := range constants {
@@ -102,20 +102,24 @@ func (g *Generator) GenerateFieldConstant(
 		g.addFunсDelim()
 	}
 
-	if wrapType && len(typeMethod) > 0 {
-		funcName := typeMethod
-		if typeMethod == Autoname {
-			funcName = IdentName("Field", export)
+	if wrapType {
+		if len(typeMethod) > 0 {
+			funcName := typeMethod
+			if typeMethod == Autoname {
+				funcName = IdentName("Field", export)
+			}
+			if funcBody, err := g.generateConstFieldMethod(typ, funcName, constants, exportFunc, nolint); err != nil {
+				return err
+			} else if err := g.AddMethod(typ, funcName, funcBody); err != nil {
+				return err
+			}
+			g.addFunсDelim()
 		}
-		if funcBody, err := g.generateConstFieldMethod(typ, funcName, constants, exportFunc, nolint); err != nil {
-			return err
-		} else if err := g.AddMethod(typ, funcName, funcBody); err != nil {
-			return err
-		}
-		g.addFunсDelim()
+
+		logger.Debugf("valAccessor %s, refAccessor %s", valAccessor, refAccessor)
 
 		if len(refAccessor) != 0 || len(valAccessor) != 0 {
-			pkgAlias, err := g.GetPackageAlias(model.Package.Name, model.Package.Path)
+			pkgName, err := g.GetPackageName(model.Package.Name, model.Package.Path)
 			if err != nil {
 				return err
 			}
@@ -124,7 +128,8 @@ func (g *Generator) GenerateFieldConstant(
 				if valAccessor == Autoname {
 					funcName = IdentName("Val", export)
 				}
-				if funcBody, funcName, err := g.generateConstValueMethod(model, pkgAlias, typ, funcName, constants, exportFunc, nolint, false); err != nil {
+				logger.Debugf("valAccessor func %s", funcName)
+				if funcBody, funcName, err := g.generateConstValueMethod(model, pkgName, typ, funcName, constants, exportFunc, nolint, false); err != nil {
 					return err
 				} else if err := g.AddFuncOrMethod(funcName, funcBody); err != nil {
 					return err
@@ -135,7 +140,8 @@ func (g *Generator) GenerateFieldConstant(
 				if refAccessor == Autoname {
 					funcName = IdentName("Ref", export)
 				}
-				if funcBody, funcName, err := g.generateConstValueMethod(model, pkgAlias, typ, funcName, constants, exportFunc, nolint, true); err != nil {
+				logger.Debugf("refAccessor func %s", funcName)
+				if funcBody, funcName, err := g.generateConstValueMethod(model, pkgName, typ, funcName, constants, exportFunc, nolint, true); err != nil {
 					return err
 				} else if err := g.AddFuncOrMethod(funcName, funcBody); err != nil {
 					return err
@@ -156,16 +162,22 @@ type fieldConst struct {
 	fieldPath   []fieldInfo
 }
 
-func checkDuplicates(constants []fieldConst) error {
+func checkDuplicates(constants []fieldConst, checkValues bool) error {
 	uniqueVals, uniqueNames := map[string]string{}, map[string]string{}
 	for _, c := range constants {
 		name, value := c.name, c.value
-		if dupl, ok := uniqueVals[value]; ok {
-			return fmt.Errorf("duplicated constant values: first const '%s', second '%s', value '%s'", dupl, name, value)
-		} else if dupl, ok := uniqueNames[name]; ok {
+		if dupl, ok := uniqueNames[name]; ok {
 			return fmt.Errorf("duplicated constants: constant '%s', first value '%s', second '%s'", name, dupl, value)
+		} else {
+			uniqueNames[name] = value
 		}
-		uniqueVals[value], uniqueNames[name] = name, value
+		if checkValues {
+			if dupl, ok := uniqueVals[value]; ok {
+				return fmt.Errorf("duplicated constant values: first const '%s', second '%s', value '%s'", dupl, name, value)
+			} else {
+				uniqueVals[value] = name
+			}
+		}
 	}
 	return nil
 }
@@ -252,7 +264,7 @@ func makeFieldConstsTempl(
 			funcs := addCommonFuncs(template.FuncMap{
 				"struct": func() map[string]interface{} { return map[string]interface{}{"name": structType} },
 				"name":   func() string { return fieldName },
-				"field":  func() map[string]interface{} { return map[string]interface{}{"name": fieldName} },
+				"field":  func() map[string]interface{} { return map[string]interface{}{"name": fieldName, "type": fieldType} },
 				"tag":    func() map[string]*stringer { return tags },
 			})
 
@@ -515,12 +527,12 @@ func (g *Generator) generateConstFieldMethod(typ, name string, constants []field
 	return body, nil
 }
 
-func (g *Generator) generateConstValueMethod(model *struc.Model, pkgAlias, typ, name string, constants []fieldConst, export, nolint, ref bool) (string, string, error) {
+func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, name string, constants []fieldConst, export, nolint, ref bool) (string, string, error) {
 	var (
 		// name            = IdentName("Val", export)
 		argVar          = "f"
 		recVar          = "s"
-		recType         = GetTypeName(model.TypeName, pkgAlias)
+		recType         = GetTypeName(model.TypeName, pkgName)
 		recParamType    = recType + TypeParamsString(model.Typ.TypeParams(), g.OutPkg.PkgPath)
 		recParamTypeRef = "*" + recParamType
 		returnTypes     = "interface{}"
@@ -533,7 +545,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgAlias, typ, 
 		// name = IdentName("Ref", export)
 	}
 
-	isFunc := len(pkgAlias) > 0
+	isFunc := len(pkgName) > 0
 	funSign := "func (" + recVar + " " + recParamTypeRef + ") " + name + "(" + argVar + " " + typ + ") " + returnTypes
 	if isFunc {
 		funSign = "func " + name + "(" + recVar + " " + recParamTypeRef + ", " + argVar + " " + typ + ") " + returnTypes
@@ -541,8 +553,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgAlias, typ, 
 	body := funSign
 	body += " {" + NoLint(nolint) + "\n"
 	body += "if " + recVar + " == nil {\nreturn nil\n}\n"
-	body += "switch " + argVar + " {\n" +
-		""
+	body += "switch " + argVar + " {\n"
 
 	for _, constant := range constants {
 		body += "case " + constant.name + ":\n"

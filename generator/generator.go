@@ -48,9 +48,13 @@ type Generator struct {
 	funcNames    []string
 	funcBodies   funcBodies
 
-	imports map[string]string
+	imports map[string]packageImport
 
 	rewriteOutFile bool
+}
+
+type packageImport struct {
+	name, alias string
 }
 
 type funcBodies map[string]funcBody
@@ -125,7 +129,7 @@ func New(name, outBuildTags string, outFile *ast.File, outFileInfo *token.File, 
 		structBodies:   map[string]string{},
 		funcNames:      []string{},
 		funcBodies:     make(map[string]funcBody),
-		imports:        map[string]string{},
+		imports:        map[string]packageImport{},
 		rewriteOutFile: isRewrite(outFile, outFileInfo, generatedMarker(name)),
 	}
 }
@@ -173,13 +177,15 @@ func OutPackageName(outPackageName string, outPackage *packages.Package) string 
 	return outPackageName
 }
 
-func (g *Generator) GetPackageAlias(pkgName, pkgPath string) (string, error) {
+func (g *Generator) GetPackageName(pkgName, pkgPath string) (string, error) {
+	logger.Debugf("GetPackageName pkgName %s, pkgPath %s", pkgName, pkgPath)
 	needImport := pkgPath != g.OutPkg.PkgPath
 	if !needImport {
 		return "", nil
 	}
 	if exists, ok := g.imports[pkgPath]; ok {
-		return exists, nil
+		logger.Debugf("GetPackageName exists %s", exists)
+		return exists.name, nil
 	}
 	pkgAlias := pkgName
 	if !g.rewriteOutFile {
@@ -208,16 +214,19 @@ func (g *Generator) GetPackageAlias(pkgName, pkgPath string) (string, error) {
 			}
 			if !duplicated && i > 0 {
 				pkgAlias = structPackageSuffixed
+			} else {
+				logger.Debugf("GetPackageName duplicated %v, iter $d", duplicated, i)
 			}
 		}
 	}
 
 	if needImport {
 		importAlias := pkgAlias
-		if name := packagePathToName(pkgPath); name == pkgAlias {
+		name := packagePathToName(pkgPath)
+		if name == pkgAlias {
 			importAlias = ""
 		}
-		if _, err := g.AddImport(pkgPath, importAlias); err != nil {
+		if _, err := g.AddImport(pkgPath, name, importAlias); err != nil {
 			return "", err
 		}
 	}
@@ -574,8 +583,8 @@ func (g *Generator) getImportsExpr() (string, error) {
 
 func (g *Generator) getImports() *ast.GenDecl {
 	specs := []ast.Spec{}
-	for pack, alias := range g.imports {
-		specs = append(specs, newImport(alias, pack))
+	for pack, imp := range g.imports {
+		specs = append(specs, newImport(imp.alias, pack))
 	}
 	// if len(specs) == 0 {
 	// 	return nil
@@ -846,18 +855,18 @@ func (g *Generator) AddFuncOrMethod(name, body string) error {
 	return nil
 }
 
-func (g *Generator) AddImport(pack, alias string) (string, error) {
+func (g *Generator) AddImport(pack, name, alias string) (string, error) {
 	if len(pack) == 0 {
 		return "", errors.New("empty package cannot be imported")
 	}
 	if exists, ok := g.imports[pack]; ok {
-		if exists != alias {
+		if exists.alias != alias {
 			logger.Debugf("package alredy imported: package %s, exists alias %s, proposed %s", exists, pack, alias)
 		}
-		return exists, nil
+		return exists.alias, nil
 	}
-	g.imports[pack] = alias
-	logger.Debugf("add import: package %s, alias %s", pack, alias)
+	g.imports[pack] = packageImport{name: name, alias: alias}
+	logger.Debugf("AddImport: package %s, alias %s", pack, alias)
 	return alias, nil
 }
 
@@ -911,7 +920,7 @@ func (g *Generator) ImportPack(pkg *types.Package, basePackagePath string) (*typ
 		return pkg, nil
 	}
 	pkgPath := pkg.Path()
-	if pkgAlias, err := g.AddImport(pkgPath, ""); err != nil {
+	if pkgAlias, err := g.AddImport(pkgPath, pkg.Name(), ""); err != nil {
 		return nil, err
 	} else if len(pkgAlias) > 0 {
 		return types.NewPackage(pkgPath, pkgAlias), nil
