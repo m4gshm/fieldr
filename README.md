@@ -106,6 +106,9 @@ func (b *EntityBuilder) Name(name string) *EntityBuilder {
 }
 
 func (i *Entity) ToBuilder() *EntityBuilder {
+	if i == nil {
+		return &EntityBuilder{}
+	}
 	return &EntityBuilder{
 		id:   i.Id,
 		name: i.Name,

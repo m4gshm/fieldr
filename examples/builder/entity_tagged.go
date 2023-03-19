@@ -110,6 +110,9 @@ func (b *EntityBuilder[ID]) SetEmbedded(embedded EmbeddedEntity) *EntityBuilder[
 }
 
 func (i *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
+	if i == nil {
+		return &EntityBuilder[ID]{}
+	}
 	var i_BaseEntity_ID ID
 	if i.BaseEntity != nil {
 		i_BaseEntity_ID = i.BaseEntity.ID

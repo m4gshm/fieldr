@@ -153,10 +153,6 @@ func (g *Generator) GenerateFieldConstant(
 	return nil
 }
 
-type FieldInfo struct {
-	Name string
-	Type struc.FieldType
-}
 type fieldConst struct {
 	name, value string
 	fieldPath   []FieldInfo
@@ -558,7 +554,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 	for _, constant := range constants {
 		body += "case " + constant.name + ":\n"
 
-		fullFieldPath, condition := FiledPathAndAcceddCheckCondition(recVar, constant.fieldPath)
+		fullFieldPath, condition := FiledPathAndAccessCheckCondition(recVar, false, constant.fieldPath)
 
 		if len(condition) > 0 {
 			body += "if " + condition + " {\n"
@@ -578,31 +574,4 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 		name = MethodName(recType, name)
 	}
 	return body, name, nil
-}
-
-func FiledPathAndAcceddCheckCondition(recVar string, fieldPathInfo []FieldInfo) (string, string) {
-	condition := ""
-	fieldPath := ""
-	fullFieldPath := recVar + "."
-	for _, p := range fieldPathInfo {
-		if len(fieldPath) > 0 {
-			fieldPath += "."
-			fullFieldPath += "."
-		}
-		fieldPath += p.Name
-		fullFieldPath += p.Name
-		if p.Type.RefCount > 0 {
-			if len(condition) > 0 {
-				condition += " && "
-			}
-			condition += fullFieldPath + " != nil"
-			for ri := 1; ri < p.Type.RefCount; ri++ {
-				condition += " && "
-				fullFieldPath = "*(" + fullFieldPath + ")"
-				condition += fullFieldPath + " != nil"
-				fullFieldPath = "(" + fullFieldPath + ")"
-			}
-		}
-	}
-	return fullFieldPath, condition
 }
