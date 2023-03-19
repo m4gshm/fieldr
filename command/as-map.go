@@ -7,6 +7,7 @@ import (
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/struc"
+	"github.com/m4gshm/gollections/immutable/set"
 )
 
 func NewAsMapMethod() *Command {
@@ -58,7 +59,7 @@ func NewAsMapMethod() *Command {
 				kType = generator.BaseConstType
 			}
 
-			flatsSet := toSet(*flats)
+			flatsSet := set.New(*flats)
 			if constants, err := g.GenerateFieldConstants(model, kType, *export, *snake, *all, flatsSet); err != nil {
 				return err
 			} else if rewriter, err := coderewriter.New(*fieldValueRewriters); err != nil {

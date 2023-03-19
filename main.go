@@ -180,7 +180,7 @@ func run() error {
 
 	typeConfigs.Set(typeConfig, commands)
 
-	logger.Debugf("set type last %+v, commands: %s\n", typeConfig, strings.Join(slice.Map(commands, func(c *command.Command) string { return c.Name() }), ", "))
+	logger.Debugf("set type last %+v, commands: %s\n", typeConfig, strings.Join(slice.Convert(commands, (*command.Command).Name), ", "))
 
 	srcPkg, err := extractPackage(fileSet, *buildTags, *packagePattern)
 	if err != nil {
@@ -463,38 +463,6 @@ func dirPackage(dir string, buildTags []string) (*packages.Package, error) {
 		return p, nil
 	}
 	return nil, nil
-}
-
-var emptySet = map[string]int{}
-var emptySlice []string
-
-func newSet(values []string, excludes ...string) ([]string, map[string]int) {
-	if len(values) == 0 {
-		return emptySlice, emptySet
-	}
-	uniques := make([]string, 0)
-	_, exclSet := newSet(excludes)
-	set := make(map[string]int)
-	for i, value := range values {
-		if _, ok := exclSet[value]; !ok {
-			if _, ok = set[value]; !ok {
-				set[value] = i
-				uniques = append(uniques, value)
-			}
-		}
-	}
-	return uniques, set
-}
-
-func outDir(args []string) (string, error) {
-	if len(args) > 0 {
-		if dir, err := isDir(args[len(args)-1]); err != nil {
-			return "", fmt.Errorf("outDir: %w", err)
-		} else if dir {
-			return args[len(args)-1], nil
-		}
-	}
-	return "", nil
 }
 
 func isDir(name string) (bool, error) {

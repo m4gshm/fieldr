@@ -5,6 +5,7 @@ import (
 
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/params"
+	"github.com/m4gshm/gollections/immutable/set"
 )
 
 func NewEnumConst() *Command {
@@ -42,7 +43,7 @@ func NewEnumConst() *Command {
 			}
 			return g.GenerateFieldConstant(
 				m, *constValue, *constName, *constType, *funcList, *fieldNameAccess, *refAccessor, *valAccessor, *export, false, *nolint, *compact, *private, *notDeclateConsType, *uniqueValues,
-				toSet(*flat), toSet(*excluded),
+				set.New(*flat), set.New(*excluded),
 			)
 		},
 	)

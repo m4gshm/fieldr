@@ -1013,12 +1013,10 @@ func (g *Generator) Repack(typ types.Type, basePackagePath string) (types.Type, 
 		e := tt.Elem()
 		if re, err := g.Repack(e, basePackagePath); err != nil {
 			return nil, err
-		} else {
-			if rk, err := g.Repack(k, basePackagePath); err != nil {
-				return nil, err
-			} else if re != e || rk != k {
-				return types.NewMap(rk, re), nil
-			}
+		} else if rk, err := g.Repack(k, basePackagePath); err != nil {
+			return nil, err
+		} else if re != e || rk != k {
+			return types.NewMap(rk, re), nil
 		}
 	// case *types.Func:
 	// 	pkg := tt.Pkg()
