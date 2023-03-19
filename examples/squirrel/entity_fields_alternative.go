@@ -11,3 +11,33 @@ const (
 func ACols() []Col {
 	return []Col{AlterColID, AlterColName, AlterColSurname}
 }
+
+func (s *Entity) Aval(f Col) interface{} {
+	if s == nil {
+		return nil
+	}
+	switch f {
+	case AlterColID:
+		return s.ID
+	case AlterColName:
+		return s.Name
+	case AlterColSurname:
+		return s.Surname
+	}
+	return nil
+}
+
+func (s *Entity) Aref(f Col) interface{} {
+	if s == nil {
+		return nil
+	}
+	switch f {
+	case AlterColID:
+		return &s.ID
+	case AlterColName:
+		return &s.Name
+	case AlterColSurname:
+		return &s.Surname
+	}
+	return nil
+}

@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"go/types"
+	"strings"
 
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/logger"
@@ -27,7 +28,8 @@ func NewBuilderStruct() *Command {
 		setterPrefix    = flagSet.String("setter-prefix", generator.Autoname, "generated 'Set<Field>' methods prefix, use "+generator.Autoname+" for autoselect")
 		chainValue      = flagSet.Bool("chain-value", false, "returns value of the builder in generated methods (default is pointer)")
 		buildValue      = flagSet.Bool("build-value", false, "returns value of the builded type in the build (constructor) method (default is pointer)")
-		light           = flagSet.Bool("light", false, "don't generate builder methods, only fields")
+		light           = flagSet.Bool("light", false, "generate an instance method toBuilder() to convert the instance back to a builder")
+		toBuilder       = flagSet.Bool("toBuilder", true, "don't generate builder methods, only fields")
 		exports         = params.MultiValFixed(flagSet, "export", []string{"methods"}, exportVals, "export generated content")
 		nolint          = params.Nolint(flagSet)
 	)
@@ -92,9 +94,9 @@ func NewBuilderStruct() *Command {
 			constrMethodName = generator.LegalIdentName(generator.IdentName(constrMethodName, exportMethods))
 			typeParams := generator.TypeParamsString(model.Typ.TypeParams(), g.OutPkg.PkgPath)
 
-			rec := "b"
+			receiver := "b"
 			logger.Debugf("constrMethodName %v", constrMethodName)
-			constrMethodBody := "func (" + rec + " " + builderName + typeParams + ") " + constrMethodName + "() " + ifElse(*buildValue, "", "*") + buildedType + typeParams +
+			constrMethodBody := "func (" + receiver + " " + builderName + typeParams + ") " + constrMethodName + "() " + ifElse(*buildValue, "", "*") + buildedType + typeParams +
 				" {" + generator.NoLint(*nolint) + "\n"
 			constrMethodBody += "return " + ifElse(*buildValue, "", "&") + buildedType + typeParams + " {\n"
 
@@ -107,7 +109,8 @@ func NewBuilderStruct() *Command {
 				methodPrefix = defMethPref
 			}
 
-			c, b, fmn, fmb, err := generateBuilderParts(g, model, uniques, rec, ifElse(*chainValue, "", "*")+builderName+typeParams, methodPrefix, *light, exportMethods, exportFields, *nolint, *buildValue)
+			builderType := ifElse(*chainValue, "", "*") + builderName + typeParams
+			c, b, fmn, fmb, err := generateBuilderParts(g, model, uniques, receiver, builderType, methodPrefix, *light, exportMethods, exportFields, *nolint, *buildValue)
 			if err != nil {
 				return err
 			}
@@ -129,7 +132,33 @@ func NewBuilderStruct() *Command {
 					return err
 				}
 			}
-			return g.AddStruct(s)
+
+			if err := g.AddStruct(s); err != nil {
+				return err
+			}
+
+			if *toBuilder {
+				toBuilderMethodName := "ToBuilder"
+				builderType := ifElse(*buildValue, "", "*") + builderName + typeParams
+				builderInstantiate := ifElse(*buildValue, "", "&") + builderName + typeParams
+				instanceType := ifElse(*buildValue, "", "*") + buildedType + typeParams
+				instanceReceiver := "i"
+				toBuilderMethodBody := "func (" + instanceReceiver + " " + instanceType + ") " + toBuilderMethodName + "() " + builderType +
+					" {" + generator.NoLint(*nolint) + "\n"
+
+				b, pre, err := generateToBuilderMethodParts(g, model, instanceReceiver, "", exportFields)
+				if err != nil {
+					return err
+				}
+				toBuilderMethodBody += pre
+				toBuilderMethodBody += "return " + builderInstantiate + " {\n"
+				toBuilderMethodBody += b + "\n"
+
+				toBuilderMethodBody += "}\n}\n"
+				return g.AddMethod(model.TypeName, toBuilderMethodName, toBuilderMethodBody)
+			}
+
+			return nil
 		},
 	)
 }
@@ -142,34 +171,41 @@ func ifElse[T any](condition bool, first, second T) T {
 }
 
 func generateBuilderParts(
-	g *generator.Generator, model *struc.Model, uniques map[string]string, builderRecVar, builderType, setterPrefix string, noMethods, exportMethods, exportFields, nolint, buildReceiver bool,
+	g *generator.Generator, model *struc.Model, uniques map[string]string, receiverVar, typeName, setterPrefix string, noMethods, exportMethods, exportFields, nolint, buildReceiver bool,
 ) (string, string, []string, []string, error) {
-	logger.Debugf("generate builder parts: receiver %v, builderType %v, setterPrefix %v", builderRecVar, builderType, setterPrefix)
-	constrMethodBody := ""
-	builderBody := ""
+	logger.Debugf("generate builder parts: receiver %v, type %v, setterPrefix %v", receiverVar, typeName, setterPrefix)
+	constructorMethodBody := ""
+	structBody := ""
 	fieldMethodBodies := []string{}
 	fieldMethodNames := []string{}
 	for i, fieldName := range model.FieldNames {
 		if i > 0 {
-			builderBody += "\n"
+			structBody += "\n"
 		}
 		fieldType := model.FieldsType[fieldName]
 		fullFieldType := fieldType.Name
 
 		if fieldType.Embedded {
-			typeParams := generator.TypeParamsString(model.Typ.TypeParams(), g.OutPkg.PkgPath)
+			t, _, err := struc.GetTypeNamed(fieldType.Type)
+			if err != nil {
+				return "", "", nil, nil, err
+			}
+			typeParams := ""
+			if t != nil {
+				typeParams = generator.TypeArgsString(t.TypeArgs(), g.OutPkg.PkgPath)
+			}
 			init := fullFieldType + typeParams
 			if fieldType.RefCount > 0 {
 				init = "&" + init
 			}
-			constrMethodBody += fieldName + ": " + init + "{\n"
-			c, b, fmn, fmb, err := generateBuilderParts(g, fieldType.Model, uniques, builderRecVar, builderType, setterPrefix, noMethods, exportMethods, exportFields, nolint, buildReceiver)
+			constructorMethodBody += fieldName + ": " + init + "{\n"
+			c, b, fmn, fmb, err := generateBuilderParts(g, fieldType.Model, uniques, receiverVar, typeName, setterPrefix, noMethods, exportMethods, exportFields, nolint, buildReceiver)
 			if err != nil {
 				return "", "", nil, nil, err
 			}
-			constrMethodBody += c
-			builderBody += b
-			constrMethodBody += "\n}"
+			constructorMethodBody += c
+			structBody += b
+			constructorMethodBody += "\n}"
 			if !noMethods {
 				fieldMethodBodies = append(fieldMethodBodies, fmb...)
 				fieldMethodNames = append(fieldMethodNames, fmn...)
@@ -185,21 +221,97 @@ func generateBuilderParts(
 				return "", "", nil, nil, fmt.Errorf("duplicated builder fields: name '%s', first type '%s', second '%s'", builderField, dupl, fullFieldType)
 			}
 			uniques[builderField] = fullFieldType
-			builderBody += builderField + " " + fullFieldType
-			constrMethodBody += fieldName + ": " + builderRecVar + "." + builderField
+			structBody += builderField + " " + fullFieldType
+			constructorMethodBody += fieldName + ": " + receiverVar + "." + builderField
 			if !noMethods {
 				fieldMethodName := generator.LegalIdentName(generator.IdentName(setterPrefix+builderField, exportMethods))
 				arg := generator.LegalIdentName(generator.IdentName(builderField, false))
 
-				fieldMethod := "func (" + builderRecVar + " " + builderType + ") " + fieldMethodName + "(" + arg + " " + fullFieldType + ") " + builderType +
+				fieldMethod := "func (" + receiverVar + " " + typeName + ") " + fieldMethodName + "(" + arg + " " + fullFieldType + ") " + typeName +
 					" {" + generator.NoLint(nolint) + "\n"
-				fieldMethod += builderRecVar + "." + builderField + "=" + arg + "\n"
-				fieldMethod += "return " + builderRecVar + "\n}\n"
+				fieldMethod += receiverVar + "." + builderField + "=" + arg + "\n"
+				fieldMethod += "return " + receiverVar + "\n}\n"
 				fieldMethodBodies = append(fieldMethodBodies, fieldMethod)
 				fieldMethodNames = append(fieldMethodNames, fieldMethodName)
 			}
 		}
-		constrMethodBody += ",\n"
+		constructorMethodBody += ",\n"
 	}
-	return constrMethodBody, builderBody, fieldMethodNames, fieldMethodBodies, nil
+	return constructorMethodBody, structBody, fieldMethodNames, fieldMethodBodies, nil
+}
+
+func generateToBuilderMethodParts(
+	g *generator.Generator, model *struc.Model, receiver, fieldPrefix string, exportFields bool,
+) (string, string, error) {
+	logger.Debugf("generate toBuilder method: receiver %v", receiver)
+	initVarsInitPart := ""
+	methodBody := ""
+	for _, fieldName := range model.FieldNames {
+		fieldType := model.FieldsType[fieldName]
+
+		if fieldType.Embedded {
+			fieldPathInfo := []generator.FieldInfo{{Name: fieldType.Name, Type: fieldType}}
+			fullFieldPath, condition := generator.FiledPathAndAcceddCheckCondition(receiver, fieldPathInfo)
+			if len(condition) > 0 {
+				m, i, err := generateToBuilderMethodConditionedParts(fieldPathInfo, fieldType.Model, fullFieldPath, condition, receiver)
+				if err != nil {
+					return "", "", err
+				}
+				methodBody += m
+				initVarsInitPart += i
+			} else {
+				c, _, err := generateToBuilderMethodParts(g, fieldType.Model, receiver, fieldType.Name, exportFields)
+				if err != nil {
+					return "", "", err
+				}
+				methodBody += c
+			}
+
+		} else {
+			builderField := generator.LegalIdentName(generator.IdentName(fieldName, exportFields))
+			methodBody += builderField + ": " + receiver + "." + ifElse(len(fieldPrefix) > 0, fieldPrefix+".", "") + fieldName
+			methodBody += ",\n"
+		}
+	}
+	return methodBody, ifElse(len(initVarsInitPart) > 0, initVarsInitPart+"\n", ""), nil
+}
+
+func generateToBuilderMethodConditionedParts(parentFieldPathInfo []generator.FieldInfo, model *struc.Model, fullFieldPath, condition, receiver string) (string, string, error) {
+	initVarsInitPart := ""
+	methodBody := ""
+
+	for _, fieldName := range model.FieldNames {
+		fieldType := model.FieldsType[fieldName]
+		handled := false
+		if fieldType.Embedded {
+			fieldPathInfo := append(append([]generator.FieldInfo{}, parentFieldPathInfo...), generator.FieldInfo{Name: fieldType.Name, Type: fieldType})
+			fullFieldPath, subCondition := generator.FiledPathAndAcceddCheckCondition(receiver, fieldPathInfo)
+			if len(subCondition) > 0 {
+				m, i, err := generateToBuilderMethodConditionedParts(fieldPathInfo, fieldType.Model, fullFieldPath, subCondition, receiver)
+				if err != nil {
+					return "", "", err
+				}
+				methodBody += m
+				initVarsInitPart += i
+				handled = true
+			}
+		}
+
+		if !handled {
+			varPref := strings.ReplaceAll(fullFieldPath, ".", "_")
+			varName := varPref + "_" + strings.ReplaceAll(fieldName, ".", "_")
+
+			initVarsInitPart += "var " + varName + " " + fieldType.FullName + "\n"
+			initVarsInitPart += "if " + condition + " {\n"
+			initVarsInitPart += varName + "=" + fullFieldPath + "." + fieldName
+			initVarsInitPart += "}\n"
+
+			builderField := generator.LegalIdentName(generator.IdentName(fieldName, true))
+			methodBody += builderField + ": " + varName
+			methodBody += ",\n"
+
+		}
+	}
+
+	return methodBody, initVarsInitPart, nil
 }

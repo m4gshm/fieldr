@@ -23,3 +23,10 @@ func (b *EntityBuilder) Name(name string) *EntityBuilder {
 	b.name = name
 	return b
 }
+
+func (i *Entity) ToBuilder() *EntityBuilder {
+	return &EntityBuilder{
+		id:   i.Id,
+		name: i.Name,
+	}
+}

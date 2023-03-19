@@ -130,20 +130,12 @@ func (b *structModelBuilder) newModel(typPack *types.Package, typ *types.Named) 
 	return b.model, nil
 }
 
-func GetStructTypeNamed(typ types.Type) (*types.Named, int, error) {
+func GetTypeNamed(typ types.Type) (*types.Named, int, error) {
 	switch ftt := typ.(type) {
 	case *types.Named:
-		und := ftt.Underlying()
-		if _, ok := und.(*types.Struct); ok {
-			return ftt, 0, nil
-		} else if sund, p, err := GetStructTypeNamed(und); err != nil {
-			return nil, 0, err
-		} else if sund != nil {
-			return ftt, p, nil
-		}
-		return nil, 0, nil
+		return ftt, 0, nil
 	case *types.Pointer:
-		t, p, err := GetStructTypeNamed(ftt.Elem())
+		t, p, err := GetTypeNamed(ftt.Elem())
 		if err != nil {
 			return nil, 0, err
 		}
@@ -151,6 +143,42 @@ func GetStructTypeNamed(typ types.Type) (*types.Named, int, error) {
 	default:
 		return nil, 0, nil
 	}
+}
+
+func GetStructTypeNamed(typ types.Type) (*types.Named, int, error) {
+	if ftt, p, err := GetTypeNamed(typ); err != nil {
+		return nil, 0, err
+	} else if ftt != nil {
+		und := ftt.Underlying()
+		if _, ok := und.(*types.Struct); ok {
+			return ftt, p, nil
+		} else if sund, sp, err := GetStructTypeNamed(und); err != nil {
+			return nil, sp + p, err
+		} else if sund != nil {
+			return ftt, sp + p, nil
+		}
+	}
+	return nil, 0, nil
+	// switch ftt := typ.(type) {
+	// case *types.Named:
+	// 	und := ftt.Underlying()
+	// 	if _, ok := und.(*types.Struct); ok {
+	// 		return ftt, 0, nil
+	// 	} else if sund, p, err := GetStructTypeNamed(und); err != nil {
+	// 		return nil, 0, err
+	// 	} else if sund != nil {
+	// 		return ftt, p, nil
+	// 	}
+	// 	return nil, 0, nil
+	// case *types.Pointer:
+	// 	t, p, err := GetStructTypeNamed(ftt.Elem())
+	// 	if err != nil {
+	// 		return nil, 0, err
+	// 	}
+	// 	return t, p + 1, nil
+	// default:
+	// 	return nil, 0, nil
+	// }
 }
 
 func GetStructType(t types.Type) (*types.Struct, int, error) {

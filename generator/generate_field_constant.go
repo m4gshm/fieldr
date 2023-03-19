@@ -153,13 +153,13 @@ func (g *Generator) GenerateFieldConstant(
 	return nil
 }
 
-type fieldInfo struct {
-	name string
-	typ  struc.FieldType
+type FieldInfo struct {
+	Name string
+	Type struc.FieldType
 }
 type fieldConst struct {
 	name, value string
-	fieldPath   []fieldInfo
+	fieldPath   []FieldInfo
 }
 
 func checkDuplicates(constants []fieldConst, checkValues bool) error {
@@ -220,7 +220,7 @@ func makeFieldConstsTempl(
 				return nil, err
 			}
 			for i := range fieldConstants {
-				fieldConstants[i].fieldPath = append([]fieldInfo{{name: fieldName, typ: fieldType}}, fieldConstants[i].fieldPath...)
+				fieldConstants[i].fieldPath = append([]FieldInfo{{Name: fieldName, Type: fieldType}}, fieldConstants[i].fieldPath...)
 			}
 			constants = append(constants, fieldConstants...)
 		} else {
@@ -289,7 +289,7 @@ func makeFieldConstsTempl(
 				constants = append(constants, fieldConst{
 					name:      constName,
 					value:     val,
-					fieldPath: []fieldInfo{{name: fieldName, typ: fieldType}}})
+					fieldPath: []FieldInfo{{Name: fieldName, Type: fieldType}}})
 			} else {
 				logger.Infof("constant without value: '%s'", constName)
 			}
@@ -305,7 +305,7 @@ func makeFieldConsts(g *Generator, model *struc.Model, export, snake, allFields 
 		embedded := fieldType.Embedded
 		flat := flats.Contains(fieldName)
 		fieldModel := fieldType.Model
-		filedInfo := fieldInfo{name: fieldName, typ: fieldType}
+		filedInfo := FieldInfo{Name: fieldName, Type: fieldType}
 		if flat || embedded {
 			var subflats c.Set[string] = set.Of[string]()
 			if embedded {
@@ -317,14 +317,14 @@ func makeFieldConsts(g *Generator, model *struc.Model, export, snake, allFields 
 			}
 			for i := range fieldConstants {
 				fieldConstants[i].name = fieldName + fieldConstants[i].name
-				fieldConstants[i].fieldPath = append([]fieldInfo{filedInfo}, fieldConstants[i].fieldPath...)
+				fieldConstants[i].fieldPath = append([]FieldInfo{filedInfo}, fieldConstants[i].fieldPath...)
 			}
 			constants = append(constants, fieldConstants...)
 		} else if allFields || isExport(fieldName) {
 			constants = append(constants, fieldConst{
 				name:      IdentName(fieldName, isExport(fieldName) && export),
 				value:     fieldName,
-				fieldPath: []fieldInfo{filedInfo}})
+				fieldPath: []FieldInfo{filedInfo}})
 		}
 	}
 	return constants, nil
@@ -512,7 +512,7 @@ func (g *Generator) generateConstFieldMethod(typ, name string, constants []field
 			if len(fieldPath) > 0 {
 				fieldPath += "."
 			}
-			fieldPath += p.name
+			fieldPath += p.Name
 		}
 
 		body += "case " + constant.name + ":\n" +
@@ -580,7 +580,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 	return body, name, nil
 }
 
-func FiledPathAndAcceddCheckCondition(recVar string, fieldPathInfo []fieldInfo) (string, string) {
+func FiledPathAndAcceddCheckCondition(recVar string, fieldPathInfo []FieldInfo) (string, string) {
 	condition := ""
 	fieldPath := ""
 	fullFieldPath := recVar + "."
@@ -589,14 +589,14 @@ func FiledPathAndAcceddCheckCondition(recVar string, fieldPathInfo []fieldInfo) 
 			fieldPath += "."
 			fullFieldPath += "."
 		}
-		fieldPath += p.name
-		fullFieldPath += p.name
-		if p.typ.RefCount > 0 {
+		fieldPath += p.Name
+		fullFieldPath += p.Name
+		if p.Type.RefCount > 0 {
 			if len(condition) > 0 {
 				condition += " && "
 			}
 			condition += fullFieldPath + " != nil"
-			for ri := 1; ri < p.typ.RefCount; ri++ {
+			for ri := 1; ri < p.Type.RefCount; ri++ {
 				condition += " && "
 				fullFieldPath = "*(" + fullFieldPath + ")"
 				condition += fullFieldPath + " != nil"

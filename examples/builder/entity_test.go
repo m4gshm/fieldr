@@ -8,10 +8,19 @@ import (
 
 func TestBuilderEmpty(t *testing.T) {
 	actual := EntityBuilder[int32]{}.Build()
-	assert.Equal(t, &Entity[int32]{BaseEntity: &BaseEntity[int32]{}}, actual)
+	expected := &Entity[int32]{BaseEntity: &BaseEntity[int32]{CodeAwareEntity: &CodeAwareEntity{}}}
+	assert.Equal(t, expected, actual)
 }
 
 func TestBuilderFields(t *testing.T) {
 	actual := (&EntityBuilder[int32]{Name: "1"}).SetID(2).SetSurname("3").SetEmbedded(EmbeddedEntityBuilder{}.SetMetadata("meta").Build()).Build()
-	assert.Equal(t, &Entity[int32]{BaseEntity: &BaseEntity[int32]{ID: 2}, Name: "1", Surname: "3", Embedded: EmbeddedEntity{Metadata: "meta"}}, actual)
+	expected := &Entity[int32]{BaseEntity: &BaseEntity[int32]{ID: 2, CodeAwareEntity: &CodeAwareEntity{}}, Name: "1", Surname: "3", Embedded: EmbeddedEntity{Metadata: "meta"}}
+	assert.Equal(t, expected, actual)
+}
+
+func TestToBuilder(t *testing.T) {
+	builder := (&EntityBuilder[int32]{Name: "1"}).SetID(2).SetSurname("3").SetEmbedded(EmbeddedEntityBuilder{}.SetMetadata("meta").Build())
+	object := builder.Build()
+	restoredBuilder := object.ToBuilder()
+	assert.Equal(t, builder, restoredBuilder)
 }

@@ -54,22 +54,31 @@ func (g *Generator) GenerateAsMapFunc(
 	return typeLink, funcName, body, nil
 }
 
+func TypeArgsString(targs *types.TypeList, basePkgPath string) string {
+	return loopTypes(targs, basePkgPath, (*types.TypeList).Len, (*types.TypeList).At)
+}
+
 func TypeParamsString(tparams *types.TypeParamList, basePkgPath string) string {
-	l := tparams.Len()
+	return loopTypes(tparams, basePkgPath, (*types.TypeParamList).Len, (*types.TypeParamList).At)
+}
+
+func loopTypes[L any, T types.Type](list L, basePkgPath string, len func(L) int, at func(L, int) T) string {
+	l := len(list)
 	if l == 0 {
 		return ""
 	}
 	s := "["
 	for i := 0; i < l; i++ {
-		tpar := tparams.At(i)
+		elem := at(list, i)
 		if i > 0 {
 			s += ", "
 		}
-		if tpar == nil {
+		var n types.Type = elem
+		if n == nil {
 			s += "/*error: nil type parameter*/"
 			continue
 		}
-		s += struc.TypeString(tpar, basePkgPath)
+		s += struc.TypeString(elem, basePkgPath)
 	}
 	s += "]"
 	return s
@@ -82,7 +91,7 @@ func generateMapInits(
 	for _, constant := range constants {
 		field := constant.fieldPath[len(constant.fieldPath)-1]
 		fullFieldPath, condition := FiledPathAndAcceddCheckCondition(recVar, constant.fieldPath)
-		revr, _ := rewriter.Transform(field.name, field.typ, fullFieldPath)
+		revr, _ := rewriter.Transform(field.Name, field.Type, fullFieldPath)
 		if len(condition) > 0 {
 			body += "if " + condition + " {\n"
 		}

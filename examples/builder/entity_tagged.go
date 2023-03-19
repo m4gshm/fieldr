@@ -13,6 +13,8 @@ import (
 
 type EntityBuilder[ID any] struct {
 	ID        ID
+	Code      string
+	ForeignID ID
 	NoDB      *NoDBFieldsEntity
 	Name      StringBasedType[string]
 	Surname   string
@@ -28,6 +30,12 @@ func (b EntityBuilder[ID]) Build() *Entity[ID] {
 	return &Entity[ID]{
 		BaseEntity: &BaseEntity[ID]{
 			ID: b.ID,
+			CodeAwareEntity: &CodeAwareEntity{
+				Code: b.Code,
+			},
+			ForeignIDAwareEntity: ForeignIDAwareEntity[ID]{
+				ForeignID: b.ForeignID,
+			},
 		},
 		NoDB:      b.NoDB,
 		Name:      b.Name,
@@ -43,6 +51,16 @@ func (b EntityBuilder[ID]) Build() *Entity[ID] {
 
 func (b *EntityBuilder[ID]) SetID(iD ID) *EntityBuilder[ID] {
 	b.ID = iD
+	return b
+}
+
+func (b *EntityBuilder[ID]) SetCode(code string) *EntityBuilder[ID] {
+	b.Code = code
+	return b
+}
+
+func (b *EntityBuilder[ID]) SetForeignID(foreignID ID) *EntityBuilder[ID] {
+	b.ForeignID = foreignID
 	return b
 }
 
@@ -89,4 +107,34 @@ func (b *EntityBuilder[ID]) SetSomeMap(someMap map[StringBasedType[string]]bytes
 func (b *EntityBuilder[ID]) SetEmbedded(embedded EmbeddedEntity) *EntityBuilder[ID] {
 	b.Embedded = embedded
 	return b
+}
+
+func (i *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
+	var i_BaseEntity_ID ID
+	if i.BaseEntity != nil {
+		i_BaseEntity_ID = i.BaseEntity.ID
+	}
+	var i_BaseEntity_CodeAwareEntity_Code string
+	if i.BaseEntity != nil && i.BaseEntity.CodeAwareEntity != nil {
+		i_BaseEntity_CodeAwareEntity_Code = i.BaseEntity.CodeAwareEntity.Code
+	}
+	var i_BaseEntity_ForeignIDAwareEntity_ForeignID ID
+	if i.BaseEntity != nil {
+		i_BaseEntity_ForeignIDAwareEntity_ForeignID = i.BaseEntity.ForeignIDAwareEntity.ForeignID
+	}
+
+	return &EntityBuilder[ID]{
+		ID:        i_BaseEntity_ID,
+		Code:      i_BaseEntity_CodeAwareEntity_Code,
+		ForeignID: i_BaseEntity_ForeignIDAwareEntity_ForeignID,
+		NoDB:      i.NoDB,
+		Name:      i.Name,
+		Surname:   i.Surname,
+		Values:    i.Values,
+		Ts:        i.Ts,
+		Versioned: i.Versioned,
+		Chan:      i.Chan,
+		SomeMap:   i.SomeMap,
+		Embedded:  i.Embedded,
+	}
 }
