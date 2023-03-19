@@ -2,9 +2,9 @@ package builder
 
 //go:generate fieldr
 
-//go:fieldr -type Entity builder -export all
-//go:fieldr -out entity_tagged.go -out-build-tag integration builder -export all
-//go:fieldr -type EmbeddedEntity builder -build-value -chain-value -export all
+//go:fieldr -type Entity builder -export all -deconstructor .
+//go:fieldr -out entity_tagged.go -out-build-tag integration builder -export all -deconstructor .
+//go:fieldr -type EmbeddedEntity builder -build-value -chain-value -export all -deconstructor .
 
 import (
 	"bytes"

@@ -14,24 +14,26 @@ import (
 
 func NewBuilderStruct() *Command {
 	const (
-		cmdName     = "builder"
-		genContent  = "struct"
-		defMethPref = "Set"
+		cmdName               = "builder"
+		genContent            = "struct"
+		defMethPref           = "Set"
+		default_constructor   = "Build"
+		default_deconstructor = "ToBuilder"
 	)
 
 	exportVals := []string{"all", "fields", "methods"}
 
 	var (
-		flagSet         = flag.NewFlagSet(cmdName, flag.ContinueOnError)
-		name            = flagSet.String("name", generator.Autoname, "generated type name, use "+generator.Autoname+" for autoname")
-		buildMethodName = flagSet.String("build-method-name", generator.Autoname, "generated build (constructor) method name, use "+generator.Autoname+" for autoname")
-		setterPrefix    = flagSet.String("setter-prefix", generator.Autoname, "generated 'Set<Field>' methods prefix, use "+generator.Autoname+" for autoselect")
-		chainValue      = flagSet.Bool("chain-value", false, "returns value of the builder in generated methods (default is pointer)")
-		buildValue      = flagSet.Bool("build-value", false, "returns value of the builded type in the build (constructor) method (default is pointer)")
-		light           = flagSet.Bool("light", false, "generate an instance method toBuilder() to convert the instance back to a builder")
-		toBuilder       = flagSet.Bool("toBuilder", true, "don't generate builder methods, only fields")
-		exports         = params.MultiValFixed(flagSet, "export", []string{"methods"}, exportVals, "export generated content")
-		nolint          = params.Nolint(flagSet)
+		flagSet             = flag.NewFlagSet(cmdName, flag.ContinueOnError)
+		name                = flagSet.String("name", generator.Autoname, "generated type name, use "+generator.Autoname+" for autoname")
+		buildMethodName     = flagSet.String("constructor", default_constructor, "generated constructor method name")
+		setterPrefix        = flagSet.String("setter-prefix", generator.Autoname, "generated 'Set<Field>' methods prefix, use "+generator.Autoname+" for autoselect")
+		chainValue          = flagSet.Bool("chain-value", false, "returns value of the builder in generated methods (default is pointer)")
+		buildValue          = flagSet.Bool("build-value", false, "returns value of the builded type in the build (constructor) method (default is pointer)")
+		light               = flagSet.Bool("light", false, "don't generate builder methods, only fields")
+		toBuilderMethodName = flagSet.String("deconstructor", "", "generate instance to builder convert method, use "+generator.Autoname+" for autoname ("+default_deconstructor+")")
+		exports             = params.MultiValFixed(flagSet, "export", []string{"methods"}, exportVals, "export generated content")
+		nolint              = params.Nolint(flagSet)
 	)
 
 	return New(
@@ -87,7 +89,7 @@ func NewBuilderStruct() *Command {
 				}
 			}
 
-			constrMethodName := "Build"
+			constrMethodName := default_constructor
 			if len(*buildMethodName) > 0 && *buildMethodName != generator.Autoname {
 				constrMethodName = *buildMethodName
 			}
@@ -137,13 +139,13 @@ func NewBuilderStruct() *Command {
 				return err
 			}
 
-			if *toBuilder {
-				toBuilderMethodName := "ToBuilder"
+			if len(*toBuilderMethodName) > 0 {
+				*toBuilderMethodName = ifElse(*toBuilderMethodName == generator.Autoname, default_deconstructor, *toBuilderMethodName)
 				builderType := ifElse(*buildValue, "", "*") + builderName + typeParams
 				builderInstantiate := ifElse(*buildValue, "", "&") + builderName + typeParams
 				instanceType := ifElse(*buildValue, "", "*") + buildedType + typeParams
 				instanceReceiver := "i"
-				toBuilderMethodBody := "func (" + instanceReceiver + " " + instanceType + ") " + toBuilderMethodName + "() " + builderType +
+				toBuilderMethodBody := "func (" + instanceReceiver + " " + instanceType + ") " + *toBuilderMethodName + "() " + builderType +
 					" {" + generator.NoLint(*nolint) + "\n"
 
 				b, pre, err := generateToBuilderMethodParts(g, model, instanceReceiver, "", exportFields)
@@ -155,7 +157,7 @@ func NewBuilderStruct() *Command {
 				toBuilderMethodBody += b + "\n"
 
 				toBuilderMethodBody += "}\n}\n"
-				return g.AddMethod(model.TypeName, toBuilderMethodName, toBuilderMethodBody)
+				return g.AddMethod(model.TypeName, *toBuilderMethodName, toBuilderMethodBody)
 			}
 
 			return nil
