@@ -105,6 +105,12 @@ func (b *EntityBuilder) Name(name string) *EntityBuilder {
 	return b
 }
 
+func (i *Entity) ToBuilder() *EntityBuilder {
+	return &EntityBuilder{
+		id:   i.Id,
+		name: i.Name,
+	}
+}
 ```
 
 
