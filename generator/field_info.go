@@ -7,19 +7,16 @@ type FieldInfo struct {
 	Type struc.FieldType
 }
 
-func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference bool, fieldPathInfo []FieldInfo) (string, string) {
+func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference bool, fieldPath []FieldInfo) (string, string) {
 	condition := ""
 	if isReceiverReference {
 		condition += receiverVar + " != nil"
 	}
-	fieldPath := ""
-	fullFieldPath := receiverVar + "."
-	for _, p := range fieldPathInfo {
-		if len(fieldPath) > 0 {
-			fieldPath += "."
+	fullFieldPath := receiverVar
+	for _, p := range fieldPath {
+		if len(fullFieldPath) > 0 {
 			fullFieldPath += "."
 		}
-		fieldPath += p.Name
 		fullFieldPath += p.Name
 		if p.Type.RefCount > 0 {
 			if len(condition) > 0 {

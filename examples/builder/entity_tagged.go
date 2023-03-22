@@ -26,7 +26,10 @@ type EntityBuilder[ID any] struct {
 	Embedded  EmbeddedEntity
 }
 
-func (b EntityBuilder[ID]) Build() *Entity[ID] {
+func (b *EntityBuilder[ID]) Build() *Entity[ID] {
+	if b == nil {
+		return &Entity[ID]{}
+	}
 	return &Entity[ID]{
 		BaseEntity: &BaseEntity[ID]{
 			ID: b.ID,
@@ -50,62 +53,86 @@ func (b EntityBuilder[ID]) Build() *Entity[ID] {
 }
 
 func (b *EntityBuilder[ID]) SetID(iD ID) *EntityBuilder[ID] {
-	b.ID = iD
+	if b != nil {
+		b.ID = iD
+	}
 	return b
 }
 
 func (b *EntityBuilder[ID]) SetCode(code string) *EntityBuilder[ID] {
-	b.Code = code
+	if b != nil {
+		b.Code = code
+	}
 	return b
 }
 
 func (b *EntityBuilder[ID]) SetForeignID(foreignID ID) *EntityBuilder[ID] {
-	b.ForeignID = foreignID
+	if b != nil {
+		b.ForeignID = foreignID
+	}
 	return b
 }
 
 func (b *EntityBuilder[ID]) SetNoDB(noDB *NoDBFieldsEntity) *EntityBuilder[ID] {
-	b.NoDB = noDB
+	if b != nil {
+		b.NoDB = noDB
+	}
 	return b
 }
 
 func (b *EntityBuilder[ID]) SetName(name StringBasedType[string]) *EntityBuilder[ID] {
-	b.Name = name
+	if b != nil {
+		b.Name = name
+	}
 	return b
 }
 
 func (b *EntityBuilder[ID]) SetSurname(surname string) *EntityBuilder[ID] {
-	b.Surname = surname
+	if b != nil {
+		b.Surname = surname
+	}
 	return b
 }
 
 func (b *EntityBuilder[ID]) SetValues(values []int32) *EntityBuilder[ID] {
-	b.Values = values
+	if b != nil {
+		b.Values = values
+	}
 	return b
 }
 
 func (b *EntityBuilder[ID]) SetTs(ts []*time.Time) *EntityBuilder[ID] {
-	b.Ts = ts
+	if b != nil {
+		b.Ts = ts
+	}
 	return b
 }
 
 func (b *EntityBuilder[ID]) SetVersioned(versioned sql_base.VersionedEntity) *EntityBuilder[ID] {
-	b.Versioned = versioned
+	if b != nil {
+		b.Versioned = versioned
+	}
 	return b
 }
 
 func (b *EntityBuilder[ID]) SetChan(chan_ chan map[time.Time]string) *EntityBuilder[ID] {
-	b.Chan = chan_
+	if b != nil {
+		b.Chan = chan_
+	}
 	return b
 }
 
 func (b *EntityBuilder[ID]) SetSomeMap(someMap map[StringBasedType[string]]bytes.Buffer) *EntityBuilder[ID] {
-	b.SomeMap = someMap
+	if b != nil {
+		b.SomeMap = someMap
+	}
 	return b
 }
 
 func (b *EntityBuilder[ID]) SetEmbedded(embedded EmbeddedEntity) *EntityBuilder[ID] {
-	b.Embedded = embedded
+	if b != nil {
+		b.Embedded = embedded
+	}
 	return b
 }
 

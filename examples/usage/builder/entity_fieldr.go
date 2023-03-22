@@ -7,7 +7,10 @@ type EntityBuilder struct {
 	name string
 }
 
-func (b EntityBuilder) Build() *Entity {
+func (b *EntityBuilder) Build() *Entity {
+	if b == nil {
+		return &Entity{}
+	}
 	return &Entity{
 		Id:   b.id,
 		Name: b.name,
@@ -15,12 +18,16 @@ func (b EntityBuilder) Build() *Entity {
 }
 
 func (b *EntityBuilder) Id(id int) *EntityBuilder {
-	b.id = id
+	if b != nil {
+		b.id = id
+	}
 	return b
 }
 
 func (b *EntityBuilder) Name(name string) *EntityBuilder {
-	b.name = name
+	if b != nil {
+		b.name = name
+	}
 	return b
 }
 
