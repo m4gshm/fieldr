@@ -3,6 +3,8 @@ package builder
 //go:generate fieldr
 
 //go:fieldr -type Entity builder -export all -deconstructor .
+//go:fieldr -out entity_builder_noref.go builder -export all -name EntityBuilderVal -build-value -chain-value
+//go:fieldr -out entity_builder_chainref_buildval.go builder -export all -name EntityBuilderChainRefBuildVal -build-value
 //go:fieldr -out entity_tagged.go -out-build-tag integration builder -export all -deconstructor .
 //go:fieldr -type EmbeddedEntity builder -build-value -chain-value -export all -deconstructor .
 

@@ -6,6 +6,10 @@ type EmbeddedEntityBuilder struct {
 	Metadata string
 }
 
+func NewEmbeddedEntityBuilder() *EmbeddedEntityBuilder {
+	return &EmbeddedEntityBuilder{}
+}
+
 func (b EmbeddedEntityBuilder) Build() EmbeddedEntity {
 	return EmbeddedEntity{
 		Metadata: b.Metadata,

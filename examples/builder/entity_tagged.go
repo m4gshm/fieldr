@@ -26,6 +26,10 @@ type EntityBuilder[ID any] struct {
 	Embedded  EmbeddedEntity
 }
 
+func NewEntityBuilder[ID any]() *EntityBuilder[ID] {
+	return &EntityBuilder[ID]{}
+}
+
 func (b *EntityBuilder[ID]) Build() *Entity[ID] {
 	if b == nil {
 		return &Entity[ID]{}

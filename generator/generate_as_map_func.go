@@ -55,30 +55,60 @@ func (g *Generator) GenerateAsMapFunc(
 }
 
 func TypeArgsString(targs *types.TypeList, basePkgPath string) string {
-	return loopTypes(targs, basePkgPath, (*types.TypeList).Len, (*types.TypeList).At)
+	return loopTypeString(targs, basePkgPath, (*types.TypeList).Len, (*types.TypeList).At)
 }
 
 func TypeParamsString(tparams *types.TypeParamList, basePkgPath string) string {
-	return loopTypes(tparams, basePkgPath, (*types.TypeParamList).Len, (*types.TypeParamList).At)
+	return loopTypeString(tparams, basePkgPath, (*types.TypeParamList).Len, (*types.TypeParamList).At)
 }
 
-func loopTypes[L any, T types.Type](list L, basePkgPath string, len func(L) int, at func(L, int) T) string {
+func loopTypeString[L any, T types.Type](list L, basePkgPath string, len func(L) int, at func(L, int) T) string {
 	l := len(list)
 	if l == 0 {
 		return ""
 	}
 	s := "["
 	for i := 0; i < l; i++ {
-		elem := at(list, i)
 		if i > 0 {
 			s += ", "
 		}
+		elem := at(list, i)
 		var n types.Type = elem
 		if n == nil {
 			s += "/*error: nil type parameter*/"
 			continue
 		}
 		s += struc.TypeString(elem, basePkgPath)
+	}
+	s += "]"
+	return s
+}
+
+func TypeParamsDeclarationString(list *types.TypeParamList, basePkgPath string) string {
+	l := list.Len()
+	if l == 0 {
+		return ""
+	}
+	s := "["
+	var prevElem types.Type
+	for i := 0; i < l; i++ {
+		elem := list.At(i)
+		if elem == nil {
+			s += "/*error: nil type parameter*/"
+			continue
+		}
+		constraint := elem.Constraint()
+		if i > 0 {
+			if constraint != prevElem {
+				s += " " + struc.TypeString(prevElem, basePkgPath)
+			}
+			s += ","
+		}
+		prevElem = constraint
+		s += struc.TypeString(elem, basePkgPath)
+	}
+	if prevElem != nil {
+		s += " " + struc.TypeString(prevElem, basePkgPath)
 	}
 	s += "]"
 	return s

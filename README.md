@@ -88,6 +88,10 @@ type EntityBuilder struct {
 	name string
 }
 
+func NewEntityBuilder() *EntityBuilder {
+	return &EntityBuilder{}
+}
+
 func (b *EntityBuilder) Build() *Entity {
 	if b == nil {
 		return &Entity{}
