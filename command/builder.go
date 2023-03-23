@@ -31,7 +31,7 @@ func NewBuilderStruct() *Command {
 		setterPrefix         = flagSet.String("setter-prefix", generator.Autoname, "setters methods prefix, use "+generator.Autoname+" for autoselect ('Set<Field>' as default)")
 		chainValue           = flagSet.Bool("chain-value", false, "returns value of the builder in generated methods (default is pointer)")
 		buildValue           = flagSet.Bool("build-value", false, "returns value of the builded type in the build (constructor) method (default is pointer)")
-		light                = flagSet.Bool("light", false, "don't generate builder methods, only fields")
+		light                = flagSet.Bool("light", false, "don't generate builder constructor and setters, only fields")
 		toBuilderMethodName  = flagSet.String("deconstructor", "", "generate instance to builder convert method, use "+generator.Autoname+" for autoname ("+default_deconstructor+")")
 		exports              = params.MultiValFixed(flagSet, "export", []string{"methods"}, exportVals, "export generated content")
 		nolint               = params.Nolint(flagSet)
@@ -128,8 +128,10 @@ func NewBuilderStruct() *Command {
 
 			builderBody := struc.TypeString(btyp, g.OutPkg.PkgPath) + " struct {" + generator.NoLint(*nolint) + "\n" + b + "}"
 
-			if err := g.AddFuncOrMethod(builderConstructorMethodName, builderConstructorMethodBody); err != nil {
-				return err
+			if !*light {
+				if err := g.AddFuncOrMethod(builderConstructorMethodName, builderConstructorMethodBody); err != nil {
+					return err
+				}
 			}
 			s := generator.Structure{Name: builderName, Body: builderBody}
 			if err := s.AddMethod(constrMethodName, instanceConstructorMethodBody); err != nil {
