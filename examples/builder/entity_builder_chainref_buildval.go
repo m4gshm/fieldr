@@ -9,18 +9,19 @@ import (
 )
 
 type EntityBuilderChainRefBuildVal[ID any] struct {
-	ID        ID
-	Code      string
-	ForeignID ID
-	NoDB      *NoDBFieldsEntity
-	Name      StringBasedType[string]
-	Surname   string
-	Values    []int32
-	Ts        []*time.Time
-	Versioned sql_base.VersionedEntity
-	Chan      chan map[time.Time]string
-	SomeMap   map[StringBasedType[string]]bytes.Buffer
-	Embedded  EmbeddedEntity
+	ID           ID
+	Code         string
+	ForeignID    ID
+	NoDB         *NoDBFieldsEntity
+	Name         StringBasedType[string]
+	Surname      string
+	Values       []int32
+	Ts           []*time.Time
+	Versioned    sql_base.VersionedEntity
+	Chan         chan map[time.Time]string
+	SomeMap      map[StringBasedType[string]]bytes.Buffer
+	Embedded     EmbeddedEntity
+	OldForeignID *ForeignIDAwareEntity[ID]
 }
 
 func NewEntityBuilderChainRefBuildVal[ID any]() *EntityBuilderChainRefBuildVal[ID] {
@@ -41,15 +42,16 @@ func (b *EntityBuilderChainRefBuildVal[ID]) Build() Entity[ID] {
 				ForeignID: b.ForeignID,
 			},
 		},
-		NoDB:      b.NoDB,
-		Name:      b.Name,
-		Surname:   b.Surname,
-		Values:    b.Values,
-		Ts:        b.Ts,
-		Versioned: b.Versioned,
-		Chan:      b.Chan,
-		SomeMap:   b.SomeMap,
-		Embedded:  b.Embedded,
+		NoDB:         b.NoDB,
+		Name:         b.Name,
+		Surname:      b.Surname,
+		Values:       b.Values,
+		Ts:           b.Ts,
+		Versioned:    b.Versioned,
+		Chan:         b.Chan,
+		SomeMap:      b.SomeMap,
+		Embedded:     b.Embedded,
+		OldForeignID: b.OldForeignID,
 	}
 }
 
@@ -133,6 +135,13 @@ func (b *EntityBuilderChainRefBuildVal[ID]) SetSomeMap(someMap map[StringBasedTy
 func (b *EntityBuilderChainRefBuildVal[ID]) SetEmbedded(embedded EmbeddedEntity) *EntityBuilderChainRefBuildVal[ID] {
 	if b != nil {
 		b.Embedded = embedded
+	}
+	return b
+}
+
+func (b *EntityBuilderChainRefBuildVal[ID]) SetOldForeignID(oldForeignID *ForeignIDAwareEntity[ID]) *EntityBuilderChainRefBuildVal[ID] {
+	if b != nil {
+		b.OldForeignID = oldForeignID
 	}
 	return b
 }

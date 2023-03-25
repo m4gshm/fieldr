@@ -12,18 +12,19 @@ import (
 )
 
 type EntityBuilder[ID any] struct {
-	ID        ID
-	Code      string
-	ForeignID ID
-	NoDB      *NoDBFieldsEntity
-	Name      StringBasedType[string]
-	Surname   string
-	Values    []int32
-	Ts        []*time.Time
-	Versioned sql_base.VersionedEntity
-	Chan      chan map[time.Time]string
-	SomeMap   map[StringBasedType[string]]bytes.Buffer
-	Embedded  EmbeddedEntity
+	ID           ID
+	Code         string
+	ForeignID    ID
+	NoDB         *NoDBFieldsEntity
+	Name         StringBasedType[string]
+	Surname      string
+	Values       []int32
+	Ts           []*time.Time
+	Versioned    sql_base.VersionedEntity
+	Chan         chan map[time.Time]string
+	SomeMap      map[StringBasedType[string]]bytes.Buffer
+	Embedded     EmbeddedEntity
+	OldForeignID *ForeignIDAwareEntity[ID]
 }
 
 func NewEntityBuilder[ID any]() *EntityBuilder[ID] {
@@ -44,15 +45,16 @@ func (b *EntityBuilder[ID]) Build() *Entity[ID] {
 				ForeignID: b.ForeignID,
 			},
 		},
-		NoDB:      b.NoDB,
-		Name:      b.Name,
-		Surname:   b.Surname,
-		Values:    b.Values,
-		Ts:        b.Ts,
-		Versioned: b.Versioned,
-		Chan:      b.Chan,
-		SomeMap:   b.SomeMap,
-		Embedded:  b.Embedded,
+		NoDB:         b.NoDB,
+		Name:         b.Name,
+		Surname:      b.Surname,
+		Values:       b.Values,
+		Ts:           b.Ts,
+		Versioned:    b.Versioned,
+		Chan:         b.Chan,
+		SomeMap:      b.SomeMap,
+		Embedded:     b.Embedded,
+		OldForeignID: b.OldForeignID,
 	}
 }
 
@@ -140,6 +142,13 @@ func (b *EntityBuilder[ID]) SetEmbedded(embedded EmbeddedEntity) *EntityBuilder[
 	return b
 }
 
+func (b *EntityBuilder[ID]) SetOldForeignID(oldForeignID *ForeignIDAwareEntity[ID]) *EntityBuilder[ID] {
+	if b != nil {
+		b.OldForeignID = oldForeignID
+	}
+	return b
+}
+
 func (i *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
 	if i == nil {
 		return &EntityBuilder[ID]{}
@@ -158,17 +167,18 @@ func (i *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
 	}
 
 	return &EntityBuilder[ID]{
-		ID:        i_BaseEntity_ID,
-		Code:      i_BaseEntity_CodeAwareEntity_Code,
-		ForeignID: i_BaseEntity_ForeignIDAwareEntity_ForeignID,
-		NoDB:      i.NoDB,
-		Name:      i.Name,
-		Surname:   i.Surname,
-		Values:    i.Values,
-		Ts:        i.Ts,
-		Versioned: i.Versioned,
-		Chan:      i.Chan,
-		SomeMap:   i.SomeMap,
-		Embedded:  i.Embedded,
+		ID:           i_BaseEntity_ID,
+		Code:         i_BaseEntity_CodeAwareEntity_Code,
+		ForeignID:    i_BaseEntity_ForeignIDAwareEntity_ForeignID,
+		NoDB:         i.NoDB,
+		Name:         i.Name,
+		Surname:      i.Surname,
+		Values:       i.Values,
+		Ts:           i.Ts,
+		Versioned:    i.Versioned,
+		Chan:         i.Chan,
+		SomeMap:      i.SomeMap,
+		Embedded:     i.Embedded,
+		OldForeignID: i.OldForeignID,
 	}
 }

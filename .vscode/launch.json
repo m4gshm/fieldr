@@ -168,6 +168,23 @@
             ]
         },
         {
+            "name": "Debug builder internal pack example",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "examples/builder",
+            "args": [
+                "-type",
+                "Entity",
+                "-out",
+                "internal/entity_fieldr.go",
+                "builder",
+                "-deconstructor",
+                "."
+            ]
+        },
+        {
             "name": "Debug usage example",
             "type": "go",
             "request": "launch",

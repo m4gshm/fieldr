@@ -9,18 +9,19 @@ import (
 )
 
 type EntityBuilderVal[ID any] struct {
-	ID        ID
-	Code      string
-	ForeignID ID
-	NoDB      *NoDBFieldsEntity
-	Name      StringBasedType[string]
-	Surname   string
-	Values    []int32
-	Ts        []*time.Time
-	Versioned sql_base.VersionedEntity
-	Chan      chan map[time.Time]string
-	SomeMap   map[StringBasedType[string]]bytes.Buffer
-	Embedded  EmbeddedEntity
+	ID           ID
+	Code         string
+	ForeignID    ID
+	NoDB         *NoDBFieldsEntity
+	Name         StringBasedType[string]
+	Surname      string
+	Values       []int32
+	Ts           []*time.Time
+	Versioned    sql_base.VersionedEntity
+	Chan         chan map[time.Time]string
+	SomeMap      map[StringBasedType[string]]bytes.Buffer
+	Embedded     EmbeddedEntity
+	OldForeignID *ForeignIDAwareEntity[ID]
 }
 
 func NewEntityBuilderVal[ID any]() *EntityBuilderVal[ID] {
@@ -38,15 +39,16 @@ func (b EntityBuilderVal[ID]) Build() Entity[ID] {
 				ForeignID: b.ForeignID,
 			},
 		},
-		NoDB:      b.NoDB,
-		Name:      b.Name,
-		Surname:   b.Surname,
-		Values:    b.Values,
-		Ts:        b.Ts,
-		Versioned: b.Versioned,
-		Chan:      b.Chan,
-		SomeMap:   b.SomeMap,
-		Embedded:  b.Embedded,
+		NoDB:         b.NoDB,
+		Name:         b.Name,
+		Surname:      b.Surname,
+		Values:       b.Values,
+		Ts:           b.Ts,
+		Versioned:    b.Versioned,
+		Chan:         b.Chan,
+		SomeMap:      b.SomeMap,
+		Embedded:     b.Embedded,
+		OldForeignID: b.OldForeignID,
 	}
 }
 
@@ -107,5 +109,10 @@ func (b EntityBuilderVal[ID]) SetSomeMap(someMap map[StringBasedType[string]]byt
 
 func (b EntityBuilderVal[ID]) SetEmbedded(embedded EmbeddedEntity) EntityBuilderVal[ID] {
 	b.Embedded = embedded
+	return b
+}
+
+func (b EntityBuilderVal[ID]) SetOldForeignID(oldForeignID *ForeignIDAwareEntity[ID]) EntityBuilderVal[ID] {
+	b.OldForeignID = oldForeignID
 	return b
 }
