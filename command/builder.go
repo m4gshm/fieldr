@@ -272,14 +272,14 @@ func generateToBuilderMethodParts(
 
 		if fieldType.Embedded {
 			fieldPath := []generator.FieldInfo{{Name: fieldType.Name, Type: fieldType}}
-			fullFieldPath, condition := generator.FiledPathAndAccessCheckCondition(receiver /*isReceiverReference*/, false, fieldPath)
+			fullFieldPath, conditionalPath, condition := generator.FiledPathAndAccessCheckCondition(receiver, false, true, fieldPath)
 			if len(condition) > 0 {
-				m, i, err := generateToBuilderMethodConditionedParts(fieldPath, fieldType.Model, fullFieldPath, condition, receiver, isReceiverReference, exportFields)
+				m, d, i, err := generateToBuilderMethodConditionedParts(fieldPath, fieldType.Model, fullFieldPath, conditionalPath, condition, receiver, isReceiverReference, exportFields)
 				if err != nil {
 					return "", "", err
 				}
 				methodBody += m
-				initVarsInitPart += i
+				initVarsInitPart += d + i
 			} else {
 				c, _, err := generateToBuilderMethodParts(g, fieldType.Model, receiver, fieldType.Name, isReceiverReference, exportFields)
 				if err != nil {
@@ -298,43 +298,48 @@ func generateToBuilderMethodParts(
 }
 
 func generateToBuilderMethodConditionedParts(
-	parentFieldPathInfo []generator.FieldInfo, model *struc.Model, fullFieldPath, condition, receiver string, isReceiverReference, exportFields bool,
-) (string, string, error) {
-	initVarsInitPart := ""
+	parentFieldPathInfo []generator.FieldInfo, model *struc.Model, fullFieldPath, conditionalPath string, conditions []string, receiver string, isReceiverReference, exportFields bool,
+) (string, string, string, error) {
+	initVarsPart := ""
+	declareVarsPart := ""
 	methodBody := ""
+
+	initVarsInitPartConStart := ""
+	initVarsInitPartConEnd := ""
+	for _, c := range conditions {
+		initVarsInitPartConStart += "if " + c + " {\n"
+		initVarsInitPartConEnd += "}\n"
+	}
+
+	initVarsPart += initVarsInitPartConStart
 
 	for _, fieldName := range model.FieldNames {
 		fieldType := model.FieldsType[fieldName]
-		handled := false
 		if fieldType.Embedded {
-			fieldPath := append(append([]generator.FieldInfo{}, parentFieldPathInfo...), generator.FieldInfo{Name: fieldType.Name, Type: fieldType})
-			fullFieldPath, subCondition := generator.FiledPathAndAccessCheckCondition(receiver /*isReceiverReference*/, false, fieldPath)
-			if len(subCondition) > 0 {
-				m, i, err := generateToBuilderMethodConditionedParts(fieldPath, fieldType.Model, fullFieldPath, subCondition, receiver, isReceiverReference, exportFields)
-				if err != nil {
-					return "", "", err
-				}
-				methodBody += m
-				initVarsInitPart += i
-				handled = true
+			fieldPath := []generator.FieldInfo{{Name: fieldType.Name, Type: fieldType}}
+			fullFieldPath, conditionalPath, subConditions := generator.FiledPathAndAccessCheckCondition(conditionalPath, false, true, fieldPath)
+			m, d, i, err := generateToBuilderMethodConditionedParts(fieldPath, fieldType.Model, fullFieldPath, conditionalPath, subConditions, receiver, isReceiverReference, exportFields)
+			if err != nil {
+				return "", "", "", err
 			}
-		}
+			methodBody += m
+			declareVarsPart += d
+			initVarsPart += i
 
-		if !handled {
+		} else {
 			varPref := strings.ReplaceAll(fullFieldPath, ".", "_")
 			varName := varPref + "_" + strings.ReplaceAll(fieldName, ".", "_")
 
-			initVarsInitPart += "var " + varName + " " + fieldType.FullName + "\n"
-			initVarsInitPart += "if " + condition + " {\n"
-			initVarsInitPart += varName + "=" + fullFieldPath + "." + fieldName
-			initVarsInitPart += "}\n"
+			declareVarsPart += "var " + varName + " " + fieldType.FullName + "\n"
+			initVarsPart += varName + "=" + conditionalPath + "." + fieldName + "\n"
 
 			builderField := generator.LegalIdentName(generator.IdentName(fieldName, exportFields))
 			methodBody += builderField + ": " + varName
 			methodBody += ",\n"
-
 		}
 	}
 
-	return methodBody, initVarsInitPart, nil
+	initVarsPart += initVarsInitPartConEnd
+
+	return methodBody, declareVarsPart, initVarsPart, nil
 }

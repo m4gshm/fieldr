@@ -27,13 +27,17 @@ type CodeAwareEntity struct {
 	Code string `db:"code" json:"code,omitempty"`
 }
 
+type RefCodeAwareEntity struct {
+	*CodeAwareEntity
+}
+
 type ForeignIDAwareEntity[FiD any] struct {
 	ForeignID FiD `db:"foreign_id" json:"foreignID,omitempty"`
 }
 
 type BaseEntity[ID any] struct {
 	ID ID `db:"id" pk:"" json:"id,omitempty"`
-	*CodeAwareEntity
+	*RefCodeAwareEntity
 	ForeignIDAwareEntity[ID]
 }
 

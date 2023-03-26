@@ -35,8 +35,10 @@ func (b *EntityBuilderChainRefBuildVal[ID]) Build() Entity[ID] {
 	return Entity[ID]{
 		BaseEntity: &BaseEntity[ID]{
 			ID: b.ID,
-			CodeAwareEntity: &CodeAwareEntity{
-				Code: b.Code,
+			RefCodeAwareEntity: &RefCodeAwareEntity{
+				CodeAwareEntity: &CodeAwareEntity{
+					Code: b.Code,
+				},
 			},
 			ForeignIDAwareEntity: ForeignIDAwareEntity[ID]{
 				ForeignID: b.ForeignID,

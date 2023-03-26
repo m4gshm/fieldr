@@ -1,16 +1,27 @@
 package generator
 
-import "github.com/m4gshm/fieldr/struc"
+import (
+	"strings"
+
+	"github.com/m4gshm/fieldr/struc"
+)
 
 type FieldInfo struct {
 	Name string
 	Type struc.FieldType
 }
 
-func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference bool, fieldPath []FieldInfo) (string, string) {
-	condition := ""
+func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference, useConditinonReceiver bool, fieldPath []FieldInfo) (string, string, []string) {
+	nilReceiver := "r"
+	conditions := []string{}
+	shortConditionPath := ""
 	if isReceiverReference {
-		condition += receiverVar + " != nil"
+		if useConditinonReceiver {
+			conditions = append(conditions, nilReceiver+":="+receiverVar+";"+nilReceiver+"!=nil")
+			shortConditionPath = nilReceiver
+		} else {
+			conditions = append(conditions, receiverVar+" != nil")
+		}
 	}
 	fullFieldPath := receiverVar
 	for _, p := range fieldPath {
@@ -18,18 +29,25 @@ func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference bo
 			fullFieldPath += "."
 		}
 		fullFieldPath += p.Name
+		if useConditinonReceiver {
+			shortConditionPath = ifElse(len(shortConditionPath) > 0, shortConditionPath+"."+p.Name, fullFieldPath)
+		}
 		if p.Type.RefCount > 0 {
-			if len(condition) > 0 {
-				condition += " && "
+			if useConditinonReceiver {
+				conditions = append(conditions, nilReceiver+":="+shortConditionPath+";"+nilReceiver+" != nil")
+				shortConditionPath = nilReceiver
+			} else {
+				conditions = append(conditions, fullFieldPath+" != nil")
 			}
-			condition += fullFieldPath + " != nil"
 			for ri := 1; ri < p.Type.RefCount; ri++ {
-				condition += " && "
 				fullFieldPath = "*(" + fullFieldPath + ")"
-				condition += fullFieldPath + " != nil"
+				conditions = append(conditions, fullFieldPath+" != nil")
 				fullFieldPath = "(" + fullFieldPath + ")"
 			}
 		}
 	}
-	return fullFieldPath, condition
+	if !useConditinonReceiver && len(conditions) > 0 {
+		conditions = []string{strings.Join(conditions, " && ")}
+	}
+	return fullFieldPath, shortConditionPath, conditions
 }

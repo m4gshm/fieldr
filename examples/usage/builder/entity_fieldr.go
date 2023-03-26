@@ -60,16 +60,12 @@ func (i *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
 		return &EntityBuilder[ID]{}
 	}
 	var i_Model_ID ID
-	if i.Model != nil {
-		i_Model_ID = i.Model.ID
-	}
 	var i_Model_CreatedAt int64
-	if i.Model != nil {
-		i_Model_CreatedAt = i.Model.CreatedAt
-	}
 	var i_Model_UpdatedAt int64
-	if i.Model != nil {
-		i_Model_UpdatedAt = i.Model.UpdatedAt
+	if r := i.Model; r != nil {
+		i_Model_ID = r.ID
+		i_Model_CreatedAt = r.CreatedAt
+		i_Model_UpdatedAt = r.UpdatedAt
 	}
 
 	return &EntityBuilder[ID]{

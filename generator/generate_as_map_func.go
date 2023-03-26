@@ -120,10 +120,10 @@ func generateMapInits(
 	body := ""
 	for _, constant := range constants {
 		field := constant.fieldPath[len(constant.fieldPath)-1]
-		fullFieldPath, condition := FiledPathAndAccessCheckCondition(recVar, false, constant.fieldPath)
+		fullFieldPath, _, condition := FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
 		revr, _ := rewriter.Transform(field.Name, field.Type, fullFieldPath)
 		if len(condition) > 0 {
-			body += "if " + condition + " {\n"
+			body += "if " + condition[0] + " {\n"
 		}
 		body += mapVar + "[" + constant.name + "]= " + revr + "\n"
 		if len(condition) > 0 {

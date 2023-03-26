@@ -38,8 +38,10 @@ func (b *EntityBuilder[ID]) Build() *Entity[ID] {
 	return &Entity[ID]{
 		BaseEntity: &BaseEntity[ID]{
 			ID: b.ID,
-			CodeAwareEntity: &CodeAwareEntity{
-				Code: b.Code,
+			RefCodeAwareEntity: &RefCodeAwareEntity{
+				CodeAwareEntity: &CodeAwareEntity{
+					Code: b.Code,
+				},
 			},
 			ForeignIDAwareEntity: ForeignIDAwareEntity[ID]{
 				ForeignID: b.ForeignID,
@@ -154,22 +156,22 @@ func (i *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
 		return &EntityBuilder[ID]{}
 	}
 	var i_BaseEntity_ID ID
-	if i.BaseEntity != nil {
-		i_BaseEntity_ID = i.BaseEntity.ID
-	}
-	var i_BaseEntity_CodeAwareEntity_Code string
-	if i.BaseEntity != nil && i.BaseEntity.CodeAwareEntity != nil {
-		i_BaseEntity_CodeAwareEntity_Code = i.BaseEntity.CodeAwareEntity.Code
-	}
-	var i_BaseEntity_ForeignIDAwareEntity_ForeignID ID
-	if i.BaseEntity != nil {
-		i_BaseEntity_ForeignIDAwareEntity_ForeignID = i.BaseEntity.ForeignIDAwareEntity.ForeignID
+	var r_CodeAwareEntity_Code string
+	var r_ForeignIDAwareEntity_ForeignID ID
+	if r := i.BaseEntity; r != nil {
+		i_BaseEntity_ID = r.ID
+		if r := r.RefCodeAwareEntity; r != nil {
+			if r := r.CodeAwareEntity; r != nil {
+				r_CodeAwareEntity_Code = r.Code
+			}
+		}
+		r_ForeignIDAwareEntity_ForeignID = r.ForeignIDAwareEntity.ForeignID
 	}
 
 	return &EntityBuilder[ID]{
 		ID:           i_BaseEntity_ID,
-		Code:         i_BaseEntity_CodeAwareEntity_Code,
-		ForeignID:    i_BaseEntity_ForeignIDAwareEntity_ForeignID,
+		Code:         r_CodeAwareEntity_Code,
+		ForeignID:    r_ForeignIDAwareEntity_ForeignID,
 		NoDB:         i.NoDB,
 		Name:         i.Name,
 		Surname:      i.Surname,

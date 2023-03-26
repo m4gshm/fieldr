@@ -554,10 +554,10 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 	for _, constant := range constants {
 		body += "case " + constant.name + ":\n"
 
-		fullFieldPath, condition := FiledPathAndAccessCheckCondition(recVar, false, constant.fieldPath)
+		fullFieldPath, _, condition := FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
 
 		if len(condition) > 0 {
-			body += "if " + condition + " {\n"
+			body += "if " + condition[0] + " {\n"
 		}
 		body += "return " + pref + fullFieldPath + "\n"
 		if len(condition) > 0 {

@@ -34,3 +34,5 @@ func (v *Struct[n]) AsMap() map[StructField]interface{} {
 	m[FlatBank] = v.Flat.Bank
 	return m
 }
+
+const Flat StructField = "Flat"

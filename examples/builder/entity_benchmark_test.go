@@ -10,7 +10,7 @@ func BenchmarkNoBuilder(b *testing.B) {
 		e = Entity[int32]{
 			BaseEntity: &BaseEntity[int32]{
 				ID:                   2,
-				CodeAwareEntity:      &CodeAwareEntity{},
+				RefCodeAwareEntity:   &RefCodeAwareEntity{CodeAwareEntity: &CodeAwareEntity{}},
 				ForeignIDAwareEntity: ForeignIDAwareEntity[int32]{},
 			},
 			Name:     "1",

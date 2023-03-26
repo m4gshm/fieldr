@@ -142,7 +142,7 @@
                 "struct_as_map.go",
                 "as-map",
                 "-export",
-                " -key-type",
+                "-key-type",
                 ".",
                 "-rewrite",
                 "type:*EmbeddedAddress:fmt=%v.AsMap()",
