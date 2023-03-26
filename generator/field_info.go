@@ -40,9 +40,15 @@ func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference, u
 				conditions = append(conditions, fullFieldPath+" != nil")
 			}
 			for ri := 1; ri < p.Type.RefCount; ri++ {
-				fullFieldPath = "*(" + fullFieldPath + ")"
-				conditions = append(conditions, fullFieldPath+" != nil")
-				fullFieldPath = "(" + fullFieldPath + ")"
+				if useConditinonReceiver {
+					shortConditionPathRef := "*" + shortConditionPath + ""
+					conditions = append(conditions, nilReceiver+":="+shortConditionPathRef+";"+nilReceiver+" != nil")
+					// shortConditionPath = "(" + shortConditionPath + ")"
+				} else {
+					fullFieldPath = "*(" + fullFieldPath + ")"
+					conditions = append(conditions, fullFieldPath+" != nil")
+					fullFieldPath = "(" + fullFieldPath + ")"
+				}
 			}
 		}
 	}

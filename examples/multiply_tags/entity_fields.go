@@ -57,24 +57,38 @@ func (s *Entity) val(f EntityCol) interface{} { //nolint
 	}
 	switch f {
 	case ENTITY_COL_ID:
-		if s.BaseEntity != nil {
-			return s.BaseEntity.ID
+		if r := s.BaseEntity; r != nil {
+			return r.ID
 		}
 	case ENTITY_COL_NAME:
 		return s.Name
 	case ENTITY_COL_SURNAME:
 		return s.Surname
 	case ENTITY_COL_UPDATED_AT:
-		if s.Upd != nil && *(s.Upd) != nil && *(*(s.Upd)) != nil && *(*(*(s.Upd))) != nil {
-			return (*(*(*(s.Upd)))).UpdatedAt
+		if r := s.Upd; r != nil {
+			if r := *r; r != nil {
+				if r := *r; r != nil {
+					if r := *r; r != nil {
+						return r.UpdatedAt
+					}
+				}
+			}
 		}
 	case ENTITY_COL_UPDATED_AT2:
-		if s.Upd2 != nil && *(s.Upd2) != nil && *(*(s.Upd2)) != nil && *(*(*(s.Upd2))) != nil {
-			return (*(*(*(s.Upd2)))).UpdatedAt2
+		if r := s.Upd2; r != nil {
+			if r := *r; r != nil {
+				if r := *r; r != nil {
+					if r := *r; r != nil {
+						return r.UpdatedAt2
+					}
+				}
+			}
 		}
 	case ENTITY_COL_UPDATED_AT3:
-		if s.Upd3 != nil && *(s.Upd3) != nil {
-			return (*(s.Upd3)).UpdatedAt3
+		if r := s.Upd3; r != nil {
+			if r := *r; r != nil {
+				return r.UpdatedAt3
+			}
 		}
 	}
 	return nil
@@ -86,24 +100,38 @@ func (s *Entity) ref(f EntityCol) interface{} { //nolint
 	}
 	switch f {
 	case ENTITY_COL_ID:
-		if s.BaseEntity != nil {
-			return &s.BaseEntity.ID
+		if r := s.BaseEntity; r != nil {
+			return &r.ID
 		}
 	case ENTITY_COL_NAME:
 		return &s.Name
 	case ENTITY_COL_SURNAME:
 		return &s.Surname
 	case ENTITY_COL_UPDATED_AT:
-		if s.Upd != nil && *(s.Upd) != nil && *(*(s.Upd)) != nil && *(*(*(s.Upd))) != nil {
-			return &(*(*(*(s.Upd)))).UpdatedAt
+		if r := s.Upd; r != nil {
+			if r := *r; r != nil {
+				if r := *r; r != nil {
+					if r := *r; r != nil {
+						return &r.UpdatedAt
+					}
+				}
+			}
 		}
 	case ENTITY_COL_UPDATED_AT2:
-		if s.Upd2 != nil && *(s.Upd2) != nil && *(*(s.Upd2)) != nil && *(*(*(s.Upd2))) != nil {
-			return &(*(*(*(s.Upd2)))).UpdatedAt2
+		if r := s.Upd2; r != nil {
+			if r := *r; r != nil {
+				if r := *r; r != nil {
+					if r := *r; r != nil {
+						return &r.UpdatedAt2
+					}
+				}
+			}
 		}
 	case ENTITY_COL_UPDATED_AT3:
-		if s.Upd3 != nil && *(s.Upd3) != nil {
-			return &(*(s.Upd3)).UpdatedAt3
+		if r := s.Upd3; r != nil {
+			if r := *r; r != nil {
+				return &r.UpdatedAt3
+			}
 		}
 	}
 	return nil

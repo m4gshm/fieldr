@@ -107,12 +107,12 @@ func (rewrite *CodeRewriter) Transform(fieldName string, fieldType struc.FieldTy
 	if t, ok := byFieldName[fieldName]; ok {
 		rewriters = append(rewriters, t...)
 	} else {
-		logger.Debugf("nod rewriter by name for %s", fieldName)
+		logger.Debugf("no rewriter by name for %s", fieldName)
 		typ := fieldType.FullName
 		if t, ok = byFieldType[typ]; ok {
 			rewriters = append(rewriters, t...)
 		} else {
-			logger.Debugf("nod rewriter by type for field %s, type %s", fieldName, typ)
+			logger.Debugf("no rewriter by type for field %s, type %s", fieldName, typ)
 			rewriters = rewrite.all[:]
 		}
 	}
