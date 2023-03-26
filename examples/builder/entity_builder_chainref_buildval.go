@@ -12,6 +12,8 @@ type EntityBuilderChainRefBuildVal[ID any] struct {
 	ID           ID
 	Code         string
 	ForeignID    ID
+	Schema       string
+	Version      int
 	NoDB         *NoDBFieldsEntity
 	Name         StringBasedType[string]
 	Surname      string
@@ -44,6 +46,10 @@ func (b *EntityBuilderChainRefBuildVal[ID]) Build() Entity[ID] {
 				ForeignID: b.ForeignID,
 			},
 		},
+		Metadata: Metadata{
+			Schema:  b.Schema,
+			Version: b.Version,
+		},
 		NoDB:         b.NoDB,
 		Name:         b.Name,
 		Surname:      b.Surname,
@@ -74,6 +80,20 @@ func (b *EntityBuilderChainRefBuildVal[ID]) SetCode(code string) *EntityBuilderC
 func (b *EntityBuilderChainRefBuildVal[ID]) SetForeignID(foreignID ID) *EntityBuilderChainRefBuildVal[ID] {
 	if b != nil {
 		b.ForeignID = foreignID
+	}
+	return b
+}
+
+func (b *EntityBuilderChainRefBuildVal[ID]) SetSchema(schema string) *EntityBuilderChainRefBuildVal[ID] {
+	if b != nil {
+		b.Schema = schema
+	}
+	return b
+}
+
+func (b *EntityBuilderChainRefBuildVal[ID]) SetVersion(version int) *EntityBuilderChainRefBuildVal[ID] {
+	if b != nil {
+		b.Version = version
 	}
 	return b
 }

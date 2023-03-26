@@ -13,6 +13,8 @@ type EntityBuilder[ID any] struct {
 	iD           ID
 	code         string
 	foreignID    ID
+	schema       string
+	version      int
 	noDB         *builder.NoDBFieldsEntity
 	name         builder.StringBasedType[string]
 	surname      string
@@ -45,6 +47,10 @@ func (b *EntityBuilder[ID]) Build() *builder.Entity[ID] {
 				ForeignID: b.foreignID,
 			},
 		},
+		Metadata: builder.Metadata{
+			Schema:  b.schema,
+			Version: b.version,
+		},
 		NoDB:         b.noDB,
 		Name:         b.name,
 		Surname:      b.surname,
@@ -75,6 +81,20 @@ func (b *EntityBuilder[ID]) Code(code string) *EntityBuilder[ID] {
 func (b *EntityBuilder[ID]) ForeignID(foreignID ID) *EntityBuilder[ID] {
 	if b != nil {
 		b.foreignID = foreignID
+	}
+	return b
+}
+
+func (b *EntityBuilder[ID]) Schema(schema string) *EntityBuilder[ID] {
+	if b != nil {
+		b.schema = schema
+	}
+	return b
+}
+
+func (b *EntityBuilder[ID]) Version(version int) *EntityBuilder[ID] {
+	if b != nil {
+		b.version = version
 	}
 	return b
 }
@@ -153,9 +173,11 @@ func ToBuilder[ID any](i *builder.Entity[ID]) *EntityBuilder[ID] {
 	if i == nil {
 		return &EntityBuilder[ID]{}
 	}
-	var i_BaseEntity_ID ID
-	var r_CodeAwareEntity_Code string
-	var r_ForeignIDAwareEntity_ForeignID ID
+	var (
+		i_BaseEntity_ID                  ID
+		r_CodeAwareEntity_Code           string
+		r_ForeignIDAwareEntity_ForeignID ID
+	)
 	if r := i.BaseEntity; r != nil {
 		i_BaseEntity_ID = r.ID
 		if r := r.RefCodeAwareEntity; r != nil {
@@ -170,6 +192,8 @@ func ToBuilder[ID any](i *builder.Entity[ID]) *EntityBuilder[ID] {
 		iD:           i_BaseEntity_ID,
 		code:         r_CodeAwareEntity_Code,
 		foreignID:    r_ForeignIDAwareEntity_ForeignID,
+		schema:       i.Metadata.Schema,
+		version:      i.Metadata.Version,
 		noDB:         i.NoDB,
 		name:         i.Name,
 		surname:      i.Surname,

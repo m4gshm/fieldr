@@ -59,9 +59,11 @@ func (i *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
 	if i == nil {
 		return &EntityBuilder[ID]{}
 	}
-	var i_Model_ID ID
-	var i_Model_CreatedAt int64
-	var i_Model_UpdatedAt int64
+	var (
+		i_Model_ID        ID
+		i_Model_CreatedAt int64
+		i_Model_UpdatedAt int64
+	)
 	if r := i.Model; r != nil {
 		i_Model_ID = r.ID
 		i_Model_CreatedAt = r.CreatedAt

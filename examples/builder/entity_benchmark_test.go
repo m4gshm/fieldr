@@ -15,7 +15,7 @@ func BenchmarkNoBuilder(b *testing.B) {
 			},
 			Name:     "1",
 			Surname:  "3",
-			Embedded: EmbeddedEntity{Metadata: "meta"},
+			Metadata: Metadata{Schema: "meta"},
 		}
 	}
 	_ = e

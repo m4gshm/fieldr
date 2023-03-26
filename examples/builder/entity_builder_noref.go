@@ -12,6 +12,8 @@ type EntityBuilderVal[ID any] struct {
 	ID           ID
 	Code         string
 	ForeignID    ID
+	Schema       string
+	Version      int
 	NoDB         *NoDBFieldsEntity
 	Name         StringBasedType[string]
 	Surname      string
@@ -41,6 +43,10 @@ func (b EntityBuilderVal[ID]) Build() Entity[ID] {
 				ForeignID: b.ForeignID,
 			},
 		},
+		Metadata: Metadata{
+			Schema:  b.Schema,
+			Version: b.Version,
+		},
 		NoDB:         b.NoDB,
 		Name:         b.Name,
 		Surname:      b.Surname,
@@ -66,6 +72,16 @@ func (b EntityBuilderVal[ID]) SetCode(code string) EntityBuilderVal[ID] {
 
 func (b EntityBuilderVal[ID]) SetForeignID(foreignID ID) EntityBuilderVal[ID] {
 	b.ForeignID = foreignID
+	return b
+}
+
+func (b EntityBuilderVal[ID]) SetSchema(schema string) EntityBuilderVal[ID] {
+	b.Schema = schema
+	return b
+}
+
+func (b EntityBuilderVal[ID]) SetVersion(version int) EntityBuilderVal[ID] {
+	b.Version = version
 	return b
 }
 
