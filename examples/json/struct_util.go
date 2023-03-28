@@ -1,8 +1,6 @@
 package json
 
-type (
-	structJson string
-)
+type structJson string
 
 const (
 	structJsonID      structJson = "id"
@@ -44,9 +42,9 @@ func (s *Struct[S]) val(f structJson) interface{} {
 	}
 	switch f {
 	case structJsonID:
-		if r := s.MiddleStruct; r != nil {
-			if r := r.BaseStruct.IDAware; r != nil {
-				return r.ID
+		if s_ms := s.MiddleStruct; s_ms != nil {
+			if s__bs_ida := s_ms.BaseStruct.IDAware; s__bs_ida != nil {
+				return s__bs_ida.ID
 			}
 		}
 	case structJsonName:
@@ -56,31 +54,8 @@ func (s *Struct[S]) val(f structJson) interface{} {
 	case structJsonNoTag:
 		return s.NoTag
 	case structJsonAddress:
-		if r := s.Address; r != nil {
-			return r
-		}
-	}
-	return nil
-}
-
-func (s *Struct[S]) ref(f structJson) interface{} {
-	if s == nil {
-		return nil
-	}
-	switch f {
-	case structJsonID:
-		if s.MiddleStruct != nil && s.MiddleStruct.BaseStruct.IDAware != nil {
-			return &s.MiddleStruct.BaseStruct.IDAware.ID
-		}
-	case structJsonName:
-		return &s.Name
-	case structJsonSurname:
-		return &s.Surname
-	case structJsonNoTag:
-		return &s.NoTag
-	case structJsonAddress:
-		if s.Address != nil {
-			return &s.Address
+		if s_a := s.Address; s_a != nil {
+			return s_a
 		}
 	}
 	return nil

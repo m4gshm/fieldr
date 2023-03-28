@@ -60,20 +60,20 @@ func (i *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
 		return &EntityBuilder[ID]{}
 	}
 	var (
-		i_Model_ID        ID
-		i_Model_CreatedAt int64
-		i_Model_UpdatedAt int64
+		Model_ID        ID
+		Model_CreatedAt int64
+		Model_UpdatedAt int64
 	)
-	if r := i.Model; r != nil {
-		i_Model_ID = r.ID
-		i_Model_CreatedAt = r.CreatedAt
-		i_Model_UpdatedAt = r.UpdatedAt
+	if i_m := i.Model; i_m != nil {
+		Model_ID = i_m.ID
+		Model_CreatedAt = i_m.CreatedAt
+		Model_UpdatedAt = i_m.UpdatedAt
 	}
 
 	return &EntityBuilder[ID]{
-		iD:        i_Model_ID,
-		createdAt: i_Model_CreatedAt,
-		updatedAt: i_Model_UpdatedAt,
+		iD:        Model_ID,
+		createdAt: Model_CreatedAt,
+		updatedAt: Model_UpdatedAt,
 		name:      i.Name,
 	}
 }

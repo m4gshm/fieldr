@@ -270,11 +270,10 @@ func generateToBuilderMethodParts(
 	for _, fieldName := range model.FieldNames {
 		fieldType := model.FieldsType[fieldName]
 		if fieldType.Embedded {
-			fieldPath := []generator.FieldInfo{{Name: fieldType.Name, Type: fieldType}}
-			fullFieldPath, conditionalPath, conditions := generator.FiledPathAndAccessCheckCondition(receiver, false, true, fieldPath)
+			fieldPath, conditionalPath, conditions := generator.FiledPathAndAccessCheckCondition(receiver, false, []generator.FieldInfo{{Name: fieldType.Name, Type: fieldType}})
 			if len(conditions) > 0 {
 				if embedMethodBodyPart, vars, initVars, err := generateToBuilderMethodConditionedParts(
-					fieldType.Model, fullFieldPath, conditionalPath, conditions, receiver, isReceiverReference, exportFields,
+					fieldType.Model, fieldPath, conditionalPath, conditions, receiver, isReceiverReference, exportFields,
 				); err != nil {
 					return "", "", err
 				} else {
@@ -301,7 +300,7 @@ func generateToBuilderMethodParts(
 }
 
 func generateToBuilderMethodConditionedParts(
-	model *struc.Model, fullFieldPath, conditionalPath string, conditions []string, receiver string, isReceiverReference, exportFields bool,
+	model *struc.Model, parentPath, conditionalPath string, conditions []string, receiver string, isReceiverReference, exportFields bool,
 ) (string, []string, string, error) {
 	initVars := ""
 	variables := []string{}
@@ -319,10 +318,10 @@ func generateToBuilderMethodConditionedParts(
 	for _, fieldName := range model.FieldNames {
 		fieldType := model.FieldsType[fieldName]
 		if fieldType.Embedded {
-			fieldPath := []generator.FieldInfo{{Name: fieldType.Name, Type: fieldType}}
-			fullFieldPath, conditionalPath, subConditions := generator.FiledPathAndAccessCheckCondition(conditionalPath, false, true, fieldPath)
+			fieldPath, conditionalPath, subConditions := generator.FiledPathAndAccessCheckCondition(conditionalPath, false, []generator.FieldInfo{{Name: fieldType.Name, Type: fieldType}})
+			fullFielPath := parentPath + ifElse(len(fieldPath) > 0, "."+fieldPath, "")
 			if m, embedVars, i, err := generateToBuilderMethodConditionedParts(
-				fieldType.Model, fullFieldPath, conditionalPath, subConditions, receiver, isReceiverReference, exportFields,
+				fieldType.Model, fullFielPath, conditionalPath, subConditions, receiver, isReceiverReference, exportFields,
 			); err != nil {
 				return "", nil, "", err
 			} else {
@@ -331,8 +330,7 @@ func generateToBuilderMethodConditionedParts(
 				initVars += i
 			}
 		} else {
-			varPref := strings.ReplaceAll(fullFieldPath, ".", "_")
-			varName := varPref + "_" + strings.ReplaceAll(fieldName, ".", "_")
+			varName := generator.PathToVarName(parentPath + "." + fieldName)
 
 			variables = append(variables, varName+" "+fieldType.FullName)
 			initVars += varName + "=" + conditionalPath + "." + fieldName + "\n"

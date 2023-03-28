@@ -266,9 +266,11 @@ func (g *Generator) WriteBody(outPackageName string) error {
 			return err
 		}
 
-		newFileContent := inject(chunks, string(fileBytes))
-		g.body = bytes.NewBufferString(newFileContent)
-
+		if newFileContent, err := inject(chunks, string(fileBytes)); err != nil {
+			return err
+		} else {
+			g.body = bytes.NewBufferString(newFileContent)
+		}
 		//write not injected
 		g.filterInjected()
 
@@ -528,7 +530,7 @@ func getReceiverName(typ ast.Expr) (string, error) {
 	}
 }
 
-func inject(chunks map[int]map[int]string, fileContent string) string {
+func inject(chunks map[int]map[int]string, fileContent string) (string, error) {
 	sortedPos := getSortedChunks(chunks)
 	newFileContent := ""
 	start := 0
@@ -539,9 +541,12 @@ func inject(chunks map[int]map[int]string, fileContent string) string {
 			start = j
 		}
 	}
+	if start >= len(fileContent) {
+		return "", fmt.Errorf("out of file size: %d out of %d", start, len(fileContent))
+	}
 	prefix := fileContent[start:]
 	newFileContent += prefix
-	return newFileContent
+	return newFileContent, nil
 }
 
 func getSortedChunks(chunkVals map[int]map[int]string) []int {

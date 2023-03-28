@@ -2,6 +2,7 @@ package generator
 
 import (
 	"strings"
+	"unicode"
 
 	"github.com/m4gshm/fieldr/struc"
 )
@@ -11,49 +12,66 @@ type FieldInfo struct {
 	Type struc.FieldType
 }
 
-func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference, useConditinonReceiver bool, fieldPath []FieldInfo) (string, string, []string) {
-	nilReceiver := "r"
+func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference bool, fieldParts []FieldInfo) (string, string, []string) {
 	conditions := []string{}
 	shortConditionPath := ""
 	if isReceiverReference {
-		if useConditinonReceiver {
-			conditions = append(conditions, nilReceiver+":="+receiverVar+";"+nilReceiver+"!=nil")
-			shortConditionPath = nilReceiver
-		} else {
-			conditions = append(conditions, receiverVar+" != nil")
-		}
+		newReceiver := PathToShortVarName(receiverVar)
+		conditions = append(conditions, newReceiver+":="+receiverVar+";"+newReceiver+"!=nil")
+		shortConditionPath = newReceiver
+
 	}
-	fullFieldPath := receiverVar
-	for _, p := range fieldPath {
-		if len(fullFieldPath) > 0 {
-			fullFieldPath += "."
-		}
-		fullFieldPath += p.Name
-		if useConditinonReceiver {
-			shortConditionPath = ifElse(len(shortConditionPath) > 0, shortConditionPath+"."+p.Name, fullFieldPath)
-		}
-		if p.Type.RefCount > 0 {
-			if useConditinonReceiver {
-				conditions = append(conditions, nilReceiver+":="+shortConditionPath+";"+nilReceiver+" != nil")
-				shortConditionPath = nilReceiver
-			} else {
-				conditions = append(conditions, fullFieldPath+" != nil")
-			}
-			for ri := 1; ri < p.Type.RefCount; ri++ {
-				if useConditinonReceiver {
-					shortConditionPathRef := "*" + shortConditionPath + ""
-					conditions = append(conditions, nilReceiver+":="+shortConditionPathRef+";"+nilReceiver+" != nil")
-					// shortConditionPath = "(" + shortConditionPath + ")"
-				} else {
-					fullFieldPath = "*(" + fullFieldPath + ")"
-					conditions = append(conditions, fullFieldPath+" != nil")
-					fullFieldPath = "(" + fullFieldPath + ")"
-				}
+	fieldPath := ""
+	for _, part := range fieldParts {
+		fieldPath += ifElse(len(fieldPath) > 0, ".", "") + part.Name
+
+		receiverFieldPath := receiverVar + ifElse(len(fieldPath) > 0, "."+fieldPath, "")
+
+		shortConditionPath = ifElse(len(shortConditionPath) > 0, shortConditionPath+"."+part.Name, receiverFieldPath)
+
+		if part.Type.RefCount > 0 {
+			newReceiver := PathToShortVarName(shortConditionPath)
+			conditions = append(conditions, newReceiver+":="+shortConditionPath+";"+newReceiver+" != nil")
+			shortConditionPath = newReceiver
+
+			for ri := 1; ri < part.Type.RefCount; ri++ {
+				shortConditionPathRef := "*" + shortConditionPath
+				newReceiver := PathToShortVarName(shortConditionPathRef)
+				conditions = append(conditions, newReceiver+":="+shortConditionPathRef+";"+newReceiver+" != nil")
+				shortConditionPath = newReceiver
 			}
 		}
 	}
-	if !useConditinonReceiver && len(conditions) > 0 {
-		conditions = []string{strings.Join(conditions, " && ")}
+	return fieldPath, shortConditionPath, conditions
+}
+
+func PathToVarName(fieldPath string) string {
+	return strings.NewReplacer(".", "_", "*", "_").Replace(fieldPath)
+}
+
+func PathToShortVarName(fieldPath string) string {
+	body := []rune{}
+	pref := []rune{}
+	hasLetter := false
+	for _, r := range fieldPath {
+		if unicode.IsLower(r) && !hasLetter {
+			body = append(body, r)
+			hasLetter = true
+		} else if unicode.IsUpper(r) {
+			hasLetter = true
+			body = append(body, unicode.ToLower(r))
+		} else if unicode.IsDigit(r) {
+			body = append(body, r)
+		} else if r == '_' {
+			body = append(body, r)
+		} else if r == '*' {
+			pref = append(pref, '_')
+		} else if r == '.' {
+			body = append(body, '_')
+		}
 	}
-	return fullFieldPath, shortConditionPath, conditions
+	if len(body) == 0 {
+		body = []rune{'r'}
+	}
+	return string(pref) + string(body)
 }

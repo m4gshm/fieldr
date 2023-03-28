@@ -18,23 +18,21 @@ func (v *Struct[n]) AsMap() map[StructField]interface{} {
 		return nil
 	}
 	m := map[StructField]interface{}{}
-	if r := v.BaseStruct; r != nil {
-		m[BaseStructID] = r.ID
+	if v_bs := v.BaseStruct; v_bs != nil {
+		m[BaseStructID] = v_bs.ID
 	}
-	if r := v.BaseStruct; r != nil {
-		if r := r.TS; r != nil {
-			m[BaseStructTS] = r
+	if v_bs := v.BaseStruct; v_bs != nil {
+		if v__ts := v_bs.TS; v__ts != nil {
+			m[BaseStructTS] = v__ts
 		}
 	}
 	m[Name] = v.Name
 	m[Surname] = v.Surname
 	m[NoTag] = v.NoTag
-	if r := v.Address; r != nil {
-		m[Address] = r.AsMap()
+	if v_a := v.Address; v_a != nil {
+		m[Address] = v_a.AsMap()
 	}
 	m[FlatCardNum] = v.Flat.CardNum
 	m[FlatBank] = v.Flat.Bank
 	return m
 }
-
-const Flat StructField = "Flat"

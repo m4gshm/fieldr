@@ -174,24 +174,24 @@ func ToBuilder[ID any](i *builder.Entity[ID]) *EntityBuilder[ID] {
 		return &EntityBuilder[ID]{}
 	}
 	var (
-		i_BaseEntity_ID                  ID
-		r_CodeAwareEntity_Code           string
-		r_ForeignIDAwareEntity_ForeignID ID
+		BaseEntity_ID                                      ID
+		BaseEntity_RefCodeAwareEntity_CodeAwareEntity_Code string
+		BaseEntity_ForeignIDAwareEntity_ForeignID          ID
 	)
-	if r := i.BaseEntity; r != nil {
-		i_BaseEntity_ID = r.ID
-		if r := r.RefCodeAwareEntity; r != nil {
-			if r := r.CodeAwareEntity; r != nil {
-				r_CodeAwareEntity_Code = r.Code
+	if i_be := i.BaseEntity; i_be != nil {
+		BaseEntity_ID = i_be.ID
+		if i__rcae := i_be.RefCodeAwareEntity; i__rcae != nil {
+			if i___cae := i__rcae.CodeAwareEntity; i___cae != nil {
+				BaseEntity_RefCodeAwareEntity_CodeAwareEntity_Code = i___cae.Code
 			}
 		}
-		r_ForeignIDAwareEntity_ForeignID = r.ForeignIDAwareEntity.ForeignID
+		BaseEntity_ForeignIDAwareEntity_ForeignID = i_be.ForeignIDAwareEntity.ForeignID
 	}
 
 	return &EntityBuilder[ID]{
-		iD:           i_BaseEntity_ID,
-		code:         r_CodeAwareEntity_Code,
-		foreignID:    r_ForeignIDAwareEntity_ForeignID,
+		iD:           BaseEntity_ID,
+		code:         BaseEntity_RefCodeAwareEntity_CodeAwareEntity_Code,
+		foreignID:    BaseEntity_ForeignIDAwareEntity_ForeignID,
 		schema:       i.Metadata.Schema,
 		version:      i.Metadata.Version,
 		noDB:         i.NoDB,
