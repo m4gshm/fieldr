@@ -42,9 +42,9 @@ func (s *Struct[S]) val(f structJson) interface{} {
 	}
 	switch f {
 	case structJsonID:
-		if s_ms := s.MiddleStruct; s_ms != nil {
-			if s__bs_ida := s_ms.BaseStruct.IDAware; s__bs_ida != nil {
-				return s__bs_ida.ID
+		if ms := s.MiddleStruct; ms != nil {
+			if ida := ms.BaseStruct.IDAware; ida != nil {
+				return ida.ID
 			}
 		}
 	case structJsonName:
@@ -54,8 +54,8 @@ func (s *Struct[S]) val(f structJson) interface{} {
 	case structJsonNoTag:
 		return s.NoTag
 	case structJsonAddress:
-		if s_a := s.Address; s_a != nil {
-			return s_a
+		if a := s.Address; a != nil {
+			return a
 		}
 	}
 	return nil

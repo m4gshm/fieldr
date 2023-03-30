@@ -64,10 +64,10 @@ func (i *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
 		Model_CreatedAt int64
 		Model_UpdatedAt int64
 	)
-	if i_m := i.Model; i_m != nil {
-		Model_ID = i_m.ID
-		Model_CreatedAt = i_m.CreatedAt
-		Model_UpdatedAt = i_m.UpdatedAt
+	if m := i.Model; m != nil {
+		Model_ID = m.ID
+		Model_CreatedAt = m.CreatedAt
+		Model_UpdatedAt = m.UpdatedAt
 	}
 
 	return &EntityBuilder[ID]{

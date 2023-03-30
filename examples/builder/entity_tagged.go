@@ -180,14 +180,14 @@ func (i *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
 		BaseEntity_RefCodeAwareEntity_CodeAwareEntity_Code string
 		BaseEntity_ForeignIDAwareEntity_ForeignID          ID
 	)
-	if i_be := i.BaseEntity; i_be != nil {
-		BaseEntity_ID = i_be.ID
-		if i__rcae := i_be.RefCodeAwareEntity; i__rcae != nil {
-			if i___cae := i__rcae.CodeAwareEntity; i___cae != nil {
-				BaseEntity_RefCodeAwareEntity_CodeAwareEntity_Code = i___cae.Code
+	if be := i.BaseEntity; be != nil {
+		BaseEntity_ID = be.ID
+		if rcae := be.RefCodeAwareEntity; rcae != nil {
+			if cae := rcae.CodeAwareEntity; cae != nil {
+				BaseEntity_RefCodeAwareEntity_CodeAwareEntity_Code = cae.Code
 			}
 		}
-		BaseEntity_ForeignIDAwareEntity_ForeignID = i_be.ForeignIDAwareEntity.ForeignID
+		BaseEntity_ForeignIDAwareEntity_ForeignID = be.ForeignIDAwareEntity.ForeignID
 	}
 
 	return &EntityBuilder[ID]{

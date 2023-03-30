@@ -5,6 +5,7 @@ import (
 	"unicode"
 
 	"github.com/m4gshm/fieldr/struc"
+	"github.com/m4gshm/gollections/slice"
 )
 
 type FieldInfo struct {
@@ -30,7 +31,7 @@ func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference bo
 		shortConditionPath = ifElse(len(shortConditionPath) > 0, shortConditionPath+"."+part.Name, receiverFieldPath)
 
 		if part.Type.RefCount > 0 {
-			newReceiver := PathToShortVarName(shortConditionPath)
+			newReceiver := PathToShortVarName(part.Name)
 			conditions = append(conditions, newReceiver+":="+shortConditionPath+";"+newReceiver+" != nil")
 			shortConditionPath = newReceiver
 
@@ -50,6 +51,18 @@ func PathToVarName(fieldPath string) string {
 }
 
 func PathToShortVarName(fieldPath string) string {
+	if len(fieldPath) == 0 {
+		return "r"
+	} else if parts := strings.Split(fieldPath, "."); len(parts) > 1 {
+		convertedParts := slice.Convert(parts, PathToShortVarName)
+		path := strings.Join(convertedParts, "_")
+		return path
+	} else if parts := strings.Split(fieldPath, "_"); len(parts) > 1 {
+		convertedParts := slice.Convert(parts, PathToShortVarName)
+		path := strings.Join(convertedParts, "_")
+		return path
+	}
+
 	body := []rune{}
 	pref := []rune{}
 	hasLetter := false
@@ -73,5 +86,6 @@ func PathToShortVarName(fieldPath string) string {
 	if len(body) == 0 {
 		body = []rune{'r'}
 	}
-	return string(pref) + string(body)
+	path := string(pref) + string(body)
+	return path
 }

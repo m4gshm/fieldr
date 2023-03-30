@@ -39,37 +39,37 @@ func (s *Entity) val(f EntityCol) interface{} { //nolint
 	}
 	switch f {
 	case ENTITY_COL_ID:
-		if s_be := s.BaseEntity; s_be != nil {
-			return s_be.ID
+		if be := s.BaseEntity; be != nil {
+			return be.ID
 		}
 	case ENTITY_COL_NAME:
 		return s.Name
 	case ENTITY_COL_SURNAME:
 		return s.Surname
 	case ENTITY_COL_UPDATED_AT:
-		if s_u := s.Upd; s_u != nil {
-			if _s_ := *s_u; _s_ != nil {
-				if __s_ := *_s_; __s_ != nil {
-					if ___s_ := *__s_; ___s_ != nil {
-						return ___s_.UpdatedAt
+		if u := s.Upd; u != nil {
+			if _u := *u; _u != nil {
+				if _r_u := *_u; _r_u != nil {
+					if _r_r_u := *_r_u; _r_r_u != nil {
+						return _r_r_u.UpdatedAt
 					}
 				}
 			}
 		}
 	case ENTITY_COL_UPDATED_AT2:
-		if s_u2 := s.Upd2; s_u2 != nil {
-			if _s_2 := *s_u2; _s_2 != nil {
-				if __s_2 := *_s_2; __s_2 != nil {
-					if ___s_2 := *__s_2; ___s_2 != nil {
-						return ___s_2.UpdatedAt2
+		if u2 := s.Upd2; u2 != nil {
+			if _u2 := *u2; _u2 != nil {
+				if _r_u2 := *_u2; _r_u2 != nil {
+					if _r_r_u2 := *_r_u2; _r_r_u2 != nil {
+						return _r_r_u2.UpdatedAt2
 					}
 				}
 			}
 		}
 	case ENTITY_COL_UPDATED_AT3:
-		if s_u3 := s.Upd3; s_u3 != nil {
-			if _s_3 := *s_u3; _s_3 != nil {
-				return _s_3.UpdatedAt3
+		if u3 := s.Upd3; u3 != nil {
+			if _u3 := *u3; _u3 != nil {
+				return _u3.UpdatedAt3
 			}
 		}
 	}
@@ -82,37 +82,37 @@ func (s *Entity) ref(f EntityCol) interface{} { //nolint
 	}
 	switch f {
 	case ENTITY_COL_ID:
-		if s_be := s.BaseEntity; s_be != nil {
-			return &s_be.ID
+		if be := s.BaseEntity; be != nil {
+			return &be.ID
 		}
 	case ENTITY_COL_NAME:
 		return &s.Name
 	case ENTITY_COL_SURNAME:
 		return &s.Surname
 	case ENTITY_COL_UPDATED_AT:
-		if s_u := s.Upd; s_u != nil {
-			if _s_ := *s_u; _s_ != nil {
-				if __s_ := *_s_; __s_ != nil {
-					if ___s_ := *__s_; ___s_ != nil {
-						return &___s_.UpdatedAt
+		if u := s.Upd; u != nil {
+			if _u := *u; _u != nil {
+				if _r_u := *_u; _r_u != nil {
+					if _r_r_u := *_r_u; _r_r_u != nil {
+						return &_r_r_u.UpdatedAt
 					}
 				}
 			}
 		}
 	case ENTITY_COL_UPDATED_AT2:
-		if s_u2 := s.Upd2; s_u2 != nil {
-			if _s_2 := *s_u2; _s_2 != nil {
-				if __s_2 := *_s_2; __s_2 != nil {
-					if ___s_2 := *__s_2; ___s_2 != nil {
-						return &___s_2.UpdatedAt2
+		if u2 := s.Upd2; u2 != nil {
+			if _u2 := *u2; _u2 != nil {
+				if _r_u2 := *_u2; _r_u2 != nil {
+					if _r_r_u2 := *_r_u2; _r_r_u2 != nil {
+						return &_r_r_u2.UpdatedAt2
 					}
 				}
 			}
 		}
 	case ENTITY_COL_UPDATED_AT3:
-		if s_u3 := s.Upd3; s_u3 != nil {
-			if _s_3 := *s_u3; _s_3 != nil {
-				return &_s_3.UpdatedAt3
+		if u3 := s.Upd3; u3 != nil {
+			if _u3 := *u3; _u3 != nil {
+				return &_u3.UpdatedAt3
 			}
 		}
 	}
