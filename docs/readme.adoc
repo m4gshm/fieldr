@@ -27,7 +27,7 @@ create a file `entity.go` with the below content:
 
 [source,go]
 ----
-include::examples/usage/enum_const/entity.go[]
+include::../examples/usage/enum_const/entity.go[]
 ----
 
 then running this command in the same directory:
@@ -39,7 +39,7 @@ will be generated `entity_fieldr.go` file with the next content:
 
 [source,go]
 ----
-include::examples/usage/enum_const/entity_fieldr.go[]
+include::../examples/usage/enum_const/entity_fieldr.go[]
 ----
 
 this consist of constants based on the `json` tag contents and the method `jsons` that enumerates these constants.
@@ -57,7 +57,7 @@ source `entity.go`
 
 [source,go]
 ----
-include::examples/usage/builder/entity.go[]
+include::../examples/usage/builder/entity.go[]
 ----
 
 [source,console]
@@ -68,7 +68,7 @@ generated `entity_fieldr.go`
 
 [source,go]
 ----
-include::examples/usage/builder/entity_fieldr.go[]
+include::../examples/usage/builder/entity_fieldr.go[]
 ----
 
 See more examples link:./examples/[here]
