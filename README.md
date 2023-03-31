@@ -34,8 +34,8 @@ package enum_const
 
 //go:generate fieldr -type Entity enum-const -val .json -list jsons
 type Entity struct {
-        Id   int    `json:"id"`
-        Name string `json:"name"`
+    Id   int    `json:"id"`
+    Name string `json:"name"`
 }
 ```
 
@@ -53,12 +53,12 @@ will be generated `entity_fieldr.go` file with the next content:
 package enum_const
 
 const (
-        entityJsonId   = "id"
-        entityJsonName = "name"
+    entityJsonId   = "id"
+    entityJsonName = "name"
 )
 
 func jsons() []string {
-        return []string{entityJsonId, entityJsonName}
+    return []string{entityJsonId, entityJsonName}
 }
 ```
 
@@ -80,14 +80,14 @@ package builder
 
 //go:generate fieldr -type Entity builder -deconstructor .
 type Entity[ID any] struct {
-        *Model[ID]
-        Name string
+    *Model[ID]
+    Name string
 }
 
 type Model[ID any] struct {
-        ID        ID
-        CreatedAt int64
-        UpdatedAt int64
+    ID        ID
+    CreatedAt int64
+    UpdatedAt int64
 }
 ```
 
@@ -103,79 +103,79 @@ generated `entity_fieldr.go`
 package builder
 
 type EntityBuilder[ID any] struct {
-        iD        ID
-        createdAt int64
-        updatedAt int64
-        name      string
+    iD        ID
+    createdAt int64
+    updatedAt int64
+    name      string
 }
 
 func NewEntityBuilder[ID any]() *EntityBuilder[ID] {
-        return &EntityBuilder[ID]{}
+    return &EntityBuilder[ID]{}
 }
 
 func (b *EntityBuilder[ID]) Build() *Entity[ID] {
-        if b == nil {
-                return &Entity[ID]{}
-        }
-        return &Entity[ID]{
-                Model: &Model[ID]{
-                        ID:        b.iD,
-                        CreatedAt: b.createdAt,
-                        UpdatedAt: b.updatedAt,
-                },
-                Name: b.name,
-        }
+    if b == nil {
+        return &Entity[ID]{}
+    }
+    return &Entity[ID]{
+        Model: &Model[ID]{
+            ID:        b.iD,
+            CreatedAt: b.createdAt,
+            UpdatedAt: b.updatedAt,
+        },
+        Name: b.name,
+    }
 }
 
 func (b *EntityBuilder[ID]) ID(iD ID) *EntityBuilder[ID] {
-        if b != nil {
-                b.iD = iD
-        }
-        return b
+    if b != nil {
+        b.iD = iD
+    }
+    return b
 }
 
 func (b *EntityBuilder[ID]) CreatedAt(createdAt int64) *EntityBuilder[ID] {
-        if b != nil {
-                b.createdAt = createdAt
-        }
-        return b
+    if b != nil {
+        b.createdAt = createdAt
+    }
+    return b
 }
 
 func (b *EntityBuilder[ID]) UpdatedAt(updatedAt int64) *EntityBuilder[ID] {
-        if b != nil {
-                b.updatedAt = updatedAt
-        }
-        return b
+    if b != nil {
+        b.updatedAt = updatedAt
+    }
+    return b
 }
 
 func (b *EntityBuilder[ID]) Name(name string) *EntityBuilder[ID] {
-        if b != nil {
-                b.name = name
-        }
-        return b
+    if b != nil {
+        b.name = name
+    }
+    return b
 }
 
 func (i *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
-        if i == nil {
-                return &EntityBuilder[ID]{}
-        }
-        var (
-                Model_ID        ID
-                Model_CreatedAt int64
-                Model_UpdatedAt int64
-        )
-        if m := i.Model; m != nil {
-                Model_ID = m.ID
-                Model_CreatedAt = m.CreatedAt
-                Model_UpdatedAt = m.UpdatedAt
-        }
+    if i == nil {
+        return &EntityBuilder[ID]{}
+    }
+    var (
+        Model_ID        ID
+        Model_CreatedAt int64
+        Model_UpdatedAt int64
+    )
+    if m := i.Model; m != nil {
+        Model_ID = m.ID
+        Model_CreatedAt = m.CreatedAt
+        Model_UpdatedAt = m.UpdatedAt
+    }
 
-        return &EntityBuilder[ID]{
-                iD:        Model_ID,
-                createdAt: Model_CreatedAt,
-                updatedAt: Model_UpdatedAt,
-                name:      i.Name,
-        }
+    return &EntityBuilder[ID]{
+        iD:        Model_ID,
+        createdAt: Model_CreatedAt,
+        updatedAt: Model_UpdatedAt,
+        name:      i.Name,
+    }
 }
 ```
 
