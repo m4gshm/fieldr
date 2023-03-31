@@ -1,5 +1,5 @@
 .PHONY: all
-all: build test lint
+all: build test lint readme
 
 .PHONY: test
 test:
@@ -26,3 +26,9 @@ lint:
 	nakedret ./...
 	go install golang.org/x/lint/golint@latest
 	golint ./...
+
+.PHONY: readme
+readme:
+	$(info #README.md...)
+	asciidoc -b docbook readme.adoc 
+	pandoc -f docbook -t gfm readme.xml -o README.md
