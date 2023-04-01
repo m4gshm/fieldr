@@ -18,6 +18,14 @@ func TestStructAsMapEmpty(t *testing.T) {
 	}, m)
 }
 
+func TestStructAsMapNil(t *testing.T) {
+	var s *Struct[string]
+	m := s.AsMap()
+
+	assert.Equal(t, nil, m[Surname])
+	assert.Equal(t, map[StructField]interface{}(nil), m)
+}
+
 func TestStructAsMapEmptyEmbeddedRef(t *testing.T) {
 	s := Struct[string]{BaseStruct: &BaseStruct{}, Name: "N", Address: &EmbeddedAddress{}}
 	m := s.AsMap()
