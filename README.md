@@ -8,10 +8,10 @@ structure fields and their tags.
 - enum-const - generate constants based on template applied to struct
   fields.
 
+- builder - generates builder API of a structure type.
+
 - as-map - generates method or functon that converts the struct type to
   a map.
-
-- builder - generates builder API of a structure type.
 
 ## Installation
 
@@ -176,6 +176,112 @@ func (i *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
         updatedAt: Model_UpdatedAt,
         name:      i.Name,
     }
+}
+```
+
+## As-map usage example
+
+source `struct.go`
+
+``` go
+package asmap
+
+import "time"
+
+//go:generate fieldr -type EmbeddedAddress -out address_as_map.go as-map -key-type . -export
+//go:generate fieldr -type Struct -out struct_as_map.go as-map -key-type . -export -rewrite type:*EmbeddedAddress:fmt=%v.AsMap() -flat Flat
+
+type BaseStruct struct {
+    ID int
+    TS *time.Time
+}
+
+type EmbeddedAddress struct {
+    ZipCode     int
+    AddressLine string
+}
+
+type FlatPart struct {
+    CardNum string
+    Bank    string
+}
+
+type Struct[n string] struct {
+    *BaseStruct
+    Name     n
+    Surname  string
+    noExport string //nolint
+    NoTag    string
+    Address  *EmbeddedAddress
+    Flat     FlatPart
+}
+```
+
+``` console
+go generate .
+```
+
+will be generate two files `struct_as_map.go`, `address_as_map.go`
+
+``` go
+package asmap
+
+type StructField string
+
+const (
+    BaseStructID StructField = "ID"
+    BaseStructTS StructField = "TS"
+    Name         StructField = "Name"
+    Surname      StructField = "Surname"
+    NoTag        StructField = "NoTag"
+    Address      StructField = "Address"
+    FlatCardNum  StructField = "CardNum"
+    FlatBank     StructField = "Bank"
+)
+
+func (v *Struct[n]) AsMap() map[StructField]interface{} {
+    if v == nil {
+        return nil
+    }
+    m := map[StructField]interface{}{}
+    if bs := v.BaseStruct; bs != nil {
+        m[BaseStructID] = bs.ID
+    }
+    if bs := v.BaseStruct; bs != nil {
+        if ts := bs.TS; ts != nil {
+            m[BaseStructTS] = ts
+        }
+    }
+    m[Name] = v.Name
+    m[Surname] = v.Surname
+    m[NoTag] = v.NoTag
+    if a := v.Address; a != nil {
+        m[Address] = a.AsMap()
+    }
+    m[FlatCardNum] = v.Flat.CardNum
+    m[FlatBank] = v.Flat.Bank
+    return m
+}
+```
+
+``` go
+package asmap
+
+type EmbeddedAddressField string
+
+const (
+    ZipCode     EmbeddedAddressField = "ZipCode"
+    AddressLine EmbeddedAddressField = "AddressLine"
+)
+
+func (v *EmbeddedAddress) AsMap() map[EmbeddedAddressField]interface{} {
+    if v == nil {
+        return nil
+    }
+    m := map[EmbeddedAddressField]interface{}{}
+    m[ZipCode] = v.ZipCode
+    m[AddressLine] = v.AddressLine
+    return m
 }
 ```
 
