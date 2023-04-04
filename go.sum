@@ -6,6 +6,10 @@ github.com/m4gshm/gollections v0.0.3 h1:py6uxoO8aD+Zp1FryRP0C+ZKyOEWyfItDY4IRpyv
 github.com/m4gshm/gollections v0.0.3/go.mod h1:Dhj1mum9gpNdfBqLQd1ymH7/RF3rnyr9rcnB5PLSDKo=
 github.com/m4gshm/gollections v0.0.6 h1:S2IKCt5Ot9E3S70VapeOD90iNxgc98EU6Sj5qCmsUVk=
 github.com/m4gshm/gollections v0.0.6/go.mod h1:PaKN6E8wY/5wy4cxMCeZ6PGxiqPIyc3hXk1cpSC59+0=
+github.com/m4gshm/gollections v0.0.7-0.20230403230400-7790c38906f2 h1:wN2bXsbA2LrMjb0hOOtH4Z70bAmNUO6wSTKUutqnaoY=
+github.com/m4gshm/gollections v0.0.7-0.20230403230400-7790c38906f2/go.mod h1:PaKN6E8wY/5wy4cxMCeZ6PGxiqPIyc3hXk1cpSC59+0=
+github.com/m4gshm/gollections v0.0.7-0.20230404074342-4c2681aa7b70 h1:iWg1C6viiKT/TYHxCyvxAhoX5DmCO0hlBM8puhJlxUI=
+github.com/m4gshm/gollections v0.0.7-0.20230404074342-4c2681aa7b70/go.mod h1:PaKN6E8wY/5wy4cxMCeZ6PGxiqPIyc3hXk1cpSC59+0=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
@@ -28,6 +32,8 @@ golang.org/x/exp v0.0.0-20221208152030-732eee02a75a h1:4iLhBPcpqFmylhnkbY3W0ONLU
 golang.org/x/exp v0.0.0-20221208152030-732eee02a75a/go.mod h1:CxIveKay+FTh1D0yPZemJVgC/95VzuuOLq5Qi4xnoYc=
 golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0 h1:pVgRXcIictcr+lBQIFeiwuwtDIs4eL21OuM9nyAADmo=
 golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0/go.mod h1:CxIveKay+FTh1D0yPZemJVgC/95VzuuOLq5Qi4xnoYc=
+golang.org/x/exp v0.0.0-20230321023759-10a507213a29 h1:ooxPy7fPvB4kwsA2h+iBNHkAbp/4JxTSwCmvdjEYmug=
+golang.org/x/exp v0.0.0-20230321023759-10a507213a29/go.mod h1:CxIveKay+FTh1D0yPZemJVgC/95VzuuOLq5Qi4xnoYc=
 golang.org/x/mod v0.7.0 h1:LapD9S96VoQRhi/GrNTqeBJFrUjs5UHCAtTlgwA5oZA=
 golang.org/x/mod v0.7.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
 golang.org/x/mod v0.9.0 h1:KENHtAZL2y3NLMYZeHY9DW8HW8V+kQyJsY/V9JlKvCs=

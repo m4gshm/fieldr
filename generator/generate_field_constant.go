@@ -229,8 +229,7 @@ func makeFieldConstsTempl(
 						if !inExecute {
 							return
 						}
-						if ok := usedTags.Contains(tag); !ok {
-							usedTags.Add(tag)
+						if ok := usedTags.AddNewOne(tag); !ok {
 							logger.Debugf("use tag '%s'", tag)
 						}
 					}}
