@@ -1054,6 +1054,20 @@ func (g *Generator) Repack(typ types.Type, basePackagePath string) (types.Type, 
 	return typ, nil
 }
 
+func (g *Generator) GetFullFieldTypeName(fieldType struc.FieldType, baseType bool) (string, error) {
+	typ, err := g.Repack(fieldType.Type, g.OutPkg.PkgPath)
+	if err != nil {
+		return "", err
+	}
+	if baseType {
+		//extract the base typeName for a pointer type
+		if typ, _, err = struc.GetTypeNamed(typ); err != nil {
+			return "", err
+		}
+	}
+	return struc.TypeString(typ, g.OutPkg.PkgPath), nil
+}
+
 func NoLint(nolint bool) string {
 	if nolint {
 		return "//nolint"

@@ -78,6 +78,7 @@ var commands = []func() *Command{
 	NewEnumConst,
 	NewAsMapMethod,
 	NewBuilderStruct,
+	NewGettersSetters,
 }
 
 var index = toMap(commands)

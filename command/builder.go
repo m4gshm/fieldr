@@ -209,12 +209,10 @@ func generateBuilderParts(
 
 		if fieldType.Embedded {
 			init := ""
-			if typ, err := g.Repack(fieldType.Type, g.OutPkg.PkgPath); err != nil {
-				return "", "", nil, nil, err
-			} else if t, _, err := struc.GetTypeNamed(typ); err != nil {
+			fullFieldType, err := g.GetFullFieldTypeName(fieldType, true)
+			if err != nil {
 				return "", "", nil, nil, err
 			} else {
-				fullFieldType := struc.TypeString(t, g.OutPkg.PkgPath)
 				init = ifElse(fieldType.RefCount > 0, "&"+fullFieldType, fullFieldType)
 			}
 
@@ -230,11 +228,9 @@ func generateBuilderParts(
 				fieldMethodNames = append(fieldMethodNames, fmn...)
 			}
 		} else {
-			fullFieldType := ""
-			if typ, err := g.Repack(fieldType.Type, g.OutPkg.PkgPath); err != nil {
+			fullFieldType, err := g.GetFullFieldTypeName(fieldType, false)
+			if err != nil {
 				return "", "", nil, nil, err
-			} else {
-				fullFieldType = struc.TypeString(typ, g.OutPkg.PkgPath)
 			}
 			builderField := generator.LegalIdentName(generator.IdentName(fieldName, exportFields))
 			if dupl, ok := uniques[builderField]; ok {

@@ -153,6 +153,19 @@
             ]
         },
         {
+            "name": "Debug get-set example",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "examples/get_set",
+            "args": [
+                "-type",
+                "Entity",
+                "get-set"
+            ]
+        },
+        {
             "name": "Debug builder example",
             "type": "go",
             "request": "launch",
