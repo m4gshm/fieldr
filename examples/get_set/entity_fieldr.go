@@ -17,7 +17,6 @@ func (e *Entity[ID]) GetID() ID {
 
 	var no ID
 	return no
-
 }
 
 func (e *Entity[ID]) SetID(iD ID) {
@@ -41,7 +40,6 @@ func (e *Entity[ID]) GetCode() string {
 
 	var no string
 	return no
-
 }
 
 func (e *Entity[ID]) SetCode(code string) {
@@ -65,7 +63,6 @@ func (e *Entity[ID]) GetForeignID() ID {
 
 	var no ID
 	return no
-
 }
 
 func (e *Entity[ID]) SetForeignID(foreignID ID) {
@@ -83,7 +80,6 @@ func (e *Entity[ID]) GetSchema() string {
 
 	var no string
 	return no
-
 }
 
 func (e *Entity[ID]) SetSchema(schema string) {
@@ -99,7 +95,6 @@ func (e *Entity[ID]) GetVersion() int {
 
 	var no int
 	return no
-
 }
 
 func (e *Entity[ID]) SetVersion(version int) {
@@ -115,7 +110,6 @@ func (e *Entity[ID]) GetNoDB() *NoDBFieldsEntity {
 
 	var no *NoDBFieldsEntity
 	return no
-
 }
 
 func (e *Entity[ID]) SetNoDB(noDB *NoDBFieldsEntity) {
@@ -131,7 +125,6 @@ func (e *Entity[ID]) GetName() StringBasedType[string] {
 
 	var no StringBasedType[string]
 	return no
-
 }
 
 func (e *Entity[ID]) SetName(name StringBasedType[string]) {
@@ -147,7 +140,6 @@ func (e *Entity[ID]) GetSurname() string {
 
 	var no string
 	return no
-
 }
 
 func (e *Entity[ID]) SetSurname(surname string) {
@@ -163,7 +155,6 @@ func (e *Entity[ID]) GetValues() []int32 {
 
 	var no []int32
 	return no
-
 }
 
 func (e *Entity[ID]) SetValues(values []int32) {
@@ -179,7 +170,6 @@ func (e *Entity[ID]) GetTs() []*time.Time {
 
 	var no []*time.Time
 	return no
-
 }
 
 func (e *Entity[ID]) SetTs(ts []*time.Time) {
@@ -195,7 +185,6 @@ func (e *Entity[ID]) GetVersioned() sql_base.VersionedEntity {
 
 	var no sql_base.VersionedEntity
 	return no
-
 }
 
 func (e *Entity[ID]) SetVersioned(versioned sql_base.VersionedEntity) {
@@ -211,7 +200,6 @@ func (e *Entity[ID]) GetChannel() chan map[time.Time]string {
 
 	var no chan map[time.Time]string
 	return no
-
 }
 
 func (e *Entity[ID]) SetChannel(channel chan map[time.Time]string) {
@@ -227,7 +215,6 @@ func (e *Entity[ID]) GetSomeMap() map[StringBasedType[string]]bytes.Buffer {
 
 	var no map[StringBasedType[string]]bytes.Buffer
 	return no
-
 }
 
 func (e *Entity[ID]) SetSomeMap(someMap map[StringBasedType[string]]bytes.Buffer) {
@@ -243,7 +230,6 @@ func (e *Entity[ID]) GetEmbedded() EmbeddedEntity {
 
 	var no EmbeddedEntity
 	return no
-
 }
 
 func (e *Entity[ID]) SetEmbedded(embedded EmbeddedEntity) {
@@ -259,7 +245,6 @@ func (e *Entity[ID]) GetOldForeignID() *foreignIDAwareEntity[ID] {
 
 	var no *foreignIDAwareEntity[ID]
 	return no
-
 }
 
 func (e *Entity[ID]) SetOldForeignID(oldForeignID *foreignIDAwareEntity[ID]) {

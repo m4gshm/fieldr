@@ -63,6 +63,20 @@ func generateGettersSetters(
 	fieldMethodNames := []string{}
 	for _, fieldName := range fieldsModel.FieldNames {
 		fieldType := fieldsModel.FieldsType[fieldName]
+		if len(pkgName) > 0 {
+			if !generator.IsExported(fieldName) {
+				logger.Debugf("cannot generate getter, setter for private field %s for package %s", fieldName, pkgName)
+				continue
+			}
+
+			if m := fieldType.Model; m != nil {
+				if !generator.IsExported(m.TypeName) {
+					logger.Debugf("cannot generate getter, setter for field %s with private type % for package %s", fieldName, m.TypeName, pkgName)
+					continue
+				}
+			}
+		}
+
 		if fieldType.Embedded {
 			ebmeddedFieldMethodNames, ebmeddedFieldMethodBodies, err := generateGettersSetters(
 				g, baseModel, fieldType.Model, pkgName, receiverVar, getterPrefix, setterPrefix, isReceiverReference, exportMethods, nolint,

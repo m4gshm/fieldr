@@ -57,7 +57,7 @@ func GenerateGetter(model *struc.Model, pkgName, receiverVar, methodName, fieldN
 		"return " + ifElse(len(varsConditionStart) > 0, conditionalPath, receiverVar) + "." + fieldName +
 		varsConditionEnd + "\n" +
 		ifElse(len(varsConditionStart) > 0, emptyResult+"\n"+"return "+emptyVar+"\n", "") +
-		"\n}\n"
+		"}\n"
 
 	return fieldMethod
 }

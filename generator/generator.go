@@ -732,6 +732,10 @@ func IdentName(name string, export bool) string {
 	return result
 }
 
+func IsExported(name string) bool {
+	return len(name) > 0 && unicode.IsUpper(rune(name[0]))
+}
+
 var illegals = map[string]struct{}{
 	"return": {},
 	"type":   {},
