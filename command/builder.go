@@ -266,7 +266,7 @@ func generateToBuilderMethodParts(
 	for _, fieldName := range model.FieldNames {
 		fieldType := model.FieldsType[fieldName]
 		if fieldType.Embedded {
-			fieldPath, conditionalPath, conditions := generator.FiledPathAndAccessCheckCondition(receiver, false, []generator.FieldInfo{{Name: fieldType.Name, Type: fieldType}})
+			fieldPath, conditionalPath, conditions := generator.FiledPathAndAccessCheckCondition(receiver, false, false, []generator.FieldInfo{{Name: fieldType.Name, Type: fieldType}})
 			if len(conditions) > 0 {
 				if embedMethodBodyPart, vars, initVars, err := generateToBuilderMethodConditionedParts(
 					fieldType.Model, fieldPath, conditionalPath, conditions, receiver, isReceiverReference, exportFields,
@@ -314,7 +314,7 @@ func generateToBuilderMethodConditionedParts(
 	for _, fieldName := range model.FieldNames {
 		fieldType := model.FieldsType[fieldName]
 		if fieldType.Embedded {
-			fieldPath, conditionalPath, subConditions := generator.FiledPathAndAccessCheckCondition(conditionalPath, false, []generator.FieldInfo{{Name: fieldType.Name, Type: fieldType}})
+			fieldPath, conditionalPath, subConditions := generator.FiledPathAndAccessCheckCondition(conditionalPath, false, false, []generator.FieldInfo{{Name: fieldType.Name, Type: fieldType}})
 			fullFielPath := parentPath + ifElse(len(fieldPath) > 0, "."+fieldPath, "")
 			if m, embedVars, i, err := generateToBuilderMethodConditionedParts(
 				fieldType.Model, fullFielPath, conditionalPath, subConditions, receiver, isReceiverReference, exportFields,

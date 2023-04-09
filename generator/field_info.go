@@ -13,12 +13,14 @@ type FieldInfo struct {
 	Type struc.FieldType
 }
 
-func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference bool, fieldParts []FieldInfo) (string, string, []string) {
+func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference, redeclareReceiver bool, fieldParts []FieldInfo) (string, string, []string) {
 	conditions := []string{}
 	shortConditionPath := ""
 	if isReceiverReference {
 		newReceiver := PathToShortVarName(receiverVar)
-		conditions = append(conditions, newReceiver+":="+receiverVar+";"+newReceiver+"!=nil")
+		conditions = append(conditions, ifElse(redeclareReceiver,
+			newReceiver+":="+receiverVar+";"+newReceiver+"!=nil",
+			newReceiver+"!=nil"))
 		shortConditionPath = newReceiver
 
 	}

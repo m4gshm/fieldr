@@ -10,10 +10,14 @@ import (
 
 func (e *Entity[ID]) GetID() ID {
 	if e != nil {
-		var no ID
-		return no
+		if be := e.BaseEntity; be != nil {
+			return be.ID
+		}
 	}
-	return e.ID
+
+	var no ID
+	return no
+
 }
 
 func (e *Entity[ID]) SetID(iD ID) {
@@ -24,10 +28,18 @@ func (e *Entity[ID]) SetID(iD ID) {
 
 func (e *Entity[ID]) GetCode() string {
 	if e != nil {
-		var no string
-		return no
+		if be := e.BaseEntity; be != nil {
+			if rcae := be.RefCodeAwareEntity; rcae != nil {
+				if cae := rcae.CodeAwareEntity; cae != nil {
+					return cae.Code
+				}
+			}
+		}
 	}
-	return e.Code
+
+	var no string
+	return no
+
 }
 
 func (e *Entity[ID]) SetCode(code string) {
@@ -38,10 +50,13 @@ func (e *Entity[ID]) SetCode(code string) {
 
 func (e *Entity[ID]) GetForeignID() ID {
 	if e != nil {
-		var no ID
-		return no
+		if be := e.BaseEntity; be != nil {
+			return be.foreignIDAwareEntity.ForeignID
+		}
 	}
-	return e.ForeignID
+
+	var no ID
+	return no
 }
 
 func (e *Entity[ID]) SetForeignID(foreignID ID) {
@@ -52,10 +67,12 @@ func (e *Entity[ID]) SetForeignID(foreignID ID) {
 
 func (e *Entity[ID]) GetSchema() string {
 	if e != nil {
-		var no string
-		return no
+		return e.metadata.Schema
 	}
-	return e.Schema
+
+	var no string
+	return no
+
 }
 
 func (e *Entity[ID]) SetSchema(schema string) {
@@ -66,10 +83,12 @@ func (e *Entity[ID]) SetSchema(schema string) {
 
 func (e *Entity[ID]) GetVersion() int {
 	if e != nil {
-		var no int
-		return no
+		return e.metadata.Version
 	}
-	return e.Version
+
+	var no int
+	return no
+
 }
 
 func (e *Entity[ID]) SetVersion(version int) {
@@ -80,10 +99,12 @@ func (e *Entity[ID]) SetVersion(version int) {
 
 func (e *Entity[ID]) GetNoDB() *NoDBFieldsEntity {
 	if e != nil {
-		var no *NoDBFieldsEntity
-		return no
+		return e.NoDB
 	}
-	return e.NoDB
+
+	var no *NoDBFieldsEntity
+	return no
+
 }
 
 func (e *Entity[ID]) SetNoDB(noDB *NoDBFieldsEntity) {
@@ -94,10 +115,12 @@ func (e *Entity[ID]) SetNoDB(noDB *NoDBFieldsEntity) {
 
 func (e *Entity[ID]) GetName() StringBasedType[string] {
 	if e != nil {
-		var no StringBasedType[string]
-		return no
+		return e.name
 	}
-	return e.name
+
+	var no StringBasedType[string]
+	return no
+
 }
 
 func (e *Entity[ID]) SetName(name StringBasedType[string]) {
@@ -108,10 +131,12 @@ func (e *Entity[ID]) SetName(name StringBasedType[string]) {
 
 func (e *Entity[ID]) GetSurname() string {
 	if e != nil {
-		var no string
-		return no
+		return e.surname
 	}
-	return e.surname
+
+	var no string
+	return no
+
 }
 
 func (e *Entity[ID]) SetSurname(surname string) {
@@ -122,10 +147,12 @@ func (e *Entity[ID]) SetSurname(surname string) {
 
 func (e *Entity[ID]) GetValues() []int32 {
 	if e != nil {
-		var no []int32
-		return no
+		return e.Values
 	}
-	return e.Values
+
+	var no []int32
+	return no
+
 }
 
 func (e *Entity[ID]) SetValues(values []int32) {
@@ -136,10 +163,12 @@ func (e *Entity[ID]) SetValues(values []int32) {
 
 func (e *Entity[ID]) GetTs() []*time.Time {
 	if e != nil {
-		var no []*time.Time
-		return no
+		return e.Ts
 	}
-	return e.Ts
+
+	var no []*time.Time
+	return no
+
 }
 
 func (e *Entity[ID]) SetTs(ts []*time.Time) {
@@ -150,10 +179,12 @@ func (e *Entity[ID]) SetTs(ts []*time.Time) {
 
 func (e *Entity[ID]) GetVersioned() sql_base.VersionedEntity {
 	if e != nil {
-		var no sql_base.VersionedEntity
-		return no
+		return e.versioned
 	}
-	return e.versioned
+
+	var no sql_base.VersionedEntity
+	return no
+
 }
 
 func (e *Entity[ID]) SetVersioned(versioned sql_base.VersionedEntity) {
@@ -164,10 +195,12 @@ func (e *Entity[ID]) SetVersioned(versioned sql_base.VersionedEntity) {
 
 func (e *Entity[ID]) GetChannel() chan map[time.Time]string {
 	if e != nil {
-		var no chan map[time.Time]string
-		return no
+		return e.channel
 	}
-	return e.channel
+
+	var no chan map[time.Time]string
+	return no
+
 }
 
 func (e *Entity[ID]) SetChannel(channel chan map[time.Time]string) {
@@ -178,10 +211,12 @@ func (e *Entity[ID]) SetChannel(channel chan map[time.Time]string) {
 
 func (e *Entity[ID]) GetSomeMap() map[StringBasedType[string]]bytes.Buffer {
 	if e != nil {
-		var no map[StringBasedType[string]]bytes.Buffer
-		return no
+		return e.someMap
 	}
-	return e.someMap
+
+	var no map[StringBasedType[string]]bytes.Buffer
+	return no
+
 }
 
 func (e *Entity[ID]) SetSomeMap(someMap map[StringBasedType[string]]bytes.Buffer) {
@@ -192,10 +227,12 @@ func (e *Entity[ID]) SetSomeMap(someMap map[StringBasedType[string]]bytes.Buffer
 
 func (e *Entity[ID]) GetEmbedded() EmbeddedEntity {
 	if e != nil {
-		var no EmbeddedEntity
-		return no
+		return e.Embedded
 	}
-	return e.Embedded
+
+	var no EmbeddedEntity
+	return no
+
 }
 
 func (e *Entity[ID]) SetEmbedded(embedded EmbeddedEntity) {
@@ -206,10 +243,12 @@ func (e *Entity[ID]) SetEmbedded(embedded EmbeddedEntity) {
 
 func (e *Entity[ID]) GetOldForeignID() *foreignIDAwareEntity[ID] {
 	if e != nil {
-		var no *foreignIDAwareEntity[ID]
-		return no
+		return e.OldForeignID
 	}
-	return e.OldForeignID
+
+	var no *foreignIDAwareEntity[ID]
+	return no
+
 }
 
 func (e *Entity[ID]) SetOldForeignID(oldForeignID *foreignIDAwareEntity[ID]) {
