@@ -55,8 +55,8 @@ func (b *EntityBuilder[ID]) Name(name string) *EntityBuilder[ID] {
 	return b
 }
 
-func (i *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
-	if i == nil {
+func (e *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
+	if e == nil {
 		return &EntityBuilder[ID]{}
 	}
 	var (
@@ -64,7 +64,7 @@ func (i *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
 		Model_CreatedAt int64
 		Model_UpdatedAt int64
 	)
-	if m := i.Model; m != nil {
+	if m := e.Model; m != nil {
 		Model_ID = m.ID
 		Model_CreatedAt = m.CreatedAt
 		Model_UpdatedAt = m.UpdatedAt
@@ -74,6 +74,6 @@ func (i *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
 		iD:        Model_ID,
 		createdAt: Model_CreatedAt,
 		updatedAt: Model_UpdatedAt,
-		name:      i.Name,
+		name:      e.Name,
 	}
 }

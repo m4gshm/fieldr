@@ -21,8 +21,8 @@ func (b EmbeddedEntityBuilder) SetMetadata(metadata string) EmbeddedEntityBuilde
 	return b
 }
 
-func (i EmbeddedEntity) ToBuilder() EmbeddedEntityBuilder {
+func (e EmbeddedEntity) ToBuilder() EmbeddedEntityBuilder {
 	return EmbeddedEntityBuilder{
-		Metadata: i.Metadata,
+		Metadata: e.Metadata,
 	}
 }

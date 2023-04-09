@@ -36,7 +36,7 @@ func NewGettersSetters() *Command {
 				return err
 			}
 
-			rec := generator.PathToShortVarName(model.TypeName)
+			rec := generator.TypeReceiverVar(model.TypeName)
 			fmn, fmb, err := generateGettersSetters(g, model, model, pkgName, rec, *getterPrefix, *setterPrefix, !(*noRefReceiver), !(*noExportMethods), *nolint, nil)
 			if err != nil {
 				return err

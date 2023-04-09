@@ -20,8 +20,8 @@ func (g *Generator) GenerateAsMapFunc(
 		return "", "", "", err
 	}
 
-	receiverVar := "v"
-	receiverRef := AsRefIfNeed(receiverVar, returnRefs)
+	receiverVar := TypeReceiverVar(model.TypeName)
+	receiverRef := ifElse(returnRefs, "&"+receiverVar, receiverVar)
 
 	funcName := renameFuncByConfig(IdentName("AsMap", export), name)
 

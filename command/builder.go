@@ -155,7 +155,7 @@ func NewBuilderStruct() *Command {
 				builderType := ifElse(*chainValue, "", "*") + builderName + typeParams
 				builderInstantiate := ifElse(*chainValue, "", "&") + builderName + typeParams
 				instanceType := ifElse(*buildValue, "", "*") + buildedType + typeParams
-				instanceReceiver := "i"
+				instanceReceiver := generator.TypeReceiverVar(model.TypeName)
 
 				b, pre, err := generateToBuilderMethodParts(g, model, instanceReceiver, "", !(*buildValue), exportFields)
 				if err != nil {

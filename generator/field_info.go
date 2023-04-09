@@ -91,3 +91,26 @@ func PathToShortVarName(fieldPath string) string {
 	path := string(pref) + string(body)
 	return path
 }
+
+func TypeReceiverVar(typeName string) string {
+	if len(typeName) > 0 {
+		if parts := strings.Split(typeName, "."); len(parts) > 1 {
+			converted := slice.Convert(parts, TypeReceiverVar)
+			if len(converted) > 1 {
+				if len(converted[1]) > 0 {
+					return converted[1]
+				} else if len(converted[0]) > 0 {
+					return converted[0]
+				}
+			}
+		} else {
+			for _, r := range typeName {
+				if !unicode.IsLetter(r) {
+					continue
+				}
+				return string(unicode.ToLower(r))
+			}
+		}
+	}
+	return "r"
+}

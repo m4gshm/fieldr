@@ -39,7 +39,10 @@ type BaseEntity[ID any] struct {
 
 type Entity[ID any] struct {
 	*BaseEntity[ID]
-	metadata
+	metadata struct {
+		Schema  string
+		Version int
+	}
 	NoDB         *NoDBFieldsEntity
 	name         StringBasedType[string]
 	surname      StringBasedAlias
@@ -54,9 +57,4 @@ type Entity[ID any] struct {
 
 type EmbeddedEntity struct {
 	Metadata string
-}
-
-type metadata struct {
-	Schema  string
-	Version int
 }

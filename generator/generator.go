@@ -887,19 +887,8 @@ func renameFuncByConfig(funcName, renameTo string) string {
 	return funcName
 }
 
-func AsRefIfNeed(receiverVar string, returnRefs bool) string {
-	receiverRef := receiverVar
-	if returnRefs {
-		receiverRef = "&" + receiverRef
-	}
-	return receiverRef
-}
-
 func GetTypeName(typeName string, pkg string) string {
-	if len(pkg) > 0 {
-		return pkg + "." + typeName
-	}
-	return typeName
+	return ifElse(len(pkg) > 0, pkg+"."+typeName, typeName)
 }
 
 func (g *Generator) getTagTemplateConstName(typeName string, fieldName struc.FieldName, tags []struc.TagName, export, snake bool) string {

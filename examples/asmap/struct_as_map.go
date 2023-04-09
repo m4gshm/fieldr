@@ -13,26 +13,26 @@ const (
 	FlatBank     StructField = "Bank"
 )
 
-func (v *Struct[n]) AsMap() map[StructField]interface{} {
-	if v == nil {
+func (s *Struct[n]) AsMap() map[StructField]interface{} {
+	if s == nil {
 		return nil
 	}
 	m := map[StructField]interface{}{}
-	if bs := v.BaseStruct; bs != nil {
+	if bs := s.BaseStruct; bs != nil {
 		m[BaseStructID] = bs.ID
 	}
-	if bs := v.BaseStruct; bs != nil {
+	if bs := s.BaseStruct; bs != nil {
 		if ts := bs.TS; ts != nil {
 			m[BaseStructTS] = ts
 		}
 	}
-	m[Name] = v.Name
-	m[Surname] = v.Surname
-	m[NoTag] = v.NoTag
-	if a := v.Address; a != nil {
+	m[Name] = s.Name
+	m[Surname] = s.Surname
+	m[NoTag] = s.NoTag
+	if a := s.Address; a != nil {
 		m[Address] = a.AsMap()
 	}
-	m[FlatCardNum] = v.Flat.CardNum
-	m[FlatBank] = v.Flat.Bank
+	m[FlatCardNum] = s.Flat.CardNum
+	m[FlatBank] = s.Flat.Bank
 	return m
 }

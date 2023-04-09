@@ -171,8 +171,8 @@ func (b *EntityBuilder[ID]) SetOldForeignID(oldForeignID *ForeignIDAwareEntity[I
 	return b
 }
 
-func (i *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
-	if i == nil {
+func (e *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
+	if e == nil {
 		return &EntityBuilder[ID]{}
 	}
 	var (
@@ -180,7 +180,7 @@ func (i *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
 		BaseEntity_RefCodeAwareEntity_CodeAwareEntity_Code string
 		BaseEntity_ForeignIDAwareEntity_ForeignID          ID
 	)
-	if be := i.BaseEntity; be != nil {
+	if be := e.BaseEntity; be != nil {
 		BaseEntity_ID = be.ID
 		if rcae := be.RefCodeAwareEntity; rcae != nil {
 			if cae := rcae.CodeAwareEntity; cae != nil {
@@ -194,17 +194,17 @@ func (i *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
 		ID:           BaseEntity_ID,
 		Code:         BaseEntity_RefCodeAwareEntity_CodeAwareEntity_Code,
 		ForeignID:    BaseEntity_ForeignIDAwareEntity_ForeignID,
-		Schema:       i.Metadata.Schema,
-		Version:      i.Metadata.Version,
-		NoDB:         i.NoDB,
-		Name:         i.Name,
-		Surname:      i.Surname,
-		Values:       i.Values,
-		Ts:           i.Ts,
-		Versioned:    i.Versioned,
-		Chan:         i.Chan,
-		SomeMap:      i.SomeMap,
-		Embedded:     i.Embedded,
-		OldForeignID: i.OldForeignID,
+		Schema:       e.Metadata.Schema,
+		Version:      e.Metadata.Version,
+		NoDB:         e.NoDB,
+		Name:         e.Name,
+		Surname:      e.Surname,
+		Values:       e.Values,
+		Ts:           e.Ts,
+		Versioned:    e.Versioned,
+		Chan:         e.Chan,
+		SomeMap:      e.SomeMap,
+		Embedded:     e.Embedded,
+		OldForeignID: e.OldForeignID,
 	}
 }

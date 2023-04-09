@@ -169,8 +169,8 @@ func (b *EntityBuilder[ID]) OldForeignID(oldForeignID *builder.ForeignIDAwareEnt
 	return b
 }
 
-func ToBuilder[ID any](i *builder.Entity[ID]) *EntityBuilder[ID] {
-	if i == nil {
+func ToBuilder[ID any](e *builder.Entity[ID]) *EntityBuilder[ID] {
+	if e == nil {
 		return &EntityBuilder[ID]{}
 	}
 	var (
@@ -178,7 +178,7 @@ func ToBuilder[ID any](i *builder.Entity[ID]) *EntityBuilder[ID] {
 		BaseEntity_RefCodeAwareEntity_CodeAwareEntity_Code string
 		BaseEntity_ForeignIDAwareEntity_ForeignID          ID
 	)
-	if be := i.BaseEntity; be != nil {
+	if be := e.BaseEntity; be != nil {
 		BaseEntity_ID = be.ID
 		if rcae := be.RefCodeAwareEntity; rcae != nil {
 			if cae := rcae.CodeAwareEntity; cae != nil {
@@ -192,17 +192,17 @@ func ToBuilder[ID any](i *builder.Entity[ID]) *EntityBuilder[ID] {
 		iD:           BaseEntity_ID,
 		code:         BaseEntity_RefCodeAwareEntity_CodeAwareEntity_Code,
 		foreignID:    BaseEntity_ForeignIDAwareEntity_ForeignID,
-		schema:       i.Metadata.Schema,
-		version:      i.Metadata.Version,
-		noDB:         i.NoDB,
-		name:         i.Name,
-		surname:      i.Surname,
-		values:       i.Values,
-		ts:           i.Ts,
-		versioned:    i.Versioned,
-		chan_:        i.Chan,
-		someMap:      i.SomeMap,
-		embedded:     i.Embedded,
-		oldForeignID: i.OldForeignID,
+		schema:       e.Metadata.Schema,
+		version:      e.Metadata.Version,
+		noDB:         e.NoDB,
+		name:         e.Name,
+		surname:      e.Surname,
+		values:       e.Values,
+		ts:           e.Ts,
+		versioned:    e.Versioned,
+		chan_:        e.Chan,
+		someMap:      e.SomeMap,
+		embedded:     e.Embedded,
+		oldForeignID: e.OldForeignID,
 	}
 }

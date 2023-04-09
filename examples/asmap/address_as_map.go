@@ -7,12 +7,12 @@ const (
 	AddressLine EmbeddedAddressField = "AddressLine"
 )
 
-func (v *EmbeddedAddress) AsMap() map[EmbeddedAddressField]interface{} {
-	if v == nil {
+func (e *EmbeddedAddress) AsMap() map[EmbeddedAddressField]interface{} {
+	if e == nil {
 		return nil
 	}
 	m := map[EmbeddedAddressField]interface{}{}
-	m[ZipCode] = v.ZipCode
-	m[AddressLine] = v.AddressLine
+	m[ZipCode] = e.ZipCode
+	m[AddressLine] = e.AddressLine
 	return m
 }

@@ -73,33 +73,27 @@ func (e *Entity[ID]) SetForeignID(foreignID ID) {
 	}
 }
 
-func (e *Entity[ID]) GetSchema() string {
+func (e *Entity[ID]) GetMetadata() struct {
+	Schema  string
+	Version int
+} {
 	if e != nil {
-		return e.metadata.Schema
+		return e.metadata
 	}
 
-	var no string
+	var no struct {
+		Schema  string
+		Version int
+	}
 	return no
 }
 
-func (e *Entity[ID]) SetSchema(schema string) {
+func (e *Entity[ID]) SetMetadata(metadata struct {
+	Schema  string
+	Version int
+}) {
 	if e != nil {
-		e.metadata.Schema = schema
-	}
-}
-
-func (e *Entity[ID]) GetVersion() int {
-	if e != nil {
-		return e.metadata.Version
-	}
-
-	var no int
-	return no
-}
-
-func (e *Entity[ID]) SetVersion(version int) {
-	if e != nil {
-		e.metadata.Version = version
+		e.metadata = metadata
 	}
 }
 
