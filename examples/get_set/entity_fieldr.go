@@ -22,7 +22,9 @@ func (e *Entity[ID]) GetID() ID {
 
 func (e *Entity[ID]) SetID(iD ID) {
 	if e != nil {
-		e.ID = iD
+		if be := e.BaseEntity; be != nil {
+			be.ID = iD
+		}
 	}
 }
 
@@ -44,7 +46,13 @@ func (e *Entity[ID]) GetCode() string {
 
 func (e *Entity[ID]) SetCode(code string) {
 	if e != nil {
-		e.Code = code
+		if be := e.BaseEntity; be != nil {
+			if rcae := be.RefCodeAwareEntity; rcae != nil {
+				if cae := rcae.CodeAwareEntity; cae != nil {
+					cae.Code = code
+				}
+			}
+		}
 	}
 }
 
@@ -57,11 +65,14 @@ func (e *Entity[ID]) GetForeignID() ID {
 
 	var no ID
 	return no
+
 }
 
 func (e *Entity[ID]) SetForeignID(foreignID ID) {
 	if e != nil {
-		e.ForeignID = foreignID
+		if be := e.BaseEntity; be != nil {
+			be.foreignIDAwareEntity.ForeignID = foreignID
+		}
 	}
 }
 
@@ -77,7 +88,7 @@ func (e *Entity[ID]) GetSchema() string {
 
 func (e *Entity[ID]) SetSchema(schema string) {
 	if e != nil {
-		e.Schema = schema
+		e.metadata.Schema = schema
 	}
 }
 
@@ -93,7 +104,7 @@ func (e *Entity[ID]) GetVersion() int {
 
 func (e *Entity[ID]) SetVersion(version int) {
 	if e != nil {
-		e.Version = version
+		e.metadata.Version = version
 	}
 }
 
