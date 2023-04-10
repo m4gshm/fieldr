@@ -7,8 +7,10 @@ import (
 )
 
 var logger *zap.SugaredLogger
+var debugEnabled bool
 
 func Init(debug bool) {
+	debugEnabled = debug
 	developmentConfig := zap.NewDevelopmentConfig()
 	if !debug {
 		developmentConfig.Development = false
@@ -35,4 +37,8 @@ func Debugf(template string, args ...interface{}) {
 // Infof writes a warn message to the output.
 func Infof(template string, args ...interface{}) {
 	logger.Infof(template, args...)
+}
+
+func IsDebug() bool {
+	return debugEnabled
 }

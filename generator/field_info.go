@@ -22,7 +22,6 @@ func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference, r
 			newReceiver+":="+receiverVar+";"+newReceiver+"!=nil",
 			newReceiver+"!=nil"))
 		shortConditionPath = newReceiver
-
 	}
 	fieldPath := ""
 	for _, part := range fieldParts {

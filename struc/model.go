@@ -6,6 +6,8 @@ import (
 	"go/token"
 	"go/types"
 
+	"github.com/m4gshm/gollections/immutable/ordered"
+	"github.com/m4gshm/gollections/map_"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -45,30 +47,29 @@ type (
 )
 
 // New - Model's default constructor.
-func New(outPkgPath string, filePackages map[*ast.File]*packages.Package, files []*ast.File, fileSet *token.FileSet, typeName string) (*Model, error) {
-	for _, file := range files {
-		var (
-			filePackage = filePackages[file]
-			pkg         = filePackage.Types
-		)
+func New(outPkgPath string, filePackages ordered.Map[*ast.File, *packages.Package], fileSet *token.FileSet, typeName string) (*Model, error) {
+	var result *Model
+	return result, filePackages.Track(func(file *ast.File, filePackage *packages.Package) error {
+		pkg := filePackage.Types
 		lookup := pkg.Scope().Lookup(typeName)
 		if lookup == nil {
-			continue
+			return nil
 		}
 		typ := lookup.Type()
 		if structType, _, err := GetStructTypeNamed(typ); err != nil {
-			return nil, err
+			return err
 		} else if structType == nil {
-			return nil, fmt.Errorf("type '%s' is not struct", typeName)
+			return fmt.Errorf("type '%s' is not struct", typeName)
 		} else if builder, err := newBuilder(outPkgPath, handledStructs{}); err != nil {
-			return nil, fmt.Errorf("new builder of %v: %w", typeName, err)
+			return fmt.Errorf("new builder of %v: %w", typeName, err)
 		} else if structModel, err := builder.newModel(pkg, structType); err != nil {
-			return nil, fmt.Errorf("new model of %v: %w", typeName, err)
+			return fmt.Errorf("new model of %v: %w", typeName, err)
 		} else if structModel != nil {
-			return structModel, nil
+			result = structModel
+			return map_.ErrBreak
 		}
-	}
-	return nil, nil
+		return nil
+	})
 }
 
 func newFieldTagValues(fieldTagNames []TagName, tagValues map[TagName]TagValue) map[TagName]TagValue {

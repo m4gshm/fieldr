@@ -15,7 +15,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/m4gshm/gollections/K"
+	"github.com/m4gshm/gollections/c"
+	"github.com/m4gshm/gollections/map_"
 	"github.com/m4gshm/gollections/mutable/omap"
+	"github.com/m4gshm/gollections/mutable/ordered"
 	"github.com/m4gshm/gollections/slice"
 	"golang.org/x/tools/go/packages"
 
@@ -92,121 +96,133 @@ func run() error {
 
 	fileSet := token.NewFileSet()
 
-	wdSrcPkg, err := extractPackage(fileSet, *buildTags, workDir)
+	filesPackages, err := extractSrcFiles(fileSet, *buildTags, workDir)
 	if err != nil {
 		return err
 	}
-	wdSrcFiles := wdSrcPkg.Syntax
 
 	typeConfigs := omap.Empty[params.TypeConfig, []*command.Command]()
 
 	typeConfig := *commonTypeConfig
 
-	filesCmdArgs, err := newFilesCommentsConfig(wdSrcFiles, fileSet)
+	filesCmdArgs, err := newFilesCommentsConfig(filesPackages, fileSet)
 	if err != nil {
 		return err
 	}
 
 	notCmdLineType := len(typeConfig.Type) == 0
 
-	for _, f := range filesCmdArgs {
-		for _, cmt := range f.commentArgs {
-			name := strings.Join(cmt.args, " ")
-			configParser := newConfigFlagSet(name)
-			commentConfig := params.NewTypeConfig(configParser)
-			if err := configParser.Parse(cmt.args); err != nil {
-				return err
-			}
-
-			if notCmdLineType {
-				if len(commentConfig.Type) != 0 {
-					typeConfig.Type = commentConfig.Type
-					if len(typeConfig.Output) == 0 {
-						typeConfig.Output = commentConfig.Output
-					}
-					if len(typeConfig.OutPackage) == 0 {
-						typeConfig.OutPackage = commentConfig.OutPackage
-					}
-					if len(typeConfig.OutBuildTags) == 0 {
-						typeConfig.OutBuildTags = commentConfig.OutBuildTags
-					}
-					logger.Debugf("init first type %+v by comment type %+v", typeConfig, *commentConfig)
-				}
-				notCmdLineType = false
-			}
-
-			if commentConfig.Type == typeConfig.Type && commentConfig.Output == typeConfig.Output {
-				logger.Debugf("skip comment config because its type and out are equal to prev: comment config %+v, prev %+v", commentConfig, typeConfig)
-				//skip
-			} else if len(commentConfig.Type) == 0 && commentConfig.Output == typeConfig.Output {
-				//skip
-				logger.Debugf("skip comment config because its out is equal to prev: comment config %+v, prev %+v", commentConfig, typeConfig)
-			} else if len(commentConfig.Type) != 0 || len(commentConfig.Output) != 0 {
-				if len(commentConfig.Type) == 0 {
-					(*commentConfig).Type = typeConfig.Type
-				}
-
-				logger.Debugf("detect another type %+v\n", *commentConfig)
-
-				if len(commands) == 0 {
-					logger.Debugf("no commands for type %v", typeConfig)
-					typeConfig = *commentConfig
-				} else {
-					typeConfigs.Set(typeConfig, commands)
-					logger.Debugf("set type %+v, commands %d\n", typeConfig, len(commands))
-					typeConfig = *commentConfig
-					commands = []*command.Command{}
-				}
-			}
-
-			unusedArgs := configParser.Args()
-			cmtCommands, cmtArgs, err := parseCommands(unusedArgs)
-
-			// cmtCommands, cmtArgs, err := parseCommands(cmt.args)
-			if err != nil {
-				var uErr *use.Error
-				if errors.As(err, &uErr) {
-					return use.FileCommentErr(uErr.Error(), f.astFile, f.tokenFile, cmt.comment)
-				}
-				return err
-			} else if len(cmtCommands) == 0 {
-				// logger.Debugf("no comment generator commands: file %s, line: %d args %v\n", f.file.Name, cmt.comment.Pos(), cmtArgs)
-			} else if len(cmtArgs) > 0 {
-				logger.Debugf("unspent comment line args: %v\n", cmtArgs)
-			}
-			commands = append(commands, cmtCommands...)
+	fileCommentArgPairs := slice.Flatt(filesCmdArgs, func(f fileCmdArgs) []c.KV[fileCmdArgs, commentCmdArgs] {
+		return slice.Convert(f.commentArgs, constKeyBuilder[commentCmdArgs](f))
+	})
+	for _, kv := range fileCommentArgPairs {
+		var (
+			file           = kv.K
+			commentCmdArgs = kv.V
+			configParser   = newConfigFlagSet(strings.Join(commentCmdArgs.args, " "))
+			commentConfig  = params.NewTypeConfig(configParser)
+		)
+		if err := configParser.Parse(commentCmdArgs.args); err != nil {
+			return err
 		}
+		if notCmdLineType {
+			if len(commentConfig.Type) != 0 {
+				typeConfig.Type = commentConfig.Type
+				if len(typeConfig.Output) == 0 {
+					typeConfig.Output = commentConfig.Output
+				}
+				if len(typeConfig.OutPackage) == 0 {
+					typeConfig.OutPackage = commentConfig.OutPackage
+				}
+				if len(typeConfig.OutBuildTags) == 0 {
+					typeConfig.OutBuildTags = commentConfig.OutBuildTags
+				}
+				logger.Debugf("init first type %+v by comment type %+v", typeConfig, *commentConfig)
+			}
+			notCmdLineType = false
+		}
+
+		if commentConfig.Type == typeConfig.Type && commentConfig.Output == typeConfig.Output {
+			logger.Debugf("skip comment config because its type and out are equal to prev: comment config %+v, prev %+v", commentConfig, typeConfig)
+			//skip
+		} else if len(commentConfig.Type) == 0 && commentConfig.Output == typeConfig.Output {
+			//skip
+			logger.Debugf("skip comment config because its out is equal to prev: comment config %+v, prev %+v", commentConfig, typeConfig)
+		} else if len(commentConfig.Type) != 0 || len(commentConfig.Output) != 0 {
+			if len(commentConfig.Type) == 0 {
+				(*commentConfig).Type = typeConfig.Type
+			}
+
+			logger.Debugf("detect another type %+v\n", *commentConfig)
+
+			if len(commands) == 0 {
+				logger.Debugf("no commands for type %v", typeConfig)
+				typeConfig = *commentConfig
+			} else {
+				typeConfigs.Set(typeConfig, commands)
+				logger.Debugf("set type %+v, commands %d\n", typeConfig, len(commands))
+				typeConfig = *commentConfig
+				commands = []*command.Command{}
+			}
+		}
+
+		unusedArgs := configParser.Args()
+		cmtCommands, cmtArgs, err := parseCommands(unusedArgs)
+
+		// cmtCommands, cmtArgs, err := parseCommands(cmt.args)
+		if err != nil {
+			var uErr *use.Error
+			if errors.As(err, &uErr) {
+				return use.FileCommentErr(uErr.Error(), file.astFile, file.tokenFile, commentCmdArgs.comment)
+			}
+			return err
+		} else if len(cmtCommands) == 0 {
+			// logger.Debugf("no comment generator commands: file %s, line: %d args %v\n", f.file.Name, cmt.comment.Pos(), cmtArgs)
+		} else if len(cmtArgs) > 0 {
+			logger.Debugf("unspent comment line args: %v\n", cmtArgs)
+		}
+		commands = append(commands, cmtCommands...)
 	}
 
 	typeConfigs.Set(typeConfig, commands)
 
+	pkgPtrn := *packagePattern
+	if pkgPtrn != "." {
+		if pkgPatternSrcFiles, err := extractSrcFiles(fileSet, *buildTags, pkgPtrn); err != nil {
+			return err
+		} else {
+			filesPackages.SetAll(pkgPatternSrcFiles)
+		}
+	}
+
 	logger.Debugf("set type last %+v, commands: %s\n", typeConfig, strings.Join(slice.Convert(commands, (*command.Command).Name), ", "))
 
-	srcPkg, err := extractPackage(fileSet, *buildTags, *packagePattern)
-	if err != nil {
+	if err = appendSrcFiles(*inputs, *buildTags, fileSet, filesPackages); err != nil {
 		return err
 	}
-	srcFiles := srcPkg.Syntax
 
-	filePackages := make(map[*ast.File]*packages.Package)
-	for _, file := range srcFiles {
-		filePackages[file] = srcPkg
-	}
+	logger.Debugf("source files amount %d", filesPackages.Len())
 
-	srcFiles, err = loadSrcFiles(*inputs, *buildTags, fileSet, srcFiles, filePackages)
-	if err != nil {
-		return err
+	if logger.IsDebug() {
+		filesPackages.Keys().ForEach(func(file *ast.File) {
+			if info := fileSet.File(file.Pos()); info != nil {
+				logger.Debugf("found source file %s", info.Name())
+			}
+		})
 	}
 
 	return typeConfigs.Track(func(typeConfig params.TypeConfig, commands []*command.Command) error {
 		logger.Debugf("using type config %+v\n", typeConfig)
 
+		typeName := typeConfig.Type
+
+		if len(typeName) == 0 {
+			logger.Debugf("error config without type %+v", typeConfig)
+			return use.Err("no type arg")
+		}
+
 		outputName := typeConfig.Output
 		if outputName == "" {
-			typeName := typeConfig.Type
-			if len(typeName) == 0 {
-				return use.Err("no type arg")
-			}
 
 			baseName := typeName + params.DefaultFileSuffix
 			outputName = strings.ToLower(baseName)
@@ -216,30 +232,39 @@ func run() error {
 			return err
 		}
 
+		logger.Debugf("trying to find output file %s", outputName)
+
 		var outFile *ast.File
 		var outFileInfo *token.File
-		for _, file := range srcFiles {
-			if info := fileSet.File(file.Pos()); info.Name() == outputName {
+		var outPkg *packages.Package
+		if err := filesPackages.Track(func(file *ast.File, p *packages.Package) error {
+			info := fileSet.File(file.Pos())
+			srcFileName := info.Name()
+			if srcFileName == outputName {
 				outFileInfo = info
 				outFile = file
-				break
+				outPkg = p
+				logger.Debugf("out file found %s", outputName)
+				return map_.ErrBreak
 			}
+			return nil
+		}); err != nil {
+			return err
 		}
 
-		var outPkg *packages.Package
-		if outFile != nil {
-			outPkg = filePackages[outFile]
-		} else {
+		if outFile == nil {
+			logger.Debugf("out file not found, trying to fix")
 			var stat os.FileInfo
 			stat, err = os.Stat(outputName)
 			noExists := errors.Is(err, os.ErrNotExist)
 			if noExists {
+				logger.Debugf("out file not exists")
 				dir := filepath.Dir(outputName)
 				outPkg, err = dirPackage(dir, nil)
 				if err != nil {
 					return err
 				} else if outPkg == nil {
-					return fmt.Errorf("canot detenrime output package, path '%v'", dir)
+					return fmt.Errorf("canot determine output package, path '%v'", dir)
 				}
 			} else if err != nil {
 				return err
@@ -258,13 +283,15 @@ func run() error {
 					if outFileInfo == nil {
 						return fmt.Errorf("error of reading metadata of output file %v", outputName)
 					}
+				} else {
+					return fmt.Errorf("out file not found: %s", outputName)
 				}
 			}
 		}
 
 		g := generator.New(params.Name, typeConfig.OutBuildTags, outFile, outFileInfo, outPkg)
 
-		ctx := &command.Context{TypeConfig: typeConfig, Generator: g, FilePackages: filePackages, Files: srcFiles, FileSet: fileSet}
+		ctx := &command.Context{TypeConfig: typeConfig, Generator: g, FilePackages: filesPackages.Immutable() /*, Files: srcFiles*/, FileSet: fileSet}
 		for _, c := range commands {
 			if err := c.Run(ctx); err != nil {
 				return err
@@ -318,18 +345,17 @@ type fileCmdArgs struct {
 	commentArgs []commentCmdArgs
 }
 
-func newFilesCommentsConfig(files []*ast.File, fileSet *token.FileSet) ([]fileCmdArgs, error) {
+func newFilesCommentsConfig(files *ordered.Map[*ast.File, *packages.Package], fileSet *token.FileSet) ([]fileCmdArgs, error) {
 	result := []fileCmdArgs{}
-	for _, file := range files {
+	return result, files.Keys().For(func(file *ast.File) error {
 		ft := fileSet.File(file.Pos())
 		if args, err := getFileCommentCmdArgs(file, ft); err != nil {
-			return nil, err
+			return err
 		} else if len(args) > 0 {
-
 			result = append(result, fileCmdArgs{astFile: file, tokenFile: ft, commentArgs: args})
 		}
-	}
-	return result, nil
+		return nil
+	})
 }
 
 type commentCmdArgs struct {
@@ -419,18 +445,15 @@ func splitArgs(rawArgs string) ([]string, error) {
 	return args, nil
 }
 
-func loadSrcFiles(inputs []string, buildTags []string, fileSet *token.FileSet, files []*ast.File, filePackages map[*ast.File]*packages.Package) ([]*ast.File, error) {
+func appendSrcFiles(inputs []string, buildTags []string, fileSet *token.FileSet, filePackages *ordered.Map[*ast.File, *packages.Package]) error {
 	for _, srcFile := range inputs {
-		file, pkg, err := loadFile(srcFile, buildTags, fileSet)
-		if err != nil {
-			return nil, err
-		}
-		if _, ok := filePackages[file]; !ok {
-			files = append(files, file)
-			filePackages[file] = pkg
+		if file, pkg, err := loadFile(srcFile, buildTags, fileSet); err != nil {
+			return err
+		} else if ok := filePackages.Contains(file); !ok {
+			filePackages.Set(file, pkg)
 		}
 	}
-	return files, nil
+	return nil
 }
 
 func loadFile(srcFile string, buildTags []string, fileSet *token.FileSet) (*ast.File, *packages.Package, error) {
@@ -455,7 +478,14 @@ func loadFile(srcFile string, buildTags []string, fileSet *token.FileSet) (*ast.
 }
 
 func dirPackage(dir string, buildTags []string) (*packages.Package, error) {
-	pack, err := packages.Load(&packages.Config{Mode: packageMode, BuildFlags: buildTagsArg(buildTags)}, dir)
+	pack, err := packages.Load(&packages.Config{
+		Mode:       packageMode,
+		BuildFlags: buildTagsArg(buildTags),
+		Tests:      true,
+		Logf: func(format string, args ...interface{}) {
+			logger.Debugf("packages.Load: dir "+dir+" : "+format, args...)
+		},
+	}, dir)
 	if err != nil {
 		return nil, err
 	}
@@ -465,33 +495,32 @@ func dirPackage(dir string, buildTags []string) (*packages.Package, error) {
 	return nil, nil
 }
 
-func isDir(name string) (bool, error) {
-	info, err := os.Stat(name)
-	if err != nil {
-		return false, err
-	}
-	return info.IsDir(), nil
-}
+const packageMode = packages.NeedSyntax | packages.NeedName | packages.NeedTypesInfo | packages.NeedTypes | packages.NeedModule
 
-const packageMode = packages.NeedSyntax | packages.NeedModule | packages.NeedName | packages.NeedTypesInfo | packages.NeedTypes
-
-func extractPackage(fileSet *token.FileSet, buildTags []string, patterns ...string) (*packages.Package, error) {
-	_packages, err := packages.Load(&packages.Config{
-		Fset: fileSet, Mode: packageMode, BuildFlags: buildTagsArg(buildTags),
-	}, patterns...)
-	if err != nil {
+func extractSrcFiles(fileSet *token.FileSet, buildTags []string, patterns ...string) (*ordered.Map[*ast.File, *packages.Package], error) {
+	if _packages, err := packages.Load(&packages.Config{
+		Fset:       fileSet,
+		Mode:       packageMode,
+		BuildFlags: buildTagsArg(buildTags),
+		Tests:      true,
+		Logf:       func(format string, args ...interface{}) { logger.Debugf("packages.Load: "+format, args...) },
+	}, patterns...); err != nil {
 		return nil, err
+	} else {
+		return omap.Of(slice.Flatt(_packages, func(p *packages.Package) []c.KV[*ast.File, *packages.Package] {
+			return slice.Convert(p.Syntax, constValBuilder[*ast.File](p))
+		})...), nil
 	}
-	if len(_packages) != 1 {
-		return nil, fmt.Errorf("%d packages found", len(_packages))
-	}
-	pack := _packages[0]
-	if errs := pack.Errors; len(errs) > 0 {
-		logger.Debugf("package error; %v", errs[0])
-	}
-	return pack, nil
 }
 
 func buildTagsArg(buildTags []string) []string {
 	return []string{fmt.Sprintf("-tags=%s", strings.Join(buildTags, " "))}
+}
+
+func constValBuilder[KEY, VAL any](val VAL) func(key KEY) c.KV[KEY, VAL] {
+	return func(key KEY) c.KV[KEY, VAL] { return K.V(key, val) }
+}
+
+func constKeyBuilder[VAL, KEY any](key KEY) func(val VAL) c.KV[KEY, VAL] {
+	return func(val VAL) c.KV[KEY, VAL] { return K.V(key, val) }
 }

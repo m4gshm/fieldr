@@ -63,7 +63,7 @@ package get_set
 
 import "time"
 
-func (e *Entity[ID]) GetId() ID {
+func (e *Entity[ID]) Id() ID {
     if e != nil {
         if be := e.BaseEntity; be != nil {
             return be.id
@@ -82,7 +82,7 @@ func (e *Entity[ID]) SetId(id ID) {
     }
 }
 
-func (e *Entity[ID]) GetName() string {
+func (e *Entity[ID]) Name() string {
     if e != nil {
         return e.name
     }
@@ -97,7 +97,7 @@ func (e *Entity[ID]) SetName(name string) {
     }
 }
 
-func (e *Entity[ID]) GetSurname() string {
+func (e *Entity[ID]) Surname() string {
     if e != nil {
         return e.surname
     }
@@ -112,7 +112,7 @@ func (e *Entity[ID]) SetSurname(surname string) {
     }
 }
 
-func (e *Entity[ID]) GetTs() time.Time {
+func (e *Entity[ID]) Ts() time.Time {
     if e != nil {
         return e.ts
     }

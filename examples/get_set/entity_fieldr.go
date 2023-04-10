@@ -73,7 +73,7 @@ func (e *Entity[ID]) SetForeignID(foreignID ID) {
 	}
 }
 
-func (e *Entity[ID]) GetMetadata() struct {
+func (e *Entity[ID]) Metadata() struct {
 	Schema  string
 	Version int
 } {

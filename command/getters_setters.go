@@ -15,7 +15,7 @@ func NewGettersSetters() *Command {
 	)
 	var (
 		flagSet         = flag.NewFlagSet(cmdName, flag.ContinueOnError)
-		getterPrefix    = flagSet.String("getter-prefix", "Get", "getter methods prefix")
+		getterPrefix    = flagSet.String("getter-prefix", "", "getter methods prefix")
 		setterPrefix    = flagSet.String("setter-prefix", "Set", "setter methods prefix")
 		noExportMethods = flagSet.Bool("no-export", false, "no export generated methods")
 		noRefReceiver   = flagSet.Bool("no-ref", false, "use value type (not pointer) for methods receiver")
@@ -92,6 +92,10 @@ func generateGettersSetters(
 				return nil, nil, err
 			}
 			suffix := generator.LegalIdentName(generator.IdentName(fieldName, true))
+
+			if len(getterPrefix) == 0 || getterPrefix == generator.Autoname {
+				getterPrefix = ifElse(suffix == fieldName, "Get", "")
+			}
 			getterName := generator.IdentName(getterPrefix+suffix, exportMethods)
 			getterBody := generator.GenerateGetter(baseModel, pkgName, receiverVar, getterName, fieldName, fullFieldType, g.OutPkg.PkgPath, nolint, isReceiverReference, parentFieldInfo)
 			setterName := generator.IdentName(setterPrefix+suffix, exportMethods)
