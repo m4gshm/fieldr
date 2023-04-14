@@ -31,7 +31,8 @@ type Generator struct {
 
 	outFile      *ast.File
 	outFileInfo  *token.File
-	OutPkg       *packages.Package
+	OutPkgPath   string
+	OutPkgTypes  *types.Package
 	outBuildTags string
 
 	body *bytes.Buffer
@@ -112,13 +113,14 @@ func (c constants) nvMap() map[string]string {
 	return r
 }
 
-func New(name, outBuildTags string, outFile *ast.File, outFileInfo *token.File, outPkg *packages.Package) *Generator {
+func New(name, outBuildTags string, outFile *ast.File, outFileInfo *token.File, pkgPath string, pkgTypes *types.Package) *Generator {
 	return &Generator{
 		name:           name,
 		outBuildTags:   outBuildTags,
 		outFile:        outFile,
 		outFileInfo:    outFileInfo,
-		OutPkg:         outPkg,
+		OutPkgTypes:    pkgTypes,
+		OutPkgPath:     pkgPath,
 		constNames:     []string{},
 		constants:      map[string]constant{},
 		varNames:       []string{},
@@ -179,7 +181,7 @@ func OutPackageName(outPackageName string, outPackage *packages.Package) string 
 
 func (g *Generator) GetPackageName(pkgName, pkgPath string) (string, error) {
 	logger.Debugf("GetPackageName pkgName %s, pkgPath %s", pkgName, pkgPath)
-	needImport := pkgPath != g.OutPkg.PkgPath
+	needImport := pkgPath != g.OutPkgPath
 	if !needImport {
 		return "", nil
 	}
@@ -235,6 +237,7 @@ func (g *Generator) GetPackageName(pkgName, pkgPath string) (string, error) {
 
 func (g *Generator) WriteBody(outPackageName string) error {
 	if g.rewriteOutFile {
+		logger.Debugf("rewrites output file")
 		g.body = &bytes.Buffer{}
 		if err := g.writeHead(outPackageName); err != nil {
 			return err
@@ -255,22 +258,26 @@ func (g *Generator) WriteBody(outPackageName string) error {
 			return err
 		}
 	} else {
+		logger.Debugf("injects to output file")
 		//injects
+		name := g.outFileInfo.Name()
+
 		chunks, err := g.getInjectChunks(g.outFile, g.outFileInfo.Base())
 		if err != nil {
-			return err
+			return fmt.Errorf("get inject chunks %s: %w", name, err)
 		}
-		name := g.outFileInfo.Name()
+
 		fileBytes, err := ioutil.ReadFile(name)
 		if err != nil {
-			return err
+			return fmt.Errorf("read file %s: %w", name, err)
 		}
 
 		if newFileContent, err := inject(chunks, string(fileBytes)); err != nil {
-			return err
+			return fmt.Errorf("do injects: file %s: %w", name, err)
 		} else {
 			g.body = bytes.NewBufferString(newFileContent)
 		}
+
 		//write not injected
 		g.filterInjected()
 
@@ -309,6 +316,9 @@ func isRewrite(outFile *ast.File, outFileInfo *token.File, generatedMarker strin
 }
 
 func (g *Generator) findImportPackageAlias(pkgPath string, outFile *ast.File) (string, bool, error) {
+	if outFile == nil {
+		return "", false, nil
+	}
 	for _, decl := range outFile.Decls {
 		switch dt := decl.(type) {
 		case *ast.GenDecl:
@@ -334,6 +344,9 @@ func (g *Generator) findImportPackageAlias(pkgPath string, outFile *ast.File) (s
 }
 
 func hasDuplicatedPackage(outFile *ast.File, packageName string) (bool, error) {
+	if outFile == nil {
+		return false, nil
+	}
 	for _, decl := range outFile.Decls {
 		switch dt := decl.(type) {
 		case *ast.GenDecl:
@@ -1048,7 +1061,7 @@ func (g *Generator) Repack(typ types.Type, basePackagePath string) (types.Type, 
 }
 
 func (g *Generator) GetFullFieldTypeName(fieldType struc.FieldType, baseType bool) (string, error) {
-	typ, err := g.Repack(fieldType.Type, g.OutPkg.PkgPath)
+	typ, err := g.Repack(fieldType.Type, g.OutPkgPath)
 	if err != nil {
 		return "", err
 	}
@@ -1058,7 +1071,7 @@ func (g *Generator) GetFullFieldTypeName(fieldType struc.FieldType, baseType boo
 			return "", err
 		}
 	}
-	return struc.TypeString(typ, g.OutPkg.PkgPath), nil
+	return struc.TypeString(typ, g.OutPkgPath), nil
 }
 
 func NoLint(nolint bool) string {

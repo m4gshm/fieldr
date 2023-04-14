@@ -61,7 +61,7 @@ func NewBuilderStruct() *Command {
 			obj := typ.Obj()
 
 			btyp := types.NewNamed(
-				types.NewTypeName(obj.Pos(), g.OutPkg.Types, builderName, types.NewStruct(nil, nil)), typ.Underlying(), nil,
+				types.NewTypeName(obj.Pos(), g.OutPkgTypes, builderName, types.NewStruct(nil, nil)), typ.Underlying(), nil,
 			)
 
 			tparams := typ.TypeParams()
@@ -93,7 +93,7 @@ func NewBuilderStruct() *Command {
 				constrMethodName = *buildMethodName
 			}
 			constrMethodName = generator.LegalIdentName(generator.IdentName(constrMethodName, exportMethods))
-			typeParams := generator.TypeParamsString(model.Typ.TypeParams(), g.OutPkg.PkgPath)
+			typeParams := generator.TypeParamsString(model.Typ.TypeParams(), g.OutPkgPath)
 
 			receiver := "b"
 			logger.Debugf("constrMethodName %v", constrMethodName)
@@ -116,7 +116,7 @@ func NewBuilderStruct() *Command {
 			}
 
 			builderConstructorMethodName := ifElse(*newBuilderMethodName == generator.Autoname, "New"+builderName, *newBuilderMethodName)
-			typeParamsDecl := generator.TypeParamsDeclarationString(model.Typ.TypeParams(), g.OutPkg.PkgPath)
+			typeParamsDecl := generator.TypeParamsDeclarationString(model.Typ.TypeParams(), g.OutPkgPath)
 			builderConstructorMethodBody := "func " + builderConstructorMethodName + typeParamsDecl + "() " + "*" + builderName + typeParams + "{\nreturn " +
 				"&" + builderName + typeParams + "{}\n}\n"
 			instanceConstructorMethodBody := "func (" + receiver + " " + builderType + ") " + constrMethodName + "() " +
@@ -126,7 +126,7 @@ func NewBuilderStruct() *Command {
 				"return " + ifElse(*buildValue, "", "&") + buildedType + typeParams + " {\n" + c + "}\n" +
 				"}\n"
 
-			builderBody := struc.TypeString(btyp, g.OutPkg.PkgPath) + " struct {" + generator.NoLint(*nolint) + "\n" + b + "}"
+			builderBody := struc.TypeString(btyp, g.OutPkgPath) + " struct {" + generator.NoLint(*nolint) + "\n" + b + "}"
 
 			if !*light {
 				if err := g.AddFuncOrMethod(builderConstructorMethodName, builderConstructorMethodBody); err != nil {

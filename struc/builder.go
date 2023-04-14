@@ -17,12 +17,12 @@ type structModelBuilder struct {
 	loopControl handledStructs
 }
 
-func newBuilder(outPkgPath string, loopControl handledStructs) (*structModelBuilder, error) {
+func newBuilder(outPkgPath string, loopControl handledStructs) *structModelBuilder {
 	return &structModelBuilder{
 		deep:        true,
 		outPkgPath:  outPkgPath,
 		loopControl: loopControl,
-	}, nil
+	}
 }
 
 func (b *structModelBuilder) populateTags(fieldName FieldName, tagName TagName, tagValue TagValue) {
@@ -78,9 +78,7 @@ func (b *structModelBuilder) populateByStruct(typ *types.Struct) error {
 						if model, ok := b.loopControl[structType]; ok {
 							logger.Debugf("found handled type %v", typeName)
 							fieldModel = model
-						} else if nestedBuilder, err := newBuilder(b.outPkgPath, b.loopControl); err != nil {
-							return err
-						} else if model, err = nestedBuilder.newModel(pkg, structType); err != nil {
+						} else if model, err = newBuilder(b.outPkgPath, b.loopControl).newModel(Package{Name: pkg.Name(), Path: pkg.Path()}, structType); err != nil {
 							return fmt.Errorf("nested field %v.%v; %w", typeName, fldName, err)
 						} else {
 							fieldModel = model
@@ -101,7 +99,7 @@ func (b *structModelBuilder) populateByStruct(typ *types.Struct) error {
 	return nil
 }
 
-func (b *structModelBuilder) newModel(typPack *types.Package, typ *types.Named) (*Model, error) {
+func (b *structModelBuilder) newModel(pkg Package, typ *types.Named) (*Model, error) {
 	typName := typ.Obj().Name()
 	if _, ok := b.loopControl[typ]; ok {
 		return nil, fmt.Errorf("already handled type %v", typName)
@@ -113,7 +111,7 @@ func (b *structModelBuilder) newModel(typPack *types.Package, typ *types.Named) 
 	model := &Model{
 		Typ:            typ,
 		TypeName:       typName,
-		Package:        Package{Name: typPack.Name(), Path: typPack.Path()},
+		Package:        pkg,
 		OutPkgPath:     b.outPkgPath,
 		FieldsTagValue: map[FieldName]map[TagName]TagValue{},
 		TagsFieldValue: map[TagName]map[FieldName]TagValue{},
@@ -128,82 +126,4 @@ func (b *structModelBuilder) newModel(typPack *types.Package, typ *types.Named) 
 		return nil, err
 	}
 	return b.model, nil
-}
-
-func GetTypeNamed(typ types.Type) (*types.Named, int, error) {
-	switch ftt := typ.(type) {
-	case *types.Named:
-		return ftt, 0, nil
-	case *types.Pointer:
-		t, p, err := GetTypeNamed(ftt.Elem())
-		if err != nil {
-			return nil, 0, err
-		}
-		return t, p + 1, nil
-	default:
-		return nil, 0, nil
-	}
-}
-
-func GetStructTypeNamed(typ types.Type) (*types.Named, int, error) {
-	if ftt, p, err := GetTypeNamed(typ); err != nil {
-		return nil, 0, err
-	} else if ftt != nil {
-		und := ftt.Underlying()
-		if _, ok := und.(*types.Struct); ok {
-			return ftt, p, nil
-		} else if sund, sp, err := GetStructTypeNamed(und); err != nil {
-			return nil, sp + p, err
-		} else if sund != nil {
-			return ftt, sp + p, nil
-		}
-	}
-	return nil, 0, nil
-	// switch ftt := typ.(type) {
-	// case *types.Named:
-	// 	und := ftt.Underlying()
-	// 	if _, ok := und.(*types.Struct); ok {
-	// 		return ftt, 0, nil
-	// 	} else if sund, p, err := GetStructTypeNamed(und); err != nil {
-	// 		return nil, 0, err
-	// 	} else if sund != nil {
-	// 		return ftt, p, nil
-	// 	}
-	// 	return nil, 0, nil
-	// case *types.Pointer:
-	// 	t, p, err := GetStructTypeNamed(ftt.Elem())
-	// 	if err != nil {
-	// 		return nil, 0, err
-	// 	}
-	// 	return t, p + 1, nil
-	// default:
-	// 	return nil, 0, nil
-	// }
-}
-
-func GetStructType(t types.Type) (*types.Struct, int, error) {
-	switch tt := t.(type) {
-	case *types.Struct:
-		return tt, 0, nil
-	case *types.Pointer:
-		s, pc, err := GetStructType(tt.Elem())
-		if err != nil {
-			return nil, 0, err
-		}
-		return s, pc + 1, nil
-	case *types.Named:
-		underlying := tt.Underlying()
-		if underlying == t {
-			return nil, 0, nil
-		}
-		return GetStructType(underlying)
-	case types.Type:
-		underlying := tt.Underlying()
-		if underlying == t {
-			return nil, 0, nil
-		}
-		return GetStructType(underlying)
-	default:
-		return nil, 0, nil
-	}
 }

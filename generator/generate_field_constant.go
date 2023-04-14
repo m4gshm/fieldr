@@ -528,7 +528,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 		argVar          = "f"
 		recVar          = "s"
 		recType         = GetTypeName(model.TypeName, pkgName)
-		recParamType    = recType + TypeParamsString(model.Typ.TypeParams(), g.OutPkg.PkgPath)
+		recParamType    = recType + TypeParamsString(model.Typ.TypeParams(), g.OutPkgPath)
 		recParamTypeRef = "*" + recParamType
 		returnTypes     = "interface{}"
 		returnNoCase    = "nil"

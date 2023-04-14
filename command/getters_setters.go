@@ -2,6 +2,7 @@ package command
 
 import (
 	"flag"
+	"fmt"
 
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/logger"
@@ -15,10 +16,11 @@ func NewGettersSetters() *Command {
 	)
 	var (
 		flagSet         = flag.NewFlagSet(cmdName, flag.ContinueOnError)
-		getterPrefix    = flagSet.String("getter-prefix", "", "getter methods prefix")
-		setterPrefix    = flagSet.String("setter-prefix", "Set", "setter methods prefix")
+		getPrefix       = flagSet.String("get-prefix", "", "getter methods prefix")
+		setPrefix       = flagSet.String("set-prefix", "Set", "setter methods prefix")
 		noExportMethods = flagSet.Bool("no-export", false, "no export generated methods")
 		noRefReceiver   = flagSet.Bool("no-ref", false, "use value type (not pointer) for methods receiver")
+		accessors       = flagSet.String("accessors", "get-set", "full access methods or getter or setter only (supported: get-set, get, set)")
 		nolint          = params.Nolint(flagSet)
 	)
 
@@ -26,6 +28,19 @@ func NewGettersSetters() *Command {
 		cmdName, "generates getters, setters for a structure type",
 		flagSet,
 		func(context *Context) error {
+
+			getters, setters := false, false
+			switch *accessors {
+			case "get-set":
+				getters, setters = true, true
+			case "get":
+				getters = true
+			case "set":
+				setters = true
+			default:
+				return fmt.Errorf("usupported accessors '%s'", *accessors)
+			}
+
 			model, err := context.Model()
 			if err != nil {
 				return err
@@ -37,7 +52,7 @@ func NewGettersSetters() *Command {
 			}
 
 			rec := generator.TypeReceiverVar(model.TypeName)
-			fmn, fmb, err := generateGettersSetters(g, model, model, pkgName, rec, *getterPrefix, *setterPrefix, !(*noRefReceiver), !(*noExportMethods), *nolint, nil)
+			fmn, fmb, err := generateGettersSetters(g, model, model, pkgName, rec, *getPrefix, *setPrefix, getters, setters, !(*noRefReceiver), !(*noExportMethods), *nolint, nil)
 			if err != nil {
 				return err
 			}
@@ -56,7 +71,7 @@ func NewGettersSetters() *Command {
 
 func generateGettersSetters(
 	g *generator.Generator, baseModel, fieldsModel *struc.Model, pkgName, receiverVar, getterPrefix, setterPrefix string,
-	isReceiverReference, exportMethods, nolint bool, parentFieldInfo []generator.FieldInfo,
+	getters, setters, isReceiverReference, exportMethods, nolint bool, parentFieldInfo []generator.FieldInfo,
 ) ([]string, []string, error) {
 	logger.Debugf("generate getters, setters: receiver %s, type %s, getterPrefix %s setterPrefix %s", receiverVar, baseModel.TypeName, getterPrefix, setterPrefix)
 	fieldMethodBodies := []string{}
@@ -79,7 +94,7 @@ func generateGettersSetters(
 
 		if fieldType.Embedded {
 			ebmeddedFieldMethodNames, ebmeddedFieldMethodBodies, err := generateGettersSetters(
-				g, baseModel, fieldType.Model, pkgName, receiverVar, getterPrefix, setterPrefix, isReceiverReference, exportMethods, nolint,
+				g, baseModel, fieldType.Model, pkgName, receiverVar, getterPrefix, setterPrefix, getters, setters, isReceiverReference, exportMethods, nolint,
 				append(parentFieldInfo, generator.FieldInfo{Name: fieldType.Name, Type: fieldType}))
 			if err != nil {
 				return nil, nil, err
@@ -96,12 +111,20 @@ func generateGettersSetters(
 			if len(getterPrefix) == 0 || getterPrefix == generator.Autoname {
 				getterPrefix = ifElse(suffix == fieldName, "Get", "")
 			}
-			getterName := generator.IdentName(getterPrefix+suffix, exportMethods)
-			getterBody := generator.GenerateGetter(baseModel, pkgName, receiverVar, getterName, fieldName, fullFieldType, g.OutPkg.PkgPath, nolint, isReceiverReference, parentFieldInfo)
-			setterName := generator.IdentName(setterPrefix+suffix, exportMethods)
-			setterBody := generator.GenerateSetter(baseModel, pkgName, receiverVar, setterName, fieldName, fullFieldType, g.OutPkg.PkgPath, nolint, isReceiverReference, parentFieldInfo)
-			fieldMethodBodies = append(fieldMethodBodies, getterBody, setterBody)
-			fieldMethodNames = append(fieldMethodNames, getterName, setterName)
+			if getters {
+				getterName := generator.IdentName(getterPrefix+suffix, exportMethods)
+				logger.Debugf("getter %s", getterName)
+				getterBody := generator.GenerateGetter(baseModel, pkgName, receiverVar, getterName, fieldName, fullFieldType, g.OutPkgPath, nolint, isReceiverReference, parentFieldInfo)
+				fieldMethodBodies = append(fieldMethodBodies, getterBody)
+				fieldMethodNames = append(fieldMethodNames, getterName)
+			}
+			if setters {
+				setterName := generator.IdentName(setterPrefix+suffix, exportMethods)
+				logger.Debugf("setter %s", setterName)
+				setterBody := generator.GenerateSetter(baseModel, pkgName, receiverVar, setterName, fieldName, fullFieldType, g.OutPkgPath, nolint, isReceiverReference, parentFieldInfo)
+				fieldMethodBodies = append(fieldMethodBodies, setterBody)
+				fieldMethodNames = append(fieldMethodNames, setterName)
+			}
 		}
 	}
 	return fieldMethodNames, fieldMethodBodies, nil

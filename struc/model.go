@@ -2,13 +2,7 @@ package struc
 
 import (
 	"fmt"
-	"go/ast"
-	"go/token"
 	"go/types"
-
-	"github.com/m4gshm/gollections/immutable/ordered"
-	"github.com/m4gshm/gollections/map_"
-	"golang.org/x/tools/go/packages"
 )
 
 const ReplaceableValueSeparator = "="
@@ -47,29 +41,14 @@ type (
 )
 
 // New - Model's default constructor.
-func New(outPkgPath string, filePackages ordered.Map[*ast.File, *packages.Package], fileSet *token.FileSet, typeName string) (*Model, error) {
-	var result *Model
-	return result, filePackages.Track(func(file *ast.File, filePackage *packages.Package) error {
-		pkg := filePackage.Types
-		lookup := pkg.Scope().Lookup(typeName)
-		if lookup == nil {
-			return nil
-		}
-		typ := lookup.Type()
-		if structType, _, err := GetStructTypeNamed(typ); err != nil {
-			return err
-		} else if structType == nil {
-			return fmt.Errorf("type '%s' is not struct", typeName)
-		} else if builder, err := newBuilder(outPkgPath, handledStructs{}); err != nil {
-			return fmt.Errorf("new builder of %v: %w", typeName, err)
-		} else if structModel, err := builder.newModel(pkg, structType); err != nil {
-			return fmt.Errorf("new model of %v: %w", typeName, err)
-		} else if structModel != nil {
-			result = structModel
-			return map_.ErrBreak
-		}
-		return nil
-	})
+func New(outPkgPath string, structType *types.Named, typePkg Package) (*Model, error) {
+	structModel, err := newBuilder(outPkgPath, handledStructs{}).newModel(typePkg, structType)
+	if err != nil {
+		return nil, fmt.Errorf("new model of %+v: %w", structType, err)
+	} else if structModel == nil {
+		return nil, fmt.Errorf("nil model for type %+v, package %+v", structType, typePkg)
+	}
+	return structModel, nil
 }
 
 func newFieldTagValues(fieldTagNames []TagName, tagValues map[TagName]TagValue) map[TagName]TagValue {

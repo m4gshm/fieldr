@@ -1,3 +1,4 @@
 bin/
 __debug_bin
 docs/readme.xml
+.DS_Store
