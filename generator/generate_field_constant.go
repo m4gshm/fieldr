@@ -229,7 +229,7 @@ func makeFieldConstsTempl(
 						if !inExecute {
 							return
 						}
-						if ok := usedTags.AddNewOne(tag); !ok {
+						if ok := usedTags.AddOneNew(tag); !ok {
 							logger.Debugf("use tag '%s'", tag)
 						}
 					}}
@@ -276,7 +276,7 @@ func makeFieldConstsTempl(
 				}
 				constName = strings.ReplaceAll(parsedConst, ".", "")
 			} else {
-				constName = g.getTagTemplateConstName(structType, fieldName, usedTags.Collect(), export, snake)
+				constName = g.getTagTemplateConstName(structType, fieldName, usedTags.Slice(), export, snake)
 				logger.Debugf("apply auto constant name '%s'", constName)
 			}
 

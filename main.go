@@ -16,22 +16,23 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/m4gshm/gollections/K"
-	"github.com/m4gshm/gollections/c"
-	"github.com/m4gshm/gollections/immutable/set"
-	"github.com/m4gshm/gollections/immutable/vector"
-	"github.com/m4gshm/gollections/mutable/omap"
-	"github.com/m4gshm/gollections/mutable/oset"
-	"github.com/m4gshm/gollections/op"
-	"github.com/m4gshm/gollections/slice"
-	"golang.org/x/tools/go/packages"
-
 	"github.com/m4gshm/fieldr/command"
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/struc"
 	"github.com/m4gshm/fieldr/use"
+	"github.com/m4gshm/gollections/K"
+	"github.com/m4gshm/gollections/c"
+	"github.com/m4gshm/gollections/immutable/set"
+	"github.com/m4gshm/gollections/iter"
+	"github.com/m4gshm/gollections/iterable"
+	"github.com/m4gshm/gollections/mutable/omap"
+	"github.com/m4gshm/gollections/mutable/ordered"
+	orderset "github.com/m4gshm/gollections/mutable/oset"
+	"github.com/m4gshm/gollections/op"
+	"github.com/m4gshm/gollections/slice"
+	"golang.org/x/tools/go/packages"
 )
 
 func usage(commandLine *flag.FlagSet) func() {
@@ -72,7 +73,7 @@ func run() error {
 	debugFlag := configParser.Bool("debug", false, "enable debug logging")
 	buildTags := params.MultiVal(configParser, "buildTag", []string{"fieldr"}, "include build tag")
 	inputs := params.InFlag(configParser)
-	packagePattern := configParser.String("package", ".", "used package")
+	packageSearchPath := configParser.String("path", "", "search packages path")
 
 	commonTypeConfig := params.NewTypeConfig(configParser)
 	if err := configParser.Parse(appArgs); err != nil {
@@ -106,7 +107,7 @@ func run() error {
 		return fmt.Errorf("extract packages, workDir %s, build tags %v: %w", workDir, *buildTags, err)
 	}
 
-	files := set.New(slice.Flatt(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }))
+	files := set.From(iterable.Flatt(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }).Begin())
 
 	typeConfigs := omap.Empty[params.TypeConfig, []*command.Command]()
 
@@ -175,8 +176,6 @@ func run() error {
 
 		unusedArgs := configParser.Args()
 		cmtCommands, cmtArgs, err := parseCommands(unusedArgs)
-
-		// cmtCommands, cmtArgs, err := parseCommands(cmt.args)
 		if err != nil {
 			var uErr *use.Error
 			if errors.As(err, &uErr) {
@@ -193,12 +192,11 @@ func run() error {
 
 	typeConfigs.Set(typeConfig, commands)
 
-	pkgPtrn := *packagePattern
-	if pkgPtrn != "." {
+	if pkgPtrn := *packageSearchPath; len(pkgPtrn) > 0 {
 		if patternPkgs, err := extractPackages(fileSet, *buildTags, pkgPtrn); err != nil {
 			return err
 		} else {
-			pkgs = oset.Of(append(pkgs, patternPkgs...)...).Collect()
+			pkgs.AddAllNew(patternPkgs)
 		}
 	}
 
@@ -207,11 +205,13 @@ func run() error {
 	if inputPkgs, err := loadFilesPackages(fileSet, *inputs, *buildTags); err != nil {
 		return err
 	} else {
-		pkgs = oset.Of(append(pkgs, inputPkgs...)...).Collect()
+		pkgs.AddAllNew(inputPkgs)
 	}
 
 	if logger.IsDebug() {
-		allSrcFiles := set.New(slice.Flatt(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }))
+		allSrcFiles := set.From(iterable.Flatt(pkgs, func(p *packages.Package) []*ast.File {
+			return p.Syntax
+		}).Begin())
 
 		logger.Debugf("source files amount %d", allSrcFiles.Len())
 
@@ -232,7 +232,7 @@ func run() error {
 			return use.Err("no type arg")
 		}
 
-		typ, typPkg, typFile, err := struc.FindTypePackageFile(typeName, vector.New(pkgs))
+		typ, typPkg, typFile, err := struc.FindTypePackageFile(typeName, pkgs)
 		if err != nil {
 			return fmt.Errorf("find type %s: %w", typeName, err)
 		}
@@ -290,7 +290,7 @@ func run() error {
 					outPkgs, err := loadFilePackage(dir, fileSet, buildTag)
 					if err != nil {
 						return err
-					} else if len(outPkgs) > 0 {
+					} else if outPkgs.Len() > 0 {
 						if outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, outPkgs, outputName); err != nil {
 							return fmt.Errorf("findPkgFile: out file %s :%w", outputName, err)
 						}
@@ -309,11 +309,6 @@ func run() error {
 			}
 		}
 
-		// if outFile == nil {
-		// 	return fmt.Errorf("out file ast is undefined")
-		// } else if outFileInfo == nil {
-		// 	return fmt.Errorf("out file is undefined")
-		// } else
 		if outPkg == nil {
 			return fmt.Errorf("out package is undefined")
 		}
@@ -350,9 +345,9 @@ func run() error {
 	})
 }
 
-func findPkgFile(fileSet *token.FileSet, pkgs []*packages.Package, outputName string) (*packages.Package, *ast.File, *token.File, error) {
+func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], outputName string) (*packages.Package, *ast.File, *token.File, error) {
 	logger.Debugf("findPkgFile: %s", outputName)
-	for _, p := range pkgs {
+	for i, p, ok := pkgs.First(); ok; p, ok = i.Next() {
 		logger.Debugf("findPkgFile: look pkg %s, ID %s", p.PkgPath, p.ID)
 		for _, s := range p.Syntax {
 			info := fileSet.File(s.Pos())
@@ -364,38 +359,9 @@ func findPkgFile(fileSet *token.FileSet, pkgs []*packages.Package, outputName st
 			}
 		}
 	}
+
 	logger.Debugf("findPkgFile: output file not found: %s", outputName)
 	return nil, nil, nil, nil
-}
-
-func newPackage(fileSet *token.FileSet, buildTag string, outputName, moduleDir string) ([]*packages.Package, error) {
-	if dir, err := getDir(outputName); err != nil {
-		return nil, err
-	} else {
-
-		if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
-			logger.Debugf("create new package dir %s", dir)
-			if err := os.Mkdir(dir, os.ModePerm); err != nil {
-				return nil, err
-			}
-		}
-		outPkgs, err := loadFilePackage(dir, fileSet, buildTag)
-		if err != nil {
-			return nil, err
-		} else if len(outPkgs) == 0 {
-			logger.Debugf("cannot determine output package, trying to fix it: output file '%s'", outputName)
-
-			pkgPath, err := filepath.Rel(moduleDir, dir)
-			if err != nil {
-				return nil, err
-			}
-
-			pkgName := path.Base(pkgPath)
-			typs := types.NewPackage(pkgPath, pkgName)
-			outPkgs = []*packages.Package{{PkgPath: pkgPath, ID: pkgPath, Name: path.Base(pkgPath), Types: typs}}
-		}
-		return outPkgs, nil
-	}
 }
 
 func newConfigFlagSet(name string) *flag.FlagSet {
@@ -428,7 +394,7 @@ type fileCmdArgs struct {
 	commentArgs []commentCmdArgs
 }
 
-func newFilesCommentsConfig(fileSet *token.FileSet, files c.Walk[*ast.File]) ([]fileCmdArgs, error) {
+func newFilesCommentsConfig(fileSet *token.FileSet, files c.ForLoop[*ast.File]) ([]fileCmdArgs, error) {
 	result := []fileCmdArgs{}
 	return result, files.For(func(file *ast.File) error {
 		ft := fileSet.File(file.Pos())
@@ -447,7 +413,7 @@ type commentCmdArgs struct {
 }
 
 func getFileCommentCmdArgs(file *ast.File, fInfo *token.File) ([]commentCmdArgs, error) {
-	result := []commentCmdArgs{}
+	var result []commentCmdArgs
 	for _, commentGroup := range file.Comments {
 		for _, comment := range commentGroup.List {
 			if args, err := getCommentCmdArgs(comment.Text); err != nil {
@@ -528,15 +494,18 @@ func splitArgs(rawArgs string) ([]string, error) {
 	return args, nil
 }
 
-func loadFilesPackages(fileSet *token.FileSet, inputs []string, buildTags []string) ([]*packages.Package, error) {
-	pkgs := []*packages.Package{}
+func loadFilesPackages(fileSet *token.FileSet, inputs []string, buildTags []string) (*ordered.Set[*packages.Package], error) {
+	var pkgs *ordered.Set[*packages.Package]
 	for _, srcFile := range inputs {
 		fpkgs, err := loadFilePackage(srcFile, fileSet, buildTags...)
 		if err != nil {
 			return nil, err
 		}
-		pkgs = append(pkgs, fpkgs...)
-
+		if pkgs == nil {
+			pkgs = fpkgs
+		} else {
+			pkgs.AddAllNew(fpkgs)
+		}
 	}
 	return pkgs, nil
 }
@@ -552,7 +521,7 @@ func abs(srcFile string) (string, error) {
 	return srcFile, nil
 }
 
-func loadFilePackage(srcFile string, fileSet *token.FileSet, buildTags ...string) ([]*packages.Package, error) {
+func loadFilePackage(srcFile string, fileSet *token.FileSet, buildTags ...string) (*ordered.Set[*packages.Package], error) {
 	if absSrcFile, err := abs(srcFile); err != nil {
 		return nil, err
 	} else if pkgs, err := extractPackages(fileSet, buildTags, absSrcFile); err != nil {
@@ -564,7 +533,7 @@ func loadFilePackage(srcFile string, fileSet *token.FileSet, buildTags ...string
 
 const packageMode = packages.NeedSyntax | packages.NeedName | packages.NeedTypesInfo | packages.NeedTypes | packages.NeedModule
 
-func extractPackages(fileSet *token.FileSet, buildTags []string, fileName string) ([]*packages.Package, error) {
+func extractPackages(fileSet *token.FileSet, buildTags []string, fileName string) (*ordered.Set[*packages.Package], error) {
 	dir, err := getDir(fileName)
 	if err != nil {
 		return nil, err
@@ -580,31 +549,11 @@ func extractPackages(fileSet *token.FileSet, buildTags []string, fileName string
 	}, "./..."); err != nil {
 		return nil, err
 	} else {
-		fpkgs := slice.Filter(pkgs, func(p *packages.Package) bool {
-			if strings.Contains(p.ID, ".test]") || strings.HasSuffix(p.ID, ".test") {
-				return false
-			} /*else if ers := p.Errors; len(ers) > 0 {
-				msg := pkgErrorsToString(ers)
-				logger.Debugf("package %s has errors: %s", p.Name, msg)
-				return false
-			}*/
-			return true
-		})
-		return fpkgs, nil
+		return orderset.From(iter.Filter(iter.New(pkgs), func(p *packages.Package) bool {
+			return !(strings.Contains(p.ID, ".test]") || strings.HasSuffix(p.ID, ".test"))
+		})), nil
 	}
 }
-
-// func pkgErrorsToString(ers []packages.Error) string {
-// 	msg := strings.Builder{}
-// 	for _, e := range ers {
-// 		if msg.Len() > 0 {
-// 			msg.WriteString("\n")
-// 		}
-// 		msg.WriteString(e.Msg)
-// 	}
-// 	return msg.String()
-// }
-
 func getDir(fileName string) (string, error) {
 	fileStat, err := os.Stat(fileName)
 	isNoExists := errors.Is(err, os.ErrNotExist)

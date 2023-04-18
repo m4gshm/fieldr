@@ -3,7 +3,7 @@ module github.com/m4gshm/fieldr
 go 1.18
 
 require (
-	github.com/m4gshm/gollections v0.0.7-0.20230412203317-979287784905
+	github.com/m4gshm/gollections v0.0.7-0.20230418220320-e3b11fe24aaf
 	github.com/pkg/errors v0.9.1
 	go.uber.org/zap v1.24.0
 	golang.org/x/tools v0.8.0

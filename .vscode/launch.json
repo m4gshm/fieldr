@@ -54,7 +54,7 @@
             "cwd": "examples/squirrel_external",
             "args": [
                 "-debug",
-                "-package",
+                "-path",
                 "../squirrel",
                 "-type",
                 "Entity",

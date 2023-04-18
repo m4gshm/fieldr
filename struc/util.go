@@ -7,12 +7,11 @@ import (
 
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/gollections/c"
-	"github.com/m4gshm/gollections/it/impl/it"
 
 	"golang.org/x/tools/go/packages"
 )
 
-func FindTypePackageFile(typeName string, pkgs c.Walk[*packages.Package]) (*types.Named, *packages.Package, *ast.File, error) {
+func FindTypePackageFile(typeName string, pkgs c.ForLoop[*packages.Package]) (*types.Named, *packages.Package, *ast.File, error) {
 	var resultType *types.Named
 	var resultPkg *packages.Package
 	var resultFile *ast.File
@@ -44,7 +43,7 @@ func FindTypePackageFile(typeName string, pkgs c.Walk[*packages.Package]) (*type
 						}
 					}
 				}
-				return it.ErrBreak
+				return c.ErrBreak
 			}
 		}
 	})
