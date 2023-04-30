@@ -26,6 +26,7 @@ import (
 	breakLoop "github.com/m4gshm/gollections/break/loop"
 	"github.com/m4gshm/gollections/break/stream"
 	"github.com/m4gshm/gollections/c"
+	"github.com/m4gshm/gollections/collection"
 	"github.com/m4gshm/gollections/immutable"
 	"github.com/m4gshm/gollections/immutable/set"
 	"github.com/m4gshm/gollections/k"
@@ -358,6 +359,7 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 	}
 
 	logger.Debugf("findPkgFile: output file not found: %s", outputName)
+
 	if pkgs.Len() == 1 {
 		firstPkg, _ := pkgs.Iter().Next()
 		logger.Debugf("findPkgFile: select first package: %s", firstPkg.PkgPath)
@@ -366,10 +368,8 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 		return nil, nil, nil, err
 	} else {
 		pkgName := filepath.Base(dir)
-		logger.Debugf("findPkgFile: select package by id: %s, path %s", dir)
-		firstPkg, ok := loop.First(pkgs.Iter().Next, func(p *packages.Package) bool {
-			return p.Name == pkgName
-		})
+		logger.Debugf("findPkgFile: select package by name: %s, path %s", pkgName, dir)
+		firstPkg, ok := collection.First(pkgs, func(p *packages.Package) bool { return p.Name == pkgName })
 		if ok {
 			logger.Debugf("findPkgFile: found package by name %s, %v", pkgName, firstPkg)
 		} else {
@@ -411,8 +411,8 @@ type fileCommentArgs struct {
 
 func (f fileCommentArgs) CommentArgs() []commentArgs { return f.commentArgs }
 
-func getFilesCommentArgs(fileSet *token.FileSet, files immutable.Set[*ast.File]) stream.Iter[*fileCommentArgs] {
-	return set.Conv(files, func(file *ast.File) (*fileCommentArgs, error) {
+func getFilesCommentArgs(fileSet *token.FileSet, files c.Iterable[*ast.File]) stream.Iter[*fileCommentArgs] {
+	return collection.Conv(files, func(file *ast.File) (*fileCommentArgs, error) {
 		ft := fileSet.File(file.Pos())
 		if args, err := getCommentArgs(file, ft); err != nil {
 			return nil, err
@@ -582,12 +582,4 @@ func getDir(fileName string) (string, error) {
 
 func buildTagsArg(buildTags []string) []string {
 	return []string{fmt.Sprintf("-tags=%s", strings.Join(buildTags, " "))}
-}
-
-// func constValBuilder[KEY, VAL any](val VAL) func(key KEY) c.KV[KEY, VAL] {
-// 	return func(key KEY) c.KV[KEY, VAL] { return K.V(key, val) }
-// }
-
-func constKeyBuilder[VAL, KEY any](key KEY) func(val VAL) c.KV[KEY, VAL] {
-	return func(val VAL) c.KV[KEY, VAL] { return k.V(key, val) }
 }
