@@ -7,7 +7,7 @@ import (
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/struc"
-	"github.com/m4gshm/gollections/immutable/set"
+	"github.com/m4gshm/gollections/collection/immutable/set"
 )
 
 func NewAsMapMethod() *Command {

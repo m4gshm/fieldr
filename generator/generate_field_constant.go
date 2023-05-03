@@ -12,8 +12,8 @@ import (
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/struc"
 	"github.com/m4gshm/gollections/c"
-	"github.com/m4gshm/gollections/immutable/set"
-	"github.com/m4gshm/gollections/mutable/oset"
+	"github.com/m4gshm/gollections/collection/mutable/oset"
+	"github.com/m4gshm/gollections/collection/mutable/set"
 	"github.com/pkg/errors"
 )
 

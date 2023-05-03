@@ -22,20 +22,17 @@ import (
 	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/struc"
 	"github.com/m4gshm/fieldr/use"
-	"github.com/m4gshm/gollections/as"
+
 	breakLoop "github.com/m4gshm/gollections/break/loop"
 	"github.com/m4gshm/gollections/break/stream"
 	"github.com/m4gshm/gollections/c"
+	"github.com/m4gshm/gollections/check/not"
 	"github.com/m4gshm/gollections/collection"
-	"github.com/m4gshm/gollections/immutable"
-	"github.com/m4gshm/gollections/immutable/set"
-	"github.com/m4gshm/gollections/k"
-	"github.com/m4gshm/gollections/loop"
-	"github.com/m4gshm/gollections/mutable/omap"
-	"github.com/m4gshm/gollections/mutable/ordered"
-	"github.com/m4gshm/gollections/mutable/oset"
-	orderset "github.com/m4gshm/gollections/mutable/oset"
-	"github.com/m4gshm/gollections/not"
+	"github.com/m4gshm/gollections/collection/immutable/set"
+	"github.com/m4gshm/gollections/collection/mutable/omap"
+	"github.com/m4gshm/gollections/collection/mutable/ordered"
+	"github.com/m4gshm/gollections/collection/mutable/oset"
+	"github.com/m4gshm/gollections/convert/as"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/slice"
 	sIter "github.com/m4gshm/gollections/slice/iter"
@@ -565,7 +562,7 @@ func extractPackages(fileSet *token.FileSet, buildTags []string, fileName string
 	}, "./..."); err != nil {
 		return nil, err
 	} else {
-		return orderset.From(sIter.Filter(pkgs, func(p *packages.Package) bool {
+		return oset.From(sIter.Filter(pkgs, func(p *packages.Package) bool {
 			pID := p.ID
 			return !(strings.Contains(pID, ".test]") || strings.HasSuffix(pID, ".test"))
 		}).Next), nil
