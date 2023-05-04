@@ -16,14 +16,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/m4gshm/fieldr/command"
-	"github.com/m4gshm/fieldr/generator"
-	"github.com/m4gshm/fieldr/logger"
-	"github.com/m4gshm/fieldr/params"
-	"github.com/m4gshm/fieldr/struc"
-	"github.com/m4gshm/fieldr/use"
+	"golang.org/x/tools/go/packages"
 
-	breakLoop "github.com/m4gshm/gollections/break/loop"
+	"github.com/m4gshm/gollections/break/loop"
 	"github.com/m4gshm/gollections/break/stream"
 	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/check/not"
@@ -35,8 +30,14 @@ import (
 	"github.com/m4gshm/gollections/convert/as"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/slice"
-	sIter "github.com/m4gshm/gollections/slice/iter"
-	"golang.org/x/tools/go/packages"
+	"github.com/m4gshm/gollections/slice/iter"
+
+	"github.com/m4gshm/fieldr/command"
+	"github.com/m4gshm/fieldr/generator"
+	"github.com/m4gshm/fieldr/logger"
+	"github.com/m4gshm/fieldr/params"
+	"github.com/m4gshm/fieldr/struc"
+	"github.com/m4gshm/fieldr/use"
 )
 
 func usage(commandLine *flag.FlagSet) func() {
@@ -111,7 +112,7 @@ func run() error {
 		return fmt.Errorf("extract packages, workDir %s, build tags %v: %w", workDir, *buildTags, err)
 	}
 
-	files := set.From(oset.Flatt(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }).Next)
+	files := set.From(collection.Flatt(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }).Next)
 
 	typeConfigs := omap.Empty[params.TypeConfig, []*command.Command]()
 
@@ -121,7 +122,7 @@ func run() error {
 
 	notCmdLineType := len(typeConfig.Type) == 0
 
-	fileCommentPairs := breakLoop.FlattValues(filesCmdArgs.Next, as.Is[*fileCommentArgs], func(f *fileCommentArgs) []commentArgs { return f.commentArgs })
+	fileCommentPairs := loop.FlattValues(filesCmdArgs.Next, as.Is[*fileCommentArgs], func(f *fileCommentArgs) []commentArgs { return f.commentArgs })
 	if err := fileCommentPairs.Track(func(file *fileCommentArgs, commentCmd commentArgs) error {
 		configParser := newConfigFlagSet(strings.Join(commentCmd.args, " "))
 		commentConfig := params.NewTypeConfig(configParser)
@@ -245,10 +246,6 @@ func run() error {
 				return err
 			}
 			outputName = absOutName
-			outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, pkgs, absOutName)
-			if err != nil {
-				return err
-			}
 		} else if outputName == generator.Autoname {
 			//autoname selected
 			outFile = typFile
@@ -262,44 +259,44 @@ func run() error {
 			}
 			outputName = absOutName
 			logger.Debugf("trying to find output file %s", outputName)
+		}
 
-			outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, pkgs, outputName)
-			if err != nil {
+		outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, pkgs, outputName)
+		if err != nil {
+			return err
+		}
+
+		if outFile == nil {
+			logger.Debugf("out file not found, trying to fix")
+			buildTag := typeConfig.OutBuildTags
+			typModule := typPkg.Module
+			moduleDir := typModule.Dir
+
+			if dir, err := getDir(outputName); err != nil {
 				return err
-			}
-
-			if outFile == nil {
-				logger.Debugf("out file not found, trying to fix")
-				buildTag := typeConfig.OutBuildTags
-				typModule := typPkg.Module
-				moduleDir := typModule.Dir
-
-				if dir, err := getDir(outputName); err != nil {
-					return err
-				} else {
-					if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
-						logger.Debugf("create new package dir %s", dir)
-						if err := os.Mkdir(dir, os.ModePerm); err != nil {
-							return err
-						}
+			} else {
+				if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
+					logger.Debugf("create new package dir %s", dir)
+					if err := os.Mkdir(dir, os.ModePerm); err != nil {
+						return err
 					}
-					outPkgs, err := loadFilePackage(dir, fileSet, buildTag)
+				}
+				outPkgs, err := loadFilePackage(dir, fileSet, buildTag)
+				if err != nil {
+					return err
+				} else if outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, outPkgs, outputName); err != nil {
+					return fmt.Errorf("findPkgFile: out file %s :%w", outputName, err)
+				}
+				if outPkg == nil {
+					logger.Debugf("cannot determine output package, create new: output file '%s'", outputName)
+
+					pkgPath, err := filepath.Rel(moduleDir, dir)
 					if err != nil {
 						return err
-					} else if outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, outPkgs, outputName); err != nil {
-						return fmt.Errorf("findPkgFile: out file %s :%w", outputName, err)
 					}
-					if outPkg == nil {
-						logger.Debugf("cannot determine output package, create new: output file '%s'", outputName)
-
-						pkgPath, err := filepath.Rel(moduleDir, dir)
-						if err != nil {
-							return err
-						}
-						pkgName := path.Base(pkgPath)
-						typs := types.NewPackage(pkgPath, pkgName)
-						outPkg = &packages.Package{PkgPath: pkgPath, ID: pkgPath, Name: pkgName, Types: typs, Module: typModule}
-					}
+					pkgName := filepath.Base(pkgPath)
+					typs := types.NewPackage(pkgPath, pkgName)
+					outPkg = &packages.Package{PkgPath: pkgPath, ID: pkgPath, Name: pkgName, Types: typs, Module: typModule}
 				}
 			}
 		}
@@ -357,16 +354,20 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 
 	logger.Debugf("findPkgFile: output file not found: %s", outputName)
 
-	if pkgs.Len() == 1 {
-		firstPkg, _ := pkgs.Iter().Next()
-		logger.Debugf("findPkgFile: select first package: %s", firstPkg.PkgPath)
-		return firstPkg, nil, nil, nil
-	} else if dir, err := getDir(outputName); err != nil {
+	if dir, err := getDir(outputName); err != nil {
 		return nil, nil, nil, err
 	} else {
 		pkgName := filepath.Base(dir)
 		logger.Debugf("findPkgFile: select package by name: %s, path %s", pkgName, dir)
-		firstPkg, ok := collection.First(pkgs, func(p *packages.Package) bool { return p.Name == pkgName })
+		firstPkg, ok := collection.First(pkgs, func(p *packages.Package) bool {
+			bp := path.Base(p.PkgPath)
+			fullPath := filepath.Join(p.Module.Dir, bp)
+			if fullPath == dir {
+				return true
+			}
+			logger.Debugf("findPkgFile: not match package by name: %s, path %s", p.PkgPath, fullPath)
+			return false
+		})
 		if ok {
 			logger.Debugf("findPkgFile: found package by name %s, %v", pkgName, firstPkg)
 		} else {
@@ -562,7 +563,7 @@ func extractPackages(fileSet *token.FileSet, buildTags []string, fileName string
 	}, "./..."); err != nil {
 		return nil, err
 	} else {
-		return oset.From(sIter.Filter(pkgs, func(p *packages.Package) bool {
+		return oset.From(iter.Filter(pkgs, func(p *packages.Package) bool {
 			pID := p.ID
 			return !(strings.Contains(pID, ".test]") || strings.HasSuffix(pID, ".test"))
 		}).Next), nil

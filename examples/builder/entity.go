@@ -1,6 +1,6 @@
 package builder
 
-//go:generate fieldr
+//go:generate fieldr -debug
 
 //go:fieldr -type Entity builder -export all -deconstructor .
 //go:fieldr -out internal/entity_fieldr.go builder -deconstructor .
