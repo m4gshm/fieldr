@@ -4,13 +4,11 @@ import (
 	"go/types"
 
 	"github.com/m4gshm/fieldr/struc"
-	"github.com/m4gshm/gollections/collection"
 )
 
 func (g *Generator) GenerateAsMapFunc(
 	model *struc.Model, name, keyType string,
 	constants []fieldConst,
-	/*excluded map[struc.FieldName]struct{}, */ flats collection.Set[string],
 	rewriter *CodeRewriter,
 	export, snake, returnRefs, noReceiver, nolint, hardcodeValues bool,
 ) (string, string, string, error) {

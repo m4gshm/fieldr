@@ -9,12 +9,14 @@ import (
 	"text/template"
 	"unicode"
 
+	"github.com/m4gshm/gollections/collection/immutable"
+	"github.com/m4gshm/gollections/collection/mutable/ordered"
+	"github.com/m4gshm/gollections/op/use"
+	"github.com/pkg/errors"
+
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/struc"
 	"github.com/m4gshm/gollections/c"
-	"github.com/m4gshm/gollections/collection/mutable/ordered"
-	"github.com/m4gshm/gollections/collection/mutable/set"
-	"github.com/pkg/errors"
 )
 
 type stringer struct {
@@ -181,17 +183,15 @@ func checkDuplicates(constants []fieldConst, checkValues bool) error {
 func makeFieldConstsTempl(
 	g *Generator, model *struc.Model, structType, nameTmpl, valueTmpl string, export, snake, usePrivate bool, flats, excludedFields c.Checkable[string],
 ) ([]fieldConst, error) {
-	usedTags := &ordered.Set[struc.TagName]{}
-
-	constants := make([]fieldConst, 0)
-
+	var (
+		usedTags  = &ordered.Set[struc.TagName]{}
+		constants = make([]fieldConst, 0)
+	)
 	if model == nil {
 		return constants, nil
 	}
 
-	for _, f := range model.FieldNames {
-		fieldName := f
-
+	for _, fieldName := range model.FieldNames {
 		if !usePrivate && !token.IsExported(string(fieldName)) {
 			logger.Debugf("exclude private field %v\n", fieldName)
 			continue
@@ -207,10 +207,7 @@ func makeFieldConstsTempl(
 		flat := flats.Contains(fieldName)
 		fieldModel := fieldType.Model
 		if flat || embedded {
-			var subflats c.Checkable[string] = set.Of[string]()
-			if embedded {
-				subflats = flats
-			}
+			subflats := use.If(flats, embedded).Else(immutable.Set[string]{})
 			fieldConstants, err := makeFieldConstsTempl(g, fieldModel, structType, nameTmpl, valueTmpl, export, snake, usePrivate, subflats, excludedFields)
 			if err != nil {
 				return nil, err
@@ -220,8 +217,10 @@ func makeFieldConstsTempl(
 			}
 			constants = append(constants, fieldConstants...)
 		} else {
-			tags := map[string]*stringer{}
-			var inExecute bool
+			var (
+				tags      = map[string]*stringer{}
+				inExecute bool
+			)
 			if tagVals := model.FieldsTagValue[fieldName]; tagVals != nil {
 				for k, v := range tagVals {
 					tag := k
@@ -302,10 +301,7 @@ func makeFieldConsts(g *Generator, model *struc.Model, export, snake, allFields 
 		fieldModel := fieldType.Model
 		filedInfo := FieldInfo{Name: fieldName, Type: fieldType}
 		if flat || embedded {
-			var subflats c.Checkable[string] = set.Of[string]()
-			if embedded {
-				subflats = flats
-			}
+			subflats := use.If(flats, embedded).Else(immutable.Set[string]{})
 			fieldConstants, err := makeFieldConsts(g, fieldModel, export, snake, allFields, subflats)
 			if err != nil {
 				return nil, err

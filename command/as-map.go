@@ -59,20 +59,18 @@ func NewAsMapMethod() *Command {
 				kType = generator.BaseConstType
 			}
 
-			flatsSet := set.New(*flats)
-			if constants, err := g.GenerateFieldConstants(model, kType, *export, *snake, *all, flatsSet); err != nil {
+			if constants, err := g.GenerateFieldConstants(model, kType, *export, *snake, *all, set.New(*flats)); err != nil {
 				return err
 			} else if rewriter, err := coderewriter.New(*fieldValueRewriters); err != nil {
 				return err
 			} else if _, funcName, funcBody, err := g.GenerateAsMapFunc(
-				model, *name, kType, constants /*excludedFields, */, flatsSet, rewriter, *export, *snake, *ref, *fun, *nolint, *hardcode,
+				model, *name, kType, constants, rewriter, *export, *snake, *ref, *fun, *nolint, *hardcode,
 			); err != nil {
 				return err
 			} else if err := g.AddFuncOrMethod(funcName, funcBody); err != nil {
 				return err
 			}
 			return nil
-
 		},
 	)
 	return c

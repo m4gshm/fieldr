@@ -16,10 +16,11 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/m4gshm/fieldr/logger"
-	"github.com/m4gshm/fieldr/struc"
 	"github.com/pkg/errors"
 	"golang.org/x/tools/go/packages"
+
+	"github.com/m4gshm/fieldr/logger"
+	"github.com/m4gshm/fieldr/struc"
 )
 
 const oneLineSize = 3
