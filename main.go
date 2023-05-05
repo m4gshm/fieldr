@@ -110,10 +110,9 @@ func run() error {
 		return fmt.Errorf("extract packages, workDir %s, build tags %v: %w", workDir, *buildTags, err)
 	}
 
-	
 	typeConfig := *commonTypeConfig
 	notCmdLineType := len(typeConfig.Type) == 0
-	
+
 	typeConfigs := map_.Empty[params.TypeConfig, []*command.Command]()
 
 	fileCommentPairs := breakloop.ExtraVals(getFilesCommentArgs(fileSet, getAstFiles(pkgs)).Next, fileCommentArgs.CommentArgs)

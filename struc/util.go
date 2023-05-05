@@ -6,12 +6,12 @@ import (
 	"go/token"
 	"go/types"
 
-	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/map_"
 	"github.com/m4gshm/gollections/op"
-
 	"golang.org/x/tools/go/packages"
+
+	"github.com/m4gshm/fieldr/logger"
 )
 
 func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.ForLoop[*packages.Package]) (*types.Named, *packages.Package, *ast.File, error) {

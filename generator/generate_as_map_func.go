@@ -3,7 +3,6 @@ package generator
 import (
 	"go/types"
 
-	"github.com/m4gshm/fieldr/struc"
 	"github.com/m4gshm/gollections/expr/get"
 	"github.com/m4gshm/gollections/expr/use"
 	"github.com/m4gshm/gollections/loop"
@@ -16,6 +15,8 @@ import (
 	"github.com/m4gshm/gollections/op/string_"
 	"github.com/m4gshm/gollections/slice/iter"
 	"github.com/m4gshm/gollections/slice/split"
+
+	"github.com/m4gshm/fieldr/struc"
 )
 
 func (g *Generator) GenerateAsMapFunc(
