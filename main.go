@@ -16,23 +16,25 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/tools/go/packages"
+
 	"github.com/m4gshm/fieldr/command"
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/struc"
 	"github.com/m4gshm/fieldr/use"
-	"github.com/m4gshm/gollections/K"
+
+	"github.com/m4gshm/gollections/break/loop"
 	"github.com/m4gshm/gollections/c"
-	"github.com/m4gshm/gollections/immutable/set"
-	"github.com/m4gshm/gollections/iter"
-	"github.com/m4gshm/gollections/iterable"
-	"github.com/m4gshm/gollections/mutable/omap"
-	"github.com/m4gshm/gollections/mutable/ordered"
-	orderset "github.com/m4gshm/gollections/mutable/oset"
+	"github.com/m4gshm/gollections/collection"
+	"github.com/m4gshm/gollections/collection/mutable/ordered"
+	"github.com/m4gshm/gollections/collection/mutable/ordered/map_"
+	"github.com/m4gshm/gollections/collection/mutable/ordered/set"
+	"github.com/m4gshm/gollections/convert/as"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/slice"
-	"golang.org/x/tools/go/packages"
+	"github.com/m4gshm/gollections/slice/iter"
 )
 
 func usage(commandLine *flag.FlagSet) func() {
@@ -107,30 +109,21 @@ func run() error {
 		return fmt.Errorf("extract packages, workDir %s, build tags %v: %w", workDir, *buildTags, err)
 	}
 
-	files := set.From(iterable.Flatt(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }).Begin())
+	files := set.From(collection.Flatt(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }).Next)
 
-	typeConfigs := omap.Empty[params.TypeConfig, []*command.Command]()
+	typeConfigs := map_.Empty[params.TypeConfig, []*command.Command]()
 
 	typeConfig := *commonTypeConfig
 
-	filesCmdArgs, err := newFilesCommentsConfig(fileSet, files)
-	if err != nil {
-		return err
-	}
+	filesCmdArgs := getFilesCommentArgs(fileSet, files)
 
 	notCmdLineType := len(typeConfig.Type) == 0
 
-	fileCommentArgPairs := slice.Flatt(filesCmdArgs, func(f fileCmdArgs) []c.KV[fileCmdArgs, commentCmdArgs] {
-		return slice.Convert(f.commentArgs, constKeyBuilder[commentCmdArgs](f))
-	})
-	for _, kv := range fileCommentArgPairs {
-		var (
-			file           = kv.K
-			commentCmdArgs = kv.V
-			configParser   = newConfigFlagSet(strings.Join(commentCmdArgs.args, " "))
-			commentConfig  = params.NewTypeConfig(configParser)
-		)
-		if err := configParser.Parse(commentCmdArgs.args); err != nil {
+	fileCommentPairs := loop.FlattValues(filesCmdArgs.Next, as.Is[fileCommentArgs], func(f fileCommentArgs) []commentArgs { return f.commentArgs })
+	if err := fileCommentPairs.Track(func(file fileCommentArgs, commentCmd commentArgs) error {
+		configParser := newConfigFlagSet(strings.Join(commentCmd.args, " "))
+		commentConfig := params.NewTypeConfig(configParser)
+		if err := configParser.Parse(commentCmd.args); err != nil {
 			return err
 		}
 		if notCmdLineType {
@@ -179,7 +172,7 @@ func run() error {
 		if err != nil {
 			var uErr *use.Error
 			if errors.As(err, &uErr) {
-				return use.FileCommentErr(uErr.Error(), file.astFile, file.tokenFile, commentCmdArgs.comment)
+				return use.FileCommentErr(uErr.Error(), file.astFile, file.tokenFile, commentCmd.comment)
 			}
 			return err
 		} else if len(cmtCommands) == 0 {
@@ -188,6 +181,9 @@ func run() error {
 			logger.Debugf("unspent comment line args: %v\n", cmtArgs)
 		}
 		commands = append(commands, cmtCommands...)
+		return nil
+	}); err != nil {
+		return err
 	}
 
 	typeConfigs.Set(typeConfig, commands)
@@ -209,9 +205,7 @@ func run() error {
 	}
 
 	if logger.IsDebug() {
-		allSrcFiles := set.From(iterable.Flatt(pkgs, func(p *packages.Package) []*ast.File {
-			return p.Syntax
-		}).Begin())
+		allSrcFiles := set.From(collection.Flatt(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }).Next)
 
 		logger.Debugf("source files amount %d", allSrcFiles.Len())
 
@@ -249,10 +243,6 @@ func run() error {
 				return err
 			}
 			outputName = absOutName
-			outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, pkgs, absOutName)
-			if err != nil {
-				return err
-			}
 		} else if outputName == generator.Autoname {
 			//autoname selected
 			outFile = typFile
@@ -266,45 +256,44 @@ func run() error {
 			}
 			outputName = absOutName
 			logger.Debugf("trying to find output file %s", outputName)
+		}
 
-			outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, pkgs, outputName)
-			if err != nil {
+		outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, pkgs, outputName)
+		if err != nil {
+			return err
+		}
+
+		if outFile == nil {
+			logger.Debugf("out file not found, trying to fix")
+			buildTag := typeConfig.OutBuildTags
+			typModule := typPkg.Module
+			moduleDir := typModule.Dir
+
+			if dir, err := getDir(outputName); err != nil {
 				return err
-			}
-
-			if outFile == nil {
-				logger.Debugf("out file not found, trying to fix")
-				buildTag := typeConfig.OutBuildTags
-				typModule := typPkg.Module
-				moduleDir := typModule.Dir
-
-				if dir, err := getDir(outputName); err != nil {
-					return err
-				} else {
-					if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
-						logger.Debugf("create new package dir %s", dir)
-						if err := os.Mkdir(dir, os.ModePerm); err != nil {
-							return err
-						}
+			} else {
+				if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
+					logger.Debugf("create new package dir %s", dir)
+					if err := os.Mkdir(dir, os.ModePerm); err != nil {
+						return err
 					}
-					outPkgs, err := loadFilePackage(dir, fileSet, buildTag)
+				}
+				outPkgs, err := loadFilePackage(dir, fileSet, buildTag)
+				if err != nil {
+					return err
+				} else if outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, outPkgs, outputName); err != nil {
+					return fmt.Errorf("findPkgFile: out file %s :%w", outputName, err)
+				}
+				if outPkg == nil {
+					logger.Debugf("cannot determine output package, create new: output file '%s'", outputName)
+
+					pkgPath, err := filepath.Rel(moduleDir, dir)
 					if err != nil {
 						return err
-					} else if outPkgs.Len() > 0 {
-						if outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, outPkgs, outputName); err != nil {
-							return fmt.Errorf("findPkgFile: out file %s :%w", outputName, err)
-						}
-					} else {
-						logger.Debugf("cannot determine output package, create new: output file '%s'", outputName)
-
-						pkgPath, err := filepath.Rel(moduleDir, dir)
-						if err != nil {
-							return err
-						}
-						pkgName := path.Base(pkgPath)
-						typs := types.NewPackage(pkgPath, pkgName)
-						outPkg = &packages.Package{PkgPath: pkgPath, ID: pkgPath, Name: pkgName, Types: typs, Module: typModule}
 					}
+					pkgName := filepath.Base(pkgPath)
+					typs := types.NewPackage(pkgPath, pkgName)
+					outPkg = &packages.Package{PkgPath: pkgPath, ID: pkgPath, Name: pkgName, Types: typs, Module: typModule}
 				}
 			}
 		}
@@ -361,7 +350,28 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 	}
 
 	logger.Debugf("findPkgFile: output file not found: %s", outputName)
-	return nil, nil, nil, nil
+
+	if dir, err := getDir(outputName); err != nil {
+		return nil, nil, nil, err
+	} else {
+		pkgName := filepath.Base(dir)
+		logger.Debugf("findPkgFile: select package by name: %s, path %s", pkgName, dir)
+		firstPkg, ok := collection.First(pkgs, func(p *packages.Package) bool {
+			bp := path.Base(p.PkgPath)
+			fullPath := filepath.Join(p.Module.Dir, bp)
+			if fullPath == dir {
+				return true
+			}
+			logger.Debugf("findPkgFile: not match package by name: %s, path %s", p.PkgPath, fullPath)
+			return false
+		})
+		if ok {
+			logger.Debugf("findPkgFile: found package by name %s, %v", pkgName, firstPkg)
+		} else {
+			logger.Debugf("findPkgFile: package not found by name %s", pkgName)
+		}
+		return firstPkg, nil, nil, nil
+	}
 }
 
 func newConfigFlagSet(name string) *flag.FlagSet {
@@ -388,32 +398,33 @@ func parseCommands(args []string) ([]*command.Command, []string, error) {
 	return commands, args, nil
 }
 
-type fileCmdArgs struct {
+type fileCommentArgs struct {
 	astFile     *ast.File
 	tokenFile   *token.File
-	commentArgs []commentCmdArgs
+	commentArgs []commentArgs
 }
 
-func newFilesCommentsConfig(fileSet *token.FileSet, files c.ForLoop[*ast.File]) ([]fileCmdArgs, error) {
-	result := []fileCmdArgs{}
-	return result, files.For(func(file *ast.File) error {
+func (f fileCommentArgs) CommentArgs() []commentArgs { return f.commentArgs }
+
+func getFilesCommentArgs(fileSet *token.FileSet, files c.Iterable[*ast.File]) loop.ConvertCheckIter[*fileCommentArgs, fileCommentArgs] {
+	return loop.GetValues(collection.Conv(files, func(file *ast.File) (*fileCommentArgs, error) {
 		ft := fileSet.File(file.Pos())
-		if args, err := getFileCommentCmdArgs(file, ft); err != nil {
-			return err
+		if args, err := getCommentArgs(file, ft); err != nil {
+			return nil, err
 		} else if len(args) > 0 {
-			result = append(result, fileCmdArgs{astFile: file, tokenFile: ft, commentArgs: args})
+			return &fileCommentArgs{astFile: file, tokenFile: ft, commentArgs: args}, nil
 		}
-		return nil
-	})
+		return nil, nil
+	}).Next)
 }
 
-type commentCmdArgs struct {
+type commentArgs struct {
 	comment *ast.Comment
 	args    []string
 }
 
-func getFileCommentCmdArgs(file *ast.File, fInfo *token.File) ([]commentCmdArgs, error) {
-	var result []commentCmdArgs
+func getCommentArgs(file *ast.File, fInfo *token.File) ([]commentArgs, error) {
+	var result []commentArgs
 	for _, commentGroup := range file.Comments {
 		for _, comment := range commentGroup.List {
 			if args, err := getCommentCmdArgs(comment.Text); err != nil {
@@ -422,7 +433,7 @@ func getFileCommentCmdArgs(file *ast.File, fInfo *token.File) ([]commentCmdArgs,
 				name := fInfo.Name()
 				line := fInfo.Line(comment.Pos())
 				logger.Debugf("extracted comment args: file %s, line %d, args %v", name, line, args)
-				result = append(result, commentCmdArgs{comment: comment, args: args})
+				result = append(result, commentArgs{comment: comment, args: args})
 			}
 		}
 	}
@@ -549,9 +560,10 @@ func extractPackages(fileSet *token.FileSet, buildTags []string, fileName string
 	}, "./..."); err != nil {
 		return nil, err
 	} else {
-		return orderset.From(iter.Filter(iter.New(pkgs), func(p *packages.Package) bool {
-			return !(strings.Contains(p.ID, ".test]") || strings.HasSuffix(p.ID, ".test"))
-		})), nil
+		return set.From(iter.Filter(pkgs, func(p *packages.Package) bool {
+			pID := p.ID
+			return !(strings.Contains(pID, ".test]") || strings.HasSuffix(pID, ".test"))
+		}).Next), nil
 	}
 }
 func getDir(fileName string) (string, error) {
@@ -565,12 +577,4 @@ func getDir(fileName string) (string, error) {
 
 func buildTagsArg(buildTags []string) []string {
 	return []string{fmt.Sprintf("-tags=%s", strings.Join(buildTags, " "))}
-}
-
-// func constValBuilder[KEY, VAL any](val VAL) func(key KEY) c.KV[KEY, VAL] {
-// 	return func(key KEY) c.KV[KEY, VAL] { return K.V(key, val) }
-// }
-
-func constKeyBuilder[VAL, KEY any](key KEY) func(val VAL) c.KV[KEY, VAL] {
-	return func(val VAL) c.KV[KEY, VAL] { return K.V(key, val) }
 }

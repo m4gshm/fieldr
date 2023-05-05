@@ -1,6 +1,6 @@
 package get_set
 
-//go:generate fieldr
+//go:generate fieldr -debug
 
 //go:fieldr -type Entity get-set
 //go:fieldr -out internal/entity_fieldr.go get-set

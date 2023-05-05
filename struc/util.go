@@ -20,31 +20,29 @@ func FindTypePackageFile(typeName string, pkgs c.ForLoop[*packages.Package]) (*t
 		if lookup := pkgTypes.Scope().Lookup(typeName); lookup == nil {
 			logger.Debugf("no type '%s' in package '%s'", typeName, pkgTypes.Name())
 			return nil
+		} else if structType, _, err := GetStructTypeNamed(lookup.Type()); err != nil {
+			return err
+		} else if structType == nil {
+			return fmt.Errorf("type '%s' is not struct", typeName)
 		} else {
-			if structType, _, err := GetStructTypeNamed(lookup.Type()); err != nil {
-				return err
-			} else if structType == nil {
-				return fmt.Errorf("type '%s' is not struct", typeName)
-			} else {
-				resultType = structType
-				resultPkg = pkg
-				for _, file := range pkg.Syntax {
-					if lookup := file.Scope.Lookup(typeName); lookup == nil {
-						logger.Debugf("no type '%s' in file '%s' package '%s'", typeName, file.Name, pkgTypes.Name())
+			resultType = structType
+			resultPkg = pkg
+			for _, file := range pkg.Syntax {
+				if lookup := file.Scope.Lookup(typeName); lookup == nil {
+					logger.Debugf("no type '%s' in file '%s' package '%s'", typeName, file.Name, pkgTypes.Name())
+				} else {
+					d := lookup.Data
+					_ = d
+					if ts, ok := lookup.Decl.(*ast.TypeSpec); !ok {
+					} else if ts == nil {
+						return fmt.Errorf("type '%s' is not struct", typeName)
 					} else {
-						d := lookup.Data
-						_ = d
-						if ts, ok := lookup.Decl.(*ast.TypeSpec); !ok {
-						} else if ts == nil {
-							return fmt.Errorf("type '%s' is not struct", typeName)
-						} else {
-							resultFile = file
-							break
-						}
+						resultFile = file
+						break
 					}
 				}
-				return c.ErrBreak
 			}
+			return c.ErrBreak
 		}
 	})
 }

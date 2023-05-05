@@ -161,6 +161,7 @@
             "program": "main.go",
             "cwd": "examples/get_set",
             "args": [
+                "-debug",
                 "-type",
                 "Entity",
                 "get-set"
