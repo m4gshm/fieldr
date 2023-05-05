@@ -12,7 +12,7 @@ import (
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/struc"
 	"github.com/m4gshm/gollections/c"
-	"github.com/m4gshm/gollections/collection/mutable/oset"
+	"github.com/m4gshm/gollections/collection/mutable/ordered"
 	"github.com/m4gshm/gollections/collection/mutable/set"
 	"github.com/pkg/errors"
 )
@@ -181,7 +181,7 @@ func checkDuplicates(constants []fieldConst, checkValues bool) error {
 func makeFieldConstsTempl(
 	g *Generator, model *struc.Model, structType, nameTmpl, valueTmpl string, export, snake, usePrivate bool, flats, excludedFields c.Checkable[string],
 ) ([]fieldConst, error) {
-	usedTags := oset.Empty[struc.TagName]()
+	usedTags := &ordered.Set[struc.TagName]{}
 
 	constants := make([]fieldConst, 0)
 

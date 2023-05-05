@@ -18,26 +18,23 @@ import (
 
 	"golang.org/x/tools/go/packages"
 
-	"github.com/m4gshm/gollections/break/loop"
-	"github.com/m4gshm/gollections/break/stream"
-	"github.com/m4gshm/gollections/c"
-	"github.com/m4gshm/gollections/check/not"
-	"github.com/m4gshm/gollections/collection"
-	"github.com/m4gshm/gollections/collection/immutable/set"
-	"github.com/m4gshm/gollections/collection/mutable/omap"
-	"github.com/m4gshm/gollections/collection/mutable/ordered"
-	"github.com/m4gshm/gollections/collection/mutable/oset"
-	"github.com/m4gshm/gollections/convert/as"
-	"github.com/m4gshm/gollections/op"
-	"github.com/m4gshm/gollections/slice"
-	"github.com/m4gshm/gollections/slice/iter"
-
 	"github.com/m4gshm/fieldr/command"
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/struc"
 	"github.com/m4gshm/fieldr/use"
+
+	"github.com/m4gshm/gollections/break/loop"
+	"github.com/m4gshm/gollections/c"
+	"github.com/m4gshm/gollections/collection"
+	"github.com/m4gshm/gollections/collection/mutable/ordered"
+	"github.com/m4gshm/gollections/collection/mutable/ordered/map_"
+	"github.com/m4gshm/gollections/collection/mutable/ordered/set"
+	"github.com/m4gshm/gollections/convert/as"
+	"github.com/m4gshm/gollections/op"
+	"github.com/m4gshm/gollections/slice"
+	"github.com/m4gshm/gollections/slice/iter"
 )
 
 func usage(commandLine *flag.FlagSet) func() {
@@ -114,7 +111,7 @@ func run() error {
 
 	files := set.From(collection.Flatt(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }).Next)
 
-	typeConfigs := omap.Empty[params.TypeConfig, []*command.Command]()
+	typeConfigs := map_.Empty[params.TypeConfig, []*command.Command]()
 
 	typeConfig := *commonTypeConfig
 
@@ -122,8 +119,8 @@ func run() error {
 
 	notCmdLineType := len(typeConfig.Type) == 0
 
-	fileCommentPairs := loop.FlattValues(filesCmdArgs.Next, as.Is[*fileCommentArgs], func(f *fileCommentArgs) []commentArgs { return f.commentArgs })
-	if err := fileCommentPairs.Track(func(file *fileCommentArgs, commentCmd commentArgs) error {
+	fileCommentPairs := loop.FlattValues(filesCmdArgs.Next, as.Is[fileCommentArgs], func(f fileCommentArgs) []commentArgs { return f.commentArgs })
+	if err := fileCommentPairs.Track(func(file fileCommentArgs, commentCmd commentArgs) error {
 		configParser := newConfigFlagSet(strings.Join(commentCmd.args, " "))
 		commentConfig := params.NewTypeConfig(configParser)
 		if err := configParser.Parse(commentCmd.args); err != nil {
@@ -208,7 +205,7 @@ func run() error {
 	}
 
 	if logger.IsDebug() {
-		allSrcFiles := set.From(oset.Flatt(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }).Next)
+		allSrcFiles := set.From(collection.Flatt(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }).Next)
 
 		logger.Debugf("source files amount %d", allSrcFiles.Len())
 
@@ -409,8 +406,8 @@ type fileCommentArgs struct {
 
 func (f fileCommentArgs) CommentArgs() []commentArgs { return f.commentArgs }
 
-func getFilesCommentArgs(fileSet *token.FileSet, files c.Iterable[*ast.File]) stream.Iter[*fileCommentArgs] {
-	return collection.Conv(files, func(file *ast.File) (*fileCommentArgs, error) {
+func getFilesCommentArgs(fileSet *token.FileSet, files c.Iterable[*ast.File]) loop.ConvertCheckIter[*fileCommentArgs, fileCommentArgs] {
+	return loop.GetValues(collection.Conv(files, func(file *ast.File) (*fileCommentArgs, error) {
 		ft := fileSet.File(file.Pos())
 		if args, err := getCommentArgs(file, ft); err != nil {
 			return nil, err
@@ -418,7 +415,7 @@ func getFilesCommentArgs(fileSet *token.FileSet, files c.Iterable[*ast.File]) st
 			return &fileCommentArgs{astFile: file, tokenFile: ft, commentArgs: args}, nil
 		}
 		return nil, nil
-	}).Filter(not.Nil[fileCommentArgs])
+	}).Next)
 }
 
 type commentArgs struct {
@@ -563,7 +560,7 @@ func extractPackages(fileSet *token.FileSet, buildTags []string, fileName string
 	}, "./..."); err != nil {
 		return nil, err
 	} else {
-		return oset.From(iter.Filter(pkgs, func(p *packages.Package) bool {
+		return set.From(iter.Filter(pkgs, func(p *packages.Package) bool {
 			pID := p.ID
 			return !(strings.Contains(pID, ".test]") || strings.HasSuffix(pID, ".test"))
 		}).Next), nil

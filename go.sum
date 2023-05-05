@@ -74,6 +74,12 @@ github.com/m4gshm/gollections v0.0.7-0.20230429224336-02b3edf33d4a h1:nI4JCUc/sJ
 github.com/m4gshm/gollections v0.0.7-0.20230429224336-02b3edf33d4a/go.mod h1:L5RZjqkCVH55o5VjT+DZBDcWFzQoiQxQTYkqRzjry4s=
 github.com/m4gshm/gollections v0.0.7-0.20230430202255-eecd21dccc08 h1:4Pw0m6HxNYr/zv/Tcyig4DzHysgOAqPGzwf3hahJqLE=
 github.com/m4gshm/gollections v0.0.7-0.20230430202255-eecd21dccc08/go.mod h1:L5RZjqkCVH55o5VjT+DZBDcWFzQoiQxQTYkqRzjry4s=
+github.com/m4gshm/gollections v0.0.7-0.20230504205907-e71736d2ae5e h1:va2k5b2093GEaE/h7h9MJDLDCI0mueh/oglj422314Y=
+github.com/m4gshm/gollections v0.0.7-0.20230504205907-e71736d2ae5e/go.mod h1:TRYgTUE6ik68ZebsEtdEfB1wDVpvVDWPi90xHWrEZgg=
+github.com/m4gshm/gollections v0.0.7-0.20230504214258-cbc5993c49f3 h1:xN3m8+NuR06m5GWUmj6cKEQYjdv+mJr3JIHVxWVIF5s=
+github.com/m4gshm/gollections v0.0.7-0.20230504214258-cbc5993c49f3/go.mod h1:TRYgTUE6ik68ZebsEtdEfB1wDVpvVDWPi90xHWrEZgg=
+github.com/m4gshm/gollections v0.0.7-0.20230504224211-f6500aa800c4 h1:CFtgmOLumicvhUFC6bt/t1PneASoErRvBmvc/V656Vk=
+github.com/m4gshm/gollections v0.0.7-0.20230504224211-f6500aa800c4/go.mod h1:TRYgTUE6ik68ZebsEtdEfB1wDVpvVDWPi90xHWrEZgg=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
@@ -101,6 +107,7 @@ golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0/go.mod h1:CxIveKay+FTh1D0yPZ
 golang.org/x/exp v0.0.0-20230321023759-10a507213a29 h1:ooxPy7fPvB4kwsA2h+iBNHkAbp/4JxTSwCmvdjEYmug=
 golang.org/x/exp v0.0.0-20230321023759-10a507213a29/go.mod h1:CxIveKay+FTh1D0yPZemJVgC/95VzuuOLq5Qi4xnoYc=
 golang.org/x/exp v0.0.0-20230420155640-133eef4313cb/go.mod h1:V1LtkGg67GoY2N1AnLN78QLrzxkLyJw7RJb1gzOOz9w=
+golang.org/x/exp v0.0.0-20230425010034-47ecfdc1ba53/go.mod h1:V1LtkGg67GoY2N1AnLN78QLrzxkLyJw7RJb1gzOOz9w=
 golang.org/x/mod v0.7.0 h1:LapD9S96VoQRhi/GrNTqeBJFrUjs5UHCAtTlgwA5oZA=
 golang.org/x/mod v0.7.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
 golang.org/x/mod v0.9.0 h1:KENHtAZL2y3NLMYZeHY9DW8HW8V+kQyJsY/V9JlKvCs=
