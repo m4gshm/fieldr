@@ -223,20 +223,6 @@
             ]
         },
         {
-            "name": "Debug complex_slice_examples collections",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "main.go",
-            "cwd": "/Users/ruaabks/Documents/github/m4gshm/gollections/internal/examples/sliceexamples/complex_slice_examples",
-            "args": [
-                "-type",
-                "User",
-                "-out",
-                "complex_slice_examples_test.go"
-            ]
-        },
-        {
             "name": "Launch Package",
             "type": "go",
             "request": "launch",
