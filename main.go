@@ -229,6 +229,8 @@ func run() error {
 		typ, typPkg, typFile, err := struc.FindTypePackageFile(typeName, pkgs)
 		if err != nil {
 			return fmt.Errorf("find type %s: %w", typeName, err)
+		} else if typ == nil {
+			return fmt.Errorf("type not found: %s", typeName)
 		}
 
 		outputName := typeConfig.Output
@@ -266,7 +268,11 @@ func run() error {
 		if outFile == nil {
 			logger.Debugf("out file not found, trying to fix")
 			buildTag := typeConfig.OutBuildTags
+			if typPkg == nil {
+				return fmt.Errorf("type package not found: type %s", typeName)
+			}
 			typModule := typPkg.Module
+
 			moduleDir := typModule.Dir
 
 			if dir, err := getDir(outputName); err != nil {
@@ -561,8 +567,9 @@ func extractPackages(fileSet *token.FileSet, buildTags []string, fileName string
 		return nil, err
 	} else {
 		return set.From(iter.Filter(pkgs, func(p *packages.Package) bool {
-			pID := p.ID
-			return !(strings.Contains(pID, ".test]") || strings.HasSuffix(pID, ".test"))
+			// pID := p.ID
+			// return !(strings.Contains(pID, ".test]") || strings.HasSuffix(pID, ".test"))
+			return true
 		}).Next), nil
 	}
 }
