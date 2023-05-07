@@ -11,6 +11,7 @@ import (
 
 	"github.com/m4gshm/gollections/collection/immutable"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
+	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/op/use"
 	"github.com/pkg/errors"
 
@@ -106,10 +107,7 @@ func (g *Generator) GenerateFieldConstant(
 
 	if wrapType {
 		if len(typeMethod) > 0 {
-			funcName := typeMethod
-			if typeMethod == Autoname {
-				funcName = IdentName("Field", export)
-			}
+			funcName := op.IfElse(typeMethod == Autoname, IdentName("Field", export), typeMethod)
 			if funcBody, err := g.generateConstFieldMethod(typ, funcName, constants, exportFunc, nolint); err != nil {
 				return err
 			} else if err := g.AddMethod(typ, funcName, funcBody); err != nil {
@@ -126,10 +124,7 @@ func (g *Generator) GenerateFieldConstant(
 				return err
 			}
 			if len(valAccessor) != 0 {
-				funcName := valAccessor
-				if valAccessor == Autoname {
-					funcName = IdentName("Val", export)
-				}
+				funcName := op.IfElse(valAccessor == Autoname, IdentName("Val", export), valAccessor)
 				logger.Debugf("valAccessor func %s", funcName)
 				if funcBody, funcName, err := g.generateConstValueMethod(model, pkgName, typ, funcName, constants, exportFunc, nolint, false); err != nil {
 					return err
@@ -138,10 +133,7 @@ func (g *Generator) GenerateFieldConstant(
 				}
 			}
 			if len(refAccessor) != 0 {
-				funcName := refAccessor
-				if refAccessor == Autoname {
-					funcName = IdentName("Ref", export)
-				}
+				funcName := op.IfElse(refAccessor == Autoname, IdentName("Ref", export), refAccessor)
 				logger.Debugf("refAccessor func %s", funcName)
 				if funcBody, funcName, err := g.generateConstValueMethod(model, pkgName, typ, funcName, constants, exportFunc, nolint, true); err != nil {
 					return err
@@ -207,7 +199,7 @@ func makeFieldConstsTempl(
 		flat := flats.Contains(fieldName)
 		fieldModel := fieldType.Model
 		if flat || embedded {
-			subflats := use.If(flats, embedded).Else(immutable.Set[string]{})
+			subflats := use.This(flats).If(embedded).Else(immutable.Set[string]{})
 			fieldConstants, err := makeFieldConstsTempl(g, fieldModel, structType, nameTmpl, valueTmpl, export, snake, usePrivate, subflats, excludedFields)
 			if err != nil {
 				return nil, err
@@ -301,7 +293,7 @@ func makeFieldConsts(g *Generator, model *struc.Model, export, snake, allFields 
 		fieldModel := fieldType.Model
 		filedInfo := FieldInfo{Name: fieldName, Type: fieldType}
 		if flat || embedded {
-			subflats := use.If(flats, embedded).Else(immutable.Set[string]{})
+			subflats := use.This(flats).If(embedded).Else(immutable.Set[string]{})
 			fieldConstants, err := makeFieldConsts(g, fieldModel, export, snake, allFields, subflats)
 			if err != nil {
 				return nil, err
@@ -537,14 +529,14 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 	}
 
 	isFunc := len(pkgName) > 0
-	funSign := "func (" + recVar + " " + recParamTypeRef + ") " + name + "(" + argVar + " " + typ + ") " + returnTypes
-	if isFunc {
-		funSign = "func " + name + "(" + recVar + " " + recParamTypeRef + ", " + argVar + " " + typ + ") " + returnTypes
-	}
-	body := funSign
-	body += " {" + NoLint(nolint) + "\n"
-	body += "if " + recVar + " == nil {\nreturn nil\n}\n"
-	body += "switch " + argVar + " {\n"
+	body := "func " + use.If(isFunc,
+		name+"("+recVar+" "+recParamTypeRef+", "+argVar+" "+typ+") ",
+	).Else(
+		"("+recVar+" "+recParamTypeRef+") "+name+"("+argVar+" "+typ+") ",
+	) + returnTypes +
+		" {" + NoLint(nolint) + "\n" +
+		"if " + recVar + " == nil {\nreturn nil\n}\n" +
+		"switch " + argVar + " {\n"
 
 	for _, constant := range constants {
 		body += "case " + constant.name + ":\n"
@@ -562,13 +554,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 		body += varsConditionEnd
 	}
 
-	body += "}\n"
-	body += "" +
-		"return " + returnNoCase +
-		"}\n"
+	body += "}\nreturn " + returnNoCase + "}\n"
 
-	if !isFunc {
-		name = MethodName(recType, name)
-	}
-	return body, name, nil
+	return body, use.If(isFunc, name).Else(MethodName(recType, name)), nil
 }

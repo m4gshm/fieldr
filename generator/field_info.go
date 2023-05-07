@@ -5,6 +5,7 @@ import (
 	"unicode"
 
 	"github.com/m4gshm/fieldr/struc"
+	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/slice"
 )
 
@@ -18,18 +19,18 @@ func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference, r
 	shortConditionPath := ""
 	if isReceiverReference {
 		newReceiver := PathToShortVarName(receiverVar)
-		conditions = append(conditions, ifElse(redeclareReceiver,
+		conditions = append(conditions, op.IfElse(redeclareReceiver,
 			newReceiver+":="+receiverVar+";"+newReceiver+"!=nil",
 			newReceiver+"!=nil"))
 		shortConditionPath = newReceiver
 	}
 	fieldPath := ""
 	for _, part := range fieldParts {
-		fieldPath += ifElse(len(fieldPath) > 0, ".", "") + part.Name
+		fieldPath += op.IfElse(len(fieldPath) > 0, ".", "") + part.Name
 
-		receiverFieldPath := receiverVar + ifElse(len(fieldPath) > 0, "."+fieldPath, "")
+		receiverFieldPath := receiverVar + op.IfElse(len(fieldPath) > 0, "."+fieldPath, "")
 
-		shortConditionPath = ifElse(len(shortConditionPath) > 0, shortConditionPath+"."+part.Name, receiverFieldPath)
+		shortConditionPath = op.IfElse(len(shortConditionPath) > 0, shortConditionPath+"."+part.Name, receiverFieldPath)
 
 		if part.Type.RefCount > 0 {
 			newReceiver := PathToShortVarName(part.Name)

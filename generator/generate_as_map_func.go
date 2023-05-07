@@ -4,6 +4,8 @@ import (
 	"go/types"
 
 	"github.com/m4gshm/fieldr/struc"
+	"github.com/m4gshm/gollections/op"
+	"github.com/m4gshm/gollections/op/use"
 )
 
 func (g *Generator) GenerateAsMapFunc(
@@ -19,37 +21,27 @@ func (g *Generator) GenerateAsMapFunc(
 	}
 
 	receiverVar := TypeReceiverVar(model.TypeName)
-	receiverRef := ifElse(returnRefs, "&"+receiverVar, receiverVar)
+	receiverRef := op.IfElse(returnRefs, "&"+receiverVar, receiverVar)
 
 	funcName := renameFuncByConfig(IdentName("AsMap", export), name)
 
 	typeLink := GetTypeName(model.TypeName, pkgName) + TypeParamsString(model.Typ.TypeParams(), g.OutPkgPath)
 	mapVar := "m"
-	var body string
-	if noReceiver {
-		body = "func " + funcName + "(" + receiverVar + " *" + typeLink + ") map[" + keyType + "]interface{}"
-	} else {
-		body = "func (" + receiverVar + " *" + typeLink + ") " + funcName + "() map[" + keyType + "]interface{}"
-	}
+
+	body := "func " + use.If(noReceiver, funcName+"("+receiverVar+" *"+typeLink+")").Else("("+receiverVar+" *"+typeLink+") "+funcName+"()") + " map[" + keyType + "]interface{}"
+
 	body += " {" + NoLint(nolint)
 	body += "\n"
-
 	body += "if " + receiverVar + " == nil{\nreturn nil\n}\n"
-
 	body += mapVar + " := map[" + keyType + "]interface{}{}\n"
 
 	bodyPart, err := generateMapInits(g, mapVar, receiverRef, rewriter, constants)
 	if err != nil {
 		return "", "", "", err
 	}
-	body += bodyPart
-	body += "return " + mapVar + "\n" +
-		"}\n"
+	body += bodyPart + "return " + mapVar + "\n}\n"
 
-	if !noReceiver {
-		funcName = MethodName(model.TypeName, funcName)
-	}
-	return typeLink, funcName, body, nil
+	return typeLink, op.IfElse(noReceiver, funcName, MethodName(model.TypeName, funcName)), body, nil
 }
 
 func TypeArgsString(targs *types.TypeList, basePkgPath string) string {

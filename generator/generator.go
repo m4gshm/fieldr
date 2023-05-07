@@ -21,6 +21,9 @@ import (
 
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/struc"
+	"github.com/m4gshm/gollections/map_"
+	"github.com/m4gshm/gollections/op"
+	"github.com/m4gshm/gollections/slice"
 )
 
 const oneLineSize = 3
@@ -601,14 +604,10 @@ func (g *Generator) getImportsExpr() (string, error) {
 }
 
 func (g *Generator) getImports() *ast.GenDecl {
-	specs := []ast.Spec{}
-	for pack, imp := range g.imports {
-		specs = append(specs, newImport(imp.alias, pack))
+	return &ast.GenDecl{
+		Tok:   token.IMPORT,
+		Specs: map_.ToSlice(g.imports, func(pack string, imp packageImport) ast.Spec { return newImport(imp.alias, pack) }),
 	}
-	// if len(specs) == 0 {
-	// 	return nil
-	// }
-	return &ast.GenDecl{Tok: token.IMPORT, Specs: specs}
 }
 
 func writeSpecs(specs ast.Node, out *bytes.Buffer) error {
@@ -698,15 +697,8 @@ func (g *Generator) writeStructs() error {
 }
 
 func (g *Generator) getTypes() *ast.GenDecl {
-	specs := []ast.Spec{}
-	for _, name := range g.typeNames {
-		value := g.typeValues[name]
-		specs = append(specs, newType(name, value))
-	}
-	if len(specs) == 0 {
-		return nil
-	}
-	return &ast.GenDecl{Tok: token.TYPE, Specs: specs}
+	specs := slice.Convert(g.typeNames, func(name string) ast.Spec { return newType(name, g.typeValues[name]) })
+	return op.IfElse(len(specs) > 0, &ast.GenDecl{Tok: token.TYPE, Specs: specs}, nil)
 }
 
 func (g *Generator) AddType(typeName string, typeValue string) error {
@@ -736,12 +728,7 @@ func getIdentPart(suffix string, snake bool) string {
 }
 
 func IdentName(name string, export bool) string {
-	first := rune(name[0])
-	if export {
-		first = unicode.ToUpper(first)
-	} else {
-		first = unicode.ToLower(first)
-	}
+	first := op.IfElse(export, unicode.ToUpper, unicode.ToLower)(rune(name[0]))
 	result := string(first) + name[1:]
 	return result
 }
@@ -773,8 +760,7 @@ func camel(name string) string {
 	if len(name) == 0 {
 		return name
 	}
-	first := rune(name[0])
-	first = unicode.ToUpper(first)
+	first := unicode.ToUpper(rune(name[0]))
 	result := string(first) + name[1:]
 	return result
 }
@@ -830,8 +816,8 @@ func (g *Generator) AddFuncDecl(node *ast.FuncDecl) error {
 
 func FuncDeclName(funcDecl *ast.FuncDecl) string {
 	name := funcDecl.Name.Name
-	if funcDecl.Recv != nil && len(funcDecl.Recv.List) > 0 {
-		name = funcDecl.Recv.List[0].Names[0].Name + "." + name
+	if recv := funcDecl.Recv; recv != nil && len(recv.List) > 0 {
+		name = recv.List[0].Names[0].Name + "." + name
 	}
 	return name
 }
@@ -902,16 +888,13 @@ func renameFuncByConfig(funcName, renameTo string) string {
 }
 
 func GetTypeName(typeName string, pkg string) string {
-	return ifElse(len(pkg) > 0, pkg+"."+typeName, typeName)
+	return op.IfElse(len(pkg) > 0, pkg+"."+typeName, typeName)
 }
 
 func (g *Generator) getTagTemplateConstName(typeName string, fieldName struc.FieldName, tags []struc.TagName, export, snake bool) string {
 	fieldName = convertFieldPathToGoIdent(fieldName)
 	export = isExport(fieldName) && export
-	tagsPart := ""
-	for _, tag := range tags {
-		tagsPart += getIdentPart(tag, snake)
-	}
+	tagsPart := slice.Sum(slice.Convert(tags, func(tag string) string { return getIdentPart(tag, snake) }))
 	return LegalIdentName(IdentName(typeName+tagsPart+getIdentPart(fieldName, snake), export))
 }
 
@@ -1076,10 +1059,7 @@ func (g *Generator) GetFullFieldTypeName(fieldType struc.FieldType, baseType boo
 }
 
 func NoLint(nolint bool) string {
-	if nolint {
-		return "//nolint"
-	}
-	return ""
+	return op.IfElse(nolint, "//nolint", "")
 }
 
 func filterNotExisted(names []string, values map[string]string) []string {
@@ -1140,12 +1120,5 @@ func newImport(name, path string) *ast.ImportSpec {
 func Quoted(value string) string { return "\"" + value + "\"" }
 
 func GetFieldRef(fields ...struc.FieldName) struc.FieldName {
-	result := ""
-	for _, field := range fields {
-		if len(result) > 0 {
-			result += "."
-		}
-		result += field
-	}
-	return result
+	return slice.Reduce(fields, func(l, r string) string { return l + op.IfElse(len(l) > 0, ".", "") + r })
 }

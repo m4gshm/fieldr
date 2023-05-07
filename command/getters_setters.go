@@ -8,6 +8,7 @@ import (
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/struc"
+	"github.com/m4gshm/gollections/op"
 )
 
 func NewGettersSetters() *Command {
@@ -109,7 +110,7 @@ func generateGettersSetters(
 			suffix := generator.LegalIdentName(generator.IdentName(fieldName, true))
 
 			if len(getterPrefix) == 0 || getterPrefix == generator.Autoname {
-				getterPrefix = ifElse(suffix == fieldName, "Get", "")
+				getterPrefix = op.IfElse(suffix == fieldName, "Get", "")
 			}
 			if getters {
 				getterName := generator.IdentName(getterPrefix+suffix, exportMethods)
