@@ -6,6 +6,8 @@ import (
 
 	"github.com/m4gshm/fieldr/struc"
 	"github.com/m4gshm/gollections/op"
+	"github.com/m4gshm/gollections/op/delay/sum"
+	"github.com/m4gshm/gollections/op/get"
 	"github.com/m4gshm/gollections/slice"
 )
 
@@ -19,18 +21,16 @@ func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference, r
 	shortConditionPath := ""
 	if isReceiverReference {
 		newReceiver := PathToShortVarName(receiverVar)
-		conditions = append(conditions, op.IfElse(redeclareReceiver,
-			newReceiver+":="+receiverVar+";"+newReceiver+"!=nil",
-			newReceiver+"!=nil"))
+		conditions = slice.Of(get.If(redeclareReceiver, sum.Of(newReceiver, ":=", receiverVar, ";", newReceiver, "!=nil")).ElseGet(sum.Of(newReceiver, "!=nil")))
 		shortConditionPath = newReceiver
 	}
 	fieldPath := ""
 	for _, part := range fieldParts {
 		fieldPath += op.IfElse(len(fieldPath) > 0, ".", "") + part.Name
 
-		receiverFieldPath := receiverVar + op.IfElse(len(fieldPath) > 0, "."+fieldPath, "")
-
-		shortConditionPath = op.IfElse(len(shortConditionPath) > 0, shortConditionPath+"."+part.Name, receiverFieldPath)
+		shortConditionPath = get.If(len(shortConditionPath) > 0, sum.Of(shortConditionPath, ".", part.Name)).ElseGet(func() string {
+			return receiverVar + get.If(len(fieldPath) > 0, sum.Of(".", fieldPath)).Else("")
+		})
 
 		if part.Type.RefCount > 0 {
 			newReceiver := PathToShortVarName(part.Name)
@@ -56,13 +56,9 @@ func PathToShortVarName(fieldPath string) string {
 	if len(fieldPath) == 0 {
 		return "r"
 	} else if parts := strings.Split(fieldPath, "."); len(parts) > 1 {
-		convertedParts := slice.Convert(parts, PathToShortVarName)
-		path := strings.Join(convertedParts, "_")
-		return path
+		return strings.Join(slice.Convert(parts, PathToShortVarName), "_")
 	} else if parts := strings.Split(fieldPath, "_"); len(parts) > 1 {
-		convertedParts := slice.Convert(parts, PathToShortVarName)
-		path := strings.Join(convertedParts, "_")
-		return path
+		return strings.Join(slice.Convert(parts, PathToShortVarName), "_")
 	}
 
 	body := []rune{}
@@ -93,24 +89,16 @@ func PathToShortVarName(fieldPath string) string {
 }
 
 func TypeReceiverVar(typeName string) string {
-	if len(typeName) > 0 {
-		if parts := strings.Split(typeName, "."); len(parts) > 1 {
-			converted := slice.Convert(parts, TypeReceiverVar)
-			if len(converted) > 1 {
-				if len(converted[1]) > 0 {
-					return converted[1]
-				} else if len(converted[0]) > 0 {
-					return converted[0]
-				}
-			}
-		} else {
-			for _, r := range typeName {
-				if !unicode.IsLetter(r) {
-					continue
-				}
-				return string(unicode.ToLower(r))
+	if parts := strings.Split(typeName, "."); len(parts) > 1 {
+		if converted := slice.Convert(parts, TypeReceiverVar); len(converted) > 1 {
+			if len(converted[1]) > 0 {
+				return converted[1]
+			} else if len(converted[0]) > 0 {
+				return converted[0]
 			}
 		}
+	} else if f, ok := slice.First([]rune(typeName), unicode.IsLetter); ok {
+		return string(unicode.ToLower(f))
 	}
 	return "r"
 }

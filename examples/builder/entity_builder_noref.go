@@ -8,14 +8,14 @@ import (
 	"time"
 )
 
-type EntityBuilderVal[ID any] struct {
+type EntityBuilderVal[ID any, S string] struct {
 	ID           ID
 	Code         string
 	ForeignID    ID
 	Schema       string
 	Version      int
 	NoDB         *NoDBFieldsEntity
-	Name         StringBasedType[string]
+	Name         StringBasedType[S]
 	Surname      string
 	Values       []int32
 	Ts           []*time.Time
@@ -26,12 +26,12 @@ type EntityBuilderVal[ID any] struct {
 	OldForeignID *ForeignIDAwareEntity[ID]
 }
 
-func NewEntityBuilderVal[ID any]() *EntityBuilderVal[ID] {
-	return &EntityBuilderVal[ID]{}
+func NewEntityBuilderVal[ID any, S string]() *EntityBuilderVal[ID, S] {
+	return &EntityBuilderVal[ID, S]{}
 }
 
-func (b EntityBuilderVal[ID]) Build() Entity[ID] {
-	return Entity[ID]{
+func (b EntityBuilderVal[ID, S]) Build() Entity[ID, S] {
+	return Entity[ID, S]{
 		BaseEntity: &BaseEntity[ID]{
 			ID: b.ID,
 			RefCodeAwareEntity: &RefCodeAwareEntity{
@@ -60,77 +60,77 @@ func (b EntityBuilderVal[ID]) Build() Entity[ID] {
 	}
 }
 
-func (b EntityBuilderVal[ID]) SetID(iD ID) EntityBuilderVal[ID] {
+func (b EntityBuilderVal[ID, S]) SetID(iD ID) EntityBuilderVal[ID, S] {
 	b.ID = iD
 	return b
 }
 
-func (b EntityBuilderVal[ID]) SetCode(code string) EntityBuilderVal[ID] {
+func (b EntityBuilderVal[ID, S]) SetCode(code string) EntityBuilderVal[ID, S] {
 	b.Code = code
 	return b
 }
 
-func (b EntityBuilderVal[ID]) SetForeignID(foreignID ID) EntityBuilderVal[ID] {
+func (b EntityBuilderVal[ID, S]) SetForeignID(foreignID ID) EntityBuilderVal[ID, S] {
 	b.ForeignID = foreignID
 	return b
 }
 
-func (b EntityBuilderVal[ID]) SetSchema(schema string) EntityBuilderVal[ID] {
+func (b EntityBuilderVal[ID, S]) SetSchema(schema string) EntityBuilderVal[ID, S] {
 	b.Schema = schema
 	return b
 }
 
-func (b EntityBuilderVal[ID]) SetVersion(version int) EntityBuilderVal[ID] {
+func (b EntityBuilderVal[ID, S]) SetVersion(version int) EntityBuilderVal[ID, S] {
 	b.Version = version
 	return b
 }
 
-func (b EntityBuilderVal[ID]) SetNoDB(noDB *NoDBFieldsEntity) EntityBuilderVal[ID] {
+func (b EntityBuilderVal[ID, S]) SetNoDB(noDB *NoDBFieldsEntity) EntityBuilderVal[ID, S] {
 	b.NoDB = noDB
 	return b
 }
 
-func (b EntityBuilderVal[ID]) SetName(name StringBasedType[string]) EntityBuilderVal[ID] {
+func (b EntityBuilderVal[ID, S]) SetName(name StringBasedType[S]) EntityBuilderVal[ID, S] {
 	b.Name = name
 	return b
 }
 
-func (b EntityBuilderVal[ID]) SetSurname(surname string) EntityBuilderVal[ID] {
+func (b EntityBuilderVal[ID, S]) SetSurname(surname string) EntityBuilderVal[ID, S] {
 	b.Surname = surname
 	return b
 }
 
-func (b EntityBuilderVal[ID]) SetValues(values []int32) EntityBuilderVal[ID] {
+func (b EntityBuilderVal[ID, S]) SetValues(values []int32) EntityBuilderVal[ID, S] {
 	b.Values = values
 	return b
 }
 
-func (b EntityBuilderVal[ID]) SetTs(ts []*time.Time) EntityBuilderVal[ID] {
+func (b EntityBuilderVal[ID, S]) SetTs(ts []*time.Time) EntityBuilderVal[ID, S] {
 	b.Ts = ts
 	return b
 }
 
-func (b EntityBuilderVal[ID]) SetVersioned(versioned sql_base.VersionedEntity) EntityBuilderVal[ID] {
+func (b EntityBuilderVal[ID, S]) SetVersioned(versioned sql_base.VersionedEntity) EntityBuilderVal[ID, S] {
 	b.Versioned = versioned
 	return b
 }
 
-func (b EntityBuilderVal[ID]) SetChan(chan_ chan map[time.Time]string) EntityBuilderVal[ID] {
+func (b EntityBuilderVal[ID, S]) SetChan(chan_ chan map[time.Time]string) EntityBuilderVal[ID, S] {
 	b.Chan = chan_
 	return b
 }
 
-func (b EntityBuilderVal[ID]) SetSomeMap(someMap map[StringBasedType[string]]bytes.Buffer) EntityBuilderVal[ID] {
+func (b EntityBuilderVal[ID, S]) SetSomeMap(someMap map[StringBasedType[string]]bytes.Buffer) EntityBuilderVal[ID, S] {
 	b.SomeMap = someMap
 	return b
 }
 
-func (b EntityBuilderVal[ID]) SetEmbedded(embedded EmbeddedEntity) EntityBuilderVal[ID] {
+func (b EntityBuilderVal[ID, S]) SetEmbedded(embedded EmbeddedEntity) EntityBuilderVal[ID, S] {
 	b.Embedded = embedded
 	return b
 }
 
-func (b EntityBuilderVal[ID]) SetOldForeignID(oldForeignID *ForeignIDAwareEntity[ID]) EntityBuilderVal[ID] {
+func (b EntityBuilderVal[ID, S]) SetOldForeignID(oldForeignID *ForeignIDAwareEntity[ID]) EntityBuilderVal[ID, S] {
 	b.OldForeignID = oldForeignID
 	return b
 }

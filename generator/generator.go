@@ -21,9 +21,12 @@ import (
 
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/struc"
+	"github.com/m4gshm/gollections/break/loop"
+	"github.com/m4gshm/gollections/loop/conv"
 	"github.com/m4gshm/gollections/map_"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/slice"
+	"github.com/m4gshm/gollections/slice/first"
 )
 
 const oneLineSize = 3
@@ -306,17 +309,8 @@ func isRewrite(outFile *ast.File, outFileInfo *token.File, generatedMarker strin
 	if outFile == nil {
 		return true
 	}
-	for _, comment := range outFile.Comments {
-		pos := comment.Pos()
-		base := outFileInfo.Base()
-		firstComment := int(pos) == base
-		if firstComment {
-			text := comment.Text()
-			generated := strings.HasPrefix(text, generatedMarker)
-			return generated
-		}
-	}
-	return false
+	comment, ok := first.Of(outFile.Comments, func(comment *ast.CommentGroup) bool { return int(comment.Pos()) == outFileInfo.Base() })
+	return ok && strings.HasPrefix(comment.Text(), generatedMarker)
 }
 
 func (g *Generator) findImportPackageAlias(pkgPath string, outFile *ast.File) (string, bool, error) {
@@ -728,9 +722,7 @@ func getIdentPart(suffix string, snake bool) string {
 }
 
 func IdentName(name string, export bool) string {
-	first := op.IfElse(export, unicode.ToUpper, unicode.ToLower)(rune(name[0]))
-	result := string(first) + name[1:]
-	return result
+	return string(op.IfElse(export, unicode.ToUpper, unicode.ToLower)(rune(name[0]))) + name[1:]
 }
 
 func IsExported(name string) bool {
@@ -945,15 +937,14 @@ func (g *Generator) RepackVar(vr *types.Var, basePackagePath string) (*types.Var
 
 func (g *Generator) RepackTuple(vr *types.Tuple, basePackagePath string) (*types.Tuple, error) {
 	repacked := false
-	r := make([]*types.Var, 0, vr.Len())
-	for i := 0; i < vr.Len(); i++ {
-		v := vr.At(i)
+	r, err := loop.Slice(conv.FromIndexed(vr.Len(), vr.At, func(v *types.Var) (*types.Var, error) {
 		rv, err := g.RepackVar(v, basePackagePath)
-		if err != nil {
-			return nil, err
-		}
 		repacked = repacked || rv != v
-		r = append(r, rv)
+		return rv, err
+	}).Next)
+
+	if err != nil {
+		return nil, err
 	}
 
 	if repacked {

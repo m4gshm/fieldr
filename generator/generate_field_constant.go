@@ -89,15 +89,11 @@ func (g *Generator) GenerateFieldConstant(
 
 	exportFunc := export
 	if len(funcList) > 0 {
-		funcName := funcList
-		if funcName == Autoname {
-			if wrapType {
-				funcName = IdentName(typ+"s", export)
-			} else {
-				return fmt.Errorf("list function autoname is unsupported without constant type definition")
-			}
-		}
-		if funcBody, funcName, err := generateAggregateFunc(funcName, typ, constants, exportFunc, compact, nolint); err != nil {
+		if funcName, err := use.If(funcList != Autoname, funcList).If(wrapType, IdentName(typ+"s", export)).ElseErr(
+			fmt.Errorf("list function autoname is unsupported without constant type definition"),
+		); err != nil {
+			return err
+		} else if funcBody, funcName, err := generateAggregateFunc(funcName, typ, constants, exportFunc, compact, nolint); err != nil {
 			return err
 		} else if err := g.AddFuncOrMethod(funcName, funcBody); err != nil {
 			return err
@@ -199,7 +195,7 @@ func makeFieldConstsTempl(
 		flat := flats.Contains(fieldName)
 		fieldModel := fieldType.Model
 		if flat || embedded {
-			subflats := use.This(flats).If(embedded).Else(immutable.Set[string]{})
+			subflats := use.If(embedded, flats).Else(immutable.Set[string]{})
 			fieldConstants, err := makeFieldConstsTempl(g, fieldModel, structType, nameTmpl, valueTmpl, export, snake, usePrivate, subflats, excludedFields)
 			if err != nil {
 				return nil, err
@@ -290,19 +286,20 @@ func makeFieldConsts(g *Generator, model *struc.Model, export, snake, allFields 
 		fieldType := model.FieldsType[fieldName]
 		embedded := fieldType.Embedded
 		flat := flats.Contains(fieldName)
-		fieldModel := fieldType.Model
 		filedInfo := FieldInfo{Name: fieldName, Type: fieldType}
 		if flat || embedded {
-			subflats := use.This(flats).If(embedded).Else(immutable.Set[string]{})
-			fieldConstants, err := makeFieldConsts(g, fieldModel, export, snake, allFields, subflats)
-			if err != nil {
+			fieldModel := fieldType.Model
+			if fieldConstants, err := makeFieldConsts(g, fieldModel, export, snake, allFields,
+				use.If(embedded, flats).Else(immutable.Set[string]{}),
+			); err != nil {
 				return nil, err
+			} else {
+				for i := range fieldConstants {
+					fieldConstants[i].name = fieldName + fieldConstants[i].name
+					fieldConstants[i].fieldPath = append([]FieldInfo{filedInfo}, fieldConstants[i].fieldPath...)
+				}
+				constants = append(constants, fieldConstants...)
 			}
-			for i := range fieldConstants {
-				fieldConstants[i].name = fieldName + fieldConstants[i].name
-				fieldConstants[i].fieldPath = append([]FieldInfo{filedInfo}, fieldConstants[i].fieldPath...)
-			}
-			constants = append(constants, fieldConstants...)
 		} else if allFields || isExport(fieldName) {
 			constants = append(constants, fieldConst{
 				name:      IdentName(fieldName, isExport(fieldName) && export),

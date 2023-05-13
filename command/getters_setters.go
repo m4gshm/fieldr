@@ -111,6 +111,9 @@ func generateGettersSetters(
 
 			if len(getterPrefix) == 0 || getterPrefix == generator.Autoname {
 				getterPrefix = op.IfElse(suffix == fieldName, "Get", "")
+				if len(getterPrefix) > 0 {
+					logger.Debugf("force prefix %s for field %s; suffix == fieldName", getterPrefix, fieldName)
+				}
 			}
 			if getters {
 				getterName := generator.IdentName(getterPrefix+suffix, exportMethods)

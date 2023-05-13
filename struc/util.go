@@ -7,6 +7,7 @@ import (
 
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/gollections/c"
+	"github.com/m4gshm/gollections/op"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -30,16 +31,11 @@ func FindTypePackageFile(typeName string, pkgs c.ForLoop[*packages.Package]) (*t
 			for _, file := range pkg.Syntax {
 				if lookup := file.Scope.Lookup(typeName); lookup == nil {
 					logger.Debugf("no type '%s' in file '%s' package '%s'", typeName, file.Name, pkgTypes.Name())
+				} else if _, ok := lookup.Decl.(*ast.TypeSpec); !ok {
+					return fmt.Errorf("type '%s' is not struct in file %s", typeName, file.Name)
 				} else {
-					d := lookup.Data
-					_ = d
-					if ts, ok := lookup.Decl.(*ast.TypeSpec); !ok {
-					} else if ts == nil {
-						return fmt.Errorf("type '%s' is not struct", typeName)
-					} else {
-						resultFile = file
-						break
-					}
+					resultFile = file
+					break
 				}
 			}
 			return c.ErrBreak
@@ -115,10 +111,6 @@ func ObjectString(obj types.Object, outPkgPath string) string {
 
 func basePackQ(outPkgPath string) func(p *types.Package) string {
 	return func(p *types.Package) string {
-		path := p.Path()
-		if path == outPkgPath {
-			return ""
-		}
-		return p.Name()
+		return op.IfElse(p.Path() == outPkgPath, "", p.Name())
 	}
 }
