@@ -64,9 +64,7 @@ func (b *structModelBuilder) populateByStruct(typ *types.Struct) error {
 				}
 				fieldTypeName := TypeString(fieldType, b.outPkgPath)
 				ref := 0
-				if structType, p, err := GetStructTypeNamed(fieldType); err != nil {
-					return err
-				} else if structType != nil {
+				if structType, p := GetStructTypeNamed(fieldType); structType != nil {
 					ref = p
 					var (
 						obj      = structType.Obj()
@@ -78,7 +76,7 @@ func (b *structModelBuilder) populateByStruct(typ *types.Struct) error {
 						if model, ok := b.loopControl[structType]; ok {
 							logger.Debugf("found handled type %v", typeName)
 							fieldModel = model
-						} else if model, err = newBuilder(b.outPkgPath, b.loopControl).newModel(Package{Name: pkg.Name(), Path: pkg.Path()}, structType); err != nil {
+						} else if model, err := newBuilder(b.outPkgPath, b.loopControl).newModel(Package{Name: pkg.Name(), Path: pkg.Path()}, structType); err != nil {
 							return fmt.Errorf("nested field %v.%v; %w", typeName, fldName, err)
 						} else {
 							fieldModel = model
@@ -104,10 +102,7 @@ func (b *structModelBuilder) newModel(pkg Package, typ *types.Named) (*Model, er
 	if _, ok := b.loopControl[typ]; ok {
 		return nil, fmt.Errorf("already handled type %v", typName)
 	}
-	st, rc, err := GetStructType(typ)
-	if err != nil {
-		return nil, err
-	}
+	st, rc := GetStructType(typ)
 	model := &Model{
 		Typ:            typ,
 		TypeName:       typName,

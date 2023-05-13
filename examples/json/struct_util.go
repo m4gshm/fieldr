@@ -16,8 +16,7 @@ func structJsons() []structJson {
 		structJsonName,
 		structJsonSurname,
 		structJsonNoTag,
-		structJsonAddress,
-	}
+		structJsonAddress}
 }
 
 func (c structJson) field() string {

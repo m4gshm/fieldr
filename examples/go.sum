@@ -144,6 +144,8 @@ github.com/m4gshm/gollections v0.0.8-0.20230512220505-d9e9df2f90ed h1:lfxTkMm2Gg
 github.com/m4gshm/gollections v0.0.8-0.20230512220505-d9e9df2f90ed/go.mod h1:TRYgTUE6ik68ZebsEtdEfB1wDVpvVDWPi90xHWrEZgg=
 github.com/m4gshm/gollections v0.0.8-0.20230512221719-1a0041298179 h1:oijDWYdHXUkGNMPOsoAHEPoTgfdLCHnMna54Zi1xYhY=
 github.com/m4gshm/gollections v0.0.8-0.20230512221719-1a0041298179/go.mod h1:TRYgTUE6ik68ZebsEtdEfB1wDVpvVDWPi90xHWrEZgg=
+github.com/m4gshm/gollections v0.0.8-0.20230513131209-b68eaba8cf9b h1:UpQMWkIx7Tzin8CjCJFkNw/Y9XSCpbxE5Zo2XjdvtLc=
+github.com/m4gshm/gollections v0.0.8-0.20230513131209-b68eaba8cf9b/go.mod h1:TRYgTUE6ik68ZebsEtdEfB1wDVpvVDWPi90xHWrEZgg=
 github.com/mattn/go-colorable v0.1.1/go.mod h1:FuOcm+DKB9mbwrcAfNl7/TZVBZ6rcnceauSikq3lYCQ=
 github.com/mattn/go-colorable v0.1.6/go.mod h1:u6P/XSegPjTcexA+o6vUJrdnUu04hMope9wVRipJSqc=
 github.com/mattn/go-colorable v0.1.12/go.mod h1:u5H1YNBxpqRaxsYJYSkiCWKzEfiAb1Gb520KVy5xxl4=

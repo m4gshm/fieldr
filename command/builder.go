@@ -70,7 +70,7 @@ func NewBuilderStruct() *Command {
 			)
 
 			tparams := typ.TypeParams()
-			
+
 			btyp.SetTypeParams(loop.Slice(convert.FromIndexed(tparams.Len(), tparams.At, func(tp *types.TypeParam) *types.TypeParam {
 				return types.NewTypeParam(tp.Obj(), tp.Constraint())
 			}).Next))
@@ -108,7 +108,7 @@ func NewBuilderStruct() *Command {
 
 			builderType := op.IfElse(*chainValue, "", "*") + builderName + typeParams
 
-			c, b, fieldMethodNames, fieldMethodBodies, err := generateBuilderParts(g, model, uniques, receiver, builderType, methodPrefix,
+			parts, err := generateBuilderParts(g, model, uniques, receiver, builderType, methodPrefix,
 				!(*chainValue), *light, exportMethods, exportFields, *nolint)
 			if err != nil {
 				return err
@@ -122,10 +122,10 @@ func NewBuilderStruct() *Command {
 				op.IfElse(*buildValue, "", "*") + buildedType + typeParams +
 				" {" + generator.NoLint(*nolint) + "\n" +
 				use.If(*chainValue, "").ElseGet(sum.Of("if ", receiver, " == nil {\n", "return ", op.IfElse(*buildValue, "", "&"), buildedType, typeParams, " {}\n", "}\n")) +
-				"return " + op.IfElse(*buildValue, "", "&") + buildedType + typeParams + " {\n" + c + "}\n" +
+				"return " + op.IfElse(*buildValue, "", "&") + buildedType + typeParams + " {\n" + parts.constructorMethodBody + "}\n" +
 				"}\n"
 
-			builderBody := struc.TypeString(btyp, g.OutPkgPath) + " struct {" + generator.NoLint(*nolint) + "\n" + b + "}"
+			builderBody := struc.TypeString(btyp, g.OutPkgPath) + " struct {" + generator.NoLint(*nolint) + "\n" + parts.structBody + "}"
 
 			if !*light {
 				if err := g.AddFuncOrMethod(builderConstructorMethodName, builderConstructorMethodBody); err != nil {
@@ -137,8 +137,8 @@ func NewBuilderStruct() *Command {
 				return err
 			}
 
-			for i := range fieldMethodNames {
-				if err := s.AddMethod(fieldMethodNames[i], fieldMethodBodies[i]); err != nil {
+			for i := range parts.fieldMethodNames {
+				if err := s.AddMethod(parts.fieldMethodNames[i], parts.fieldMethodBodies[i]); err != nil {
 					return err
 				}
 			}
@@ -172,10 +172,37 @@ func NewBuilderStruct() *Command {
 	)
 }
 
+type Catcher struct {
+}
+
+func (t Catcher) TryRun(func(try T)) Catcher {
+	return t
+}
+
+func (t Catcher) Err() error {
+	return nil
+}
+
+type T struct {
+}
+
+func (t T) Catch(err error) T {
+	return t
+}
+
+func (t T) ThenTryRun(func()) T {
+	return t
+}
+
+type builderParts struct {
+	constructorMethodBody, structBody   string
+	fieldMethodNames, fieldMethodBodies []string
+}
+
 func generateBuilderParts(
 	g *generator.Generator, model *struc.Model, uniques map[string]string, receiverVar, typeName, setterPrefix string,
 	isReceiverReference, noMethods, exportMethods, exportFields, nolint bool,
-) (string, string, []string, []string, error) {
+) (*builderParts, error) {
 	logger.Debugf("generate builder parts: receiver %v, type %v, setterPrefix %v", receiverVar, typeName, setterPrefix)
 	constructorMethodBody := ""
 	structBody := ""
@@ -189,30 +216,31 @@ func generateBuilderParts(
 		if fieldType := model.FieldsType[fieldName]; fieldType.Embedded {
 			init := ""
 			if fullFieldType, err := g.GetFullFieldTypeName(fieldType, true); err != nil {
-				return "", "", nil, nil, err
+				return nil, err
 			} else {
 				init = get.If(fieldType.RefCount > 0, sum.Of("&", fullFieldType)).Else(fullFieldType)
 			}
 
-			c, b, fmn, fmb, err := generateBuilderParts(g, fieldType.Model, uniques, receiverVar, typeName, setterPrefix,
+			embedParts, err := generateBuilderParts(g, fieldType.Model, uniques, receiverVar, typeName, setterPrefix,
 				isReceiverReference, noMethods, exportMethods, exportFields, nolint)
 			if err != nil {
-				return "", "", nil, nil, err
+				return nil, err
 			}
-			constructorMethodBody += fieldName + ": " + init + "{\n" + c + "\n}"
-			structBody += b
+
+			constructorMethodBody += fieldName + ": " + init + "{\n" + embedParts.constructorMethodBody + "\n}"
+			structBody += embedParts.structBody
 			if !noMethods {
-				fieldMethodBodies = append(fieldMethodBodies, fmb...)
-				fieldMethodNames = append(fieldMethodNames, fmn...)
+				fieldMethodBodies = append(fieldMethodBodies, embedParts.fieldMethodBodies...)
+				fieldMethodNames = append(fieldMethodNames, embedParts.fieldMethodNames...)
 			}
 		} else {
 			fullFieldType, err := g.GetFullFieldTypeName(fieldType, false)
 			if err != nil {
-				return "", "", nil, nil, err
+				return nil, err
 			}
 			builderField := generator.LegalIdentName(generator.IdentName(fieldName, exportFields))
 			if dupl, ok := uniques[builderField]; ok {
-				return "", "", nil, nil, fmt.Errorf("duplicated builder fields: name '%s', first type '%s', second '%s'", builderField, dupl, fullFieldType)
+				return nil, fmt.Errorf("duplicated builder fields: name '%s', first type '%s', second '%s'", builderField, dupl, fullFieldType)
 			}
 			uniques[builderField] = fullFieldType
 			constructorMethodBody += fieldName + ": " + receiverVar + "." + builderField
@@ -233,7 +261,7 @@ func generateBuilderParts(
 		}
 		constructorMethodBody += ",\n"
 	}
-	return constructorMethodBody, structBody, fieldMethodNames, fieldMethodBodies, nil
+	return &builderParts{constructorMethodBody, structBody, fieldMethodNames, fieldMethodBodies}, nil
 }
 
 func generateToBuilderMethodParts(
@@ -300,8 +328,7 @@ func generateToBuilderMethodConditionedParts(
 			initVars += varName + "=" + conditionalPath + "." + fieldName + "\n"
 
 			builderField := generator.LegalIdentName(generator.IdentName(fieldName, exportFields))
-			methodBody += builderField + ": " + varName
-			methodBody += ",\n"
+			methodBody += builderField + ": " + varName + ",\n"
 		}
 	}
 

@@ -29,8 +29,7 @@ func entityCols() []EntityCol { //nolint
 		ENTITY_COL_SURNAME,
 		ENTITY_COL_UPDATED_AT,
 		ENTITY_COL_UPDATED_AT2,
-		ENTITY_COL_UPDATED_AT3,
-	}
+		ENTITY_COL_UPDATED_AT3}
 }
 
 func (s *Entity) val(f EntityCol) interface{} { //nolint

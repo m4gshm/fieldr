@@ -18,8 +18,7 @@ func cols() []Col { //nolint
 		colID,
 		colName,
 		colSurname,
-		colVersion,
-	}
+		colVersion}
 }
 
 func val(s *squirrel.Entity, f Col) interface{} { //nolint

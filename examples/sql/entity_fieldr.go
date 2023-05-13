@@ -20,8 +20,7 @@ func cols() []col {
 		colSurname,
 		colValues,
 		colTs,
-		colVersion,
-	}
+		colVersion}
 }
 
 func (s *Entity) val(f col) interface{} {

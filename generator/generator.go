@@ -1042,9 +1042,7 @@ func (g *Generator) GetFullFieldTypeName(fieldType struc.FieldType, baseType boo
 	}
 	if baseType {
 		//extract the base typeName for a pointer type
-		if typ, _, err = struc.GetTypeNamed(typ); err != nil {
-			return "", err
-		}
+		typ, _ = struc.GetTypeNamed(typ)
 	}
 	return struc.TypeString(typ, g.OutPkgPath), nil
 }

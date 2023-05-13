@@ -11,8 +11,17 @@ import (
 
 	"github.com/m4gshm/gollections/collection/immutable"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
+	"github.com/m4gshm/gollections/loop"
 	"github.com/m4gshm/gollections/op"
+	"github.com/m4gshm/gollections/op/delay/replace"
+	"github.com/m4gshm/gollections/op/delay/string_/join"
+	"github.com/m4gshm/gollections/op/delay/string_/wrap"
+	"github.com/m4gshm/gollections/op/delay/sum"
+	"github.com/m4gshm/gollections/op/get"
 	"github.com/m4gshm/gollections/op/use"
+	"github.com/m4gshm/gollections/slice/convert"
+	"github.com/m4gshm/gollections/slice/iter"
+	"github.com/m4gshm/gollections/slice/split"
 	"github.com/pkg/errors"
 
 	"github.com/m4gshm/fieldr/logger"
@@ -147,6 +156,8 @@ type fieldConst struct {
 	name, value string
 	fieldPath   []FieldInfo
 }
+
+func (constant fieldConst) Name() string { return constant.name }
 
 func checkDuplicates(constants []fieldConst, checkValues bool) error {
 	uniqueVals, uniqueNames := map[string]string{}, map[string]string{}
@@ -444,72 +455,29 @@ func wrapTemplate(text string) string {
 }
 
 func generateAggregateFunc(funcName, typ string, constants []fieldConst, export, compact, nolint bool) (string, string, error) {
-	var arrayType = "[]" + typ
-
-	arrayBody := arrayType + "{"
-
 	compact = compact || len(constants) <= oneLineSize
-	if !compact {
-		arrayBody += "\n"
-	}
-
-	i := 0
-	for _, constant := range constants {
-		if compact && i > 0 {
-			arrayBody += ", "
-		}
-		arrayBody += constant.name
-		if !compact {
-			arrayBody += ",\n"
-		}
-		i++
-	}
-	arrayBody += "}"
-
-	return "func " + funcName + "() " + arrayType + " { " + NoLint(nolint) + "\n return " + arrayBody + "}", funcName, nil
+	var arrayType = "[]" + typ
+	return "func " + funcName + "() " + arrayType + " { " + NoLint(nolint) + "\n return " + arrayType + "{" + op.IfElse(!compact, "\n", "") +
+		convert.AndReduce(constants, fieldConst.Name, func(l, r string) string {
+			return l + op.IfElse(len(l) > 0, op.IfElse(compact, ", ", ",\n"), "") + r
+		}) + "}" + "}", funcName, nil
 }
 
 func (g *Generator) generateConstFieldMethod(typ, name string, constants []fieldConst, export, nolint bool) (string, error) {
 	var (
-		// name         = IdentName("Field", export)
 		receiverVar  = "c"
 		returnType   = BaseConstType
 		returnNoCase = "\"\""
 	)
-
-	body := "func (" + receiverVar + " " + typ + ") " + name + "() " + returnType
-	body += " {" + NoLint(nolint) + "\n" +
-		"switch " + receiverVar + " {\n" +
-		""
-
-	for _, constant := range constants {
-		if len(constant.value) == 0 {
-			continue
-		}
-
-		fieldPath := ""
-		for _, p := range constant.fieldPath {
-			if len(fieldPath) > 0 {
-				fieldPath += "."
-			}
-			fieldPath += p.Name
-		}
-
-		body += "case " + constant.name + ":\n" +
-			"return \"" + fieldPath + "\"\n"
-	}
-
-	body += "}\n"
-	body += "" +
-		"return " + returnNoCase +
-		"}\n"
-
-	return body, nil
+	return "func (" + receiverVar + " " + typ + ") " + name + "() " + returnType + " {" + NoLint(nolint) + "\n" +
+		"switch " + receiverVar + " {\n" + loop.Sum(iter.Convert(constants, func(constant fieldConst) string {
+		return use.If(len(constant.value) == 0, "").ElseGet(sum.Of("case ", constant.name, ":\nreturn \"",
+			convert.AndReduce(constant.fieldPath, func(p FieldInfo) string { return p.Name }, join.NonEmpty(".")), "\"\n"))
+	}).Next) + "}\n" + "return " + returnNoCase + "}\n", nil
 }
 
 func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, name string, constants []fieldConst, export, nolint, ref bool) (string, string, error) {
 	var (
-		// name            = IdentName("Val", export)
 		argVar          = "f"
 		recVar          = "s"
 		recType         = GetTypeName(model.TypeName, pkgName)
@@ -517,41 +485,23 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 		recParamTypeRef = "*" + recParamType
 		returnTypes     = "interface{}"
 		returnNoCase    = "nil"
-		pref            = ""
+		pref            = op.IfElse(ref, "&", "")
+		isFunc          = len(pkgName) > 0
 	)
 
-	if ref {
-		pref = "&"
-		// name = IdentName("Ref", export)
-	}
-
-	isFunc := len(pkgName) > 0
-	body := "func " + use.If(isFunc,
-		name+"("+recVar+" "+recParamTypeRef+", "+argVar+" "+typ+") ",
-	).Else(
-		"("+recVar+" "+recParamTypeRef+") "+name+"("+argVar+" "+typ+") ",
-	) + returnTypes +
-		" {" + NoLint(nolint) + "\n" +
+	body := "func " + get.If(isFunc,
+		sum.Of(name, "(", recVar, " ", recParamTypeRef, ", ", argVar, " ", typ, ") "),
+	).ElseGet(
+		sum.Of("(", recVar, " ", recParamTypeRef, ") ", name, "(", argVar, " ", typ, ") "),
+	) + returnTypes + " {" + NoLint(nolint) + "\n" +
 		"if " + recVar + " == nil {\nreturn nil\n}\n" +
-		"switch " + argVar + " {\n"
-
-	for _, constant := range constants {
-		body += "case " + constant.name + ":\n"
-		_, conditionPath, conditions := FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
-
-		varsConditionStart := ""
-		varsConditionEnd := ""
-		for _, c := range conditions {
-			varsConditionStart += "if " + c + " {\n"
-			varsConditionEnd += "}\n"
-		}
-
-		body += varsConditionStart
-		body += "return " + pref + conditionPath + "\n"
-		body += varsConditionEnd
-	}
-
-	body += "}\nreturn " + returnNoCase + "}\n"
+		"switch " + argVar + " {\n" +
+		loop.Reduce(iter.Convert(constants, func(constant fieldConst) string {
+			_, conditionPath, conditions := FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
+			varsConditionStart, varsConditionEnd := split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum[string], op.Sum[string])
+			return "case " + constant.name + ":\n" + varsConditionStart + "return " + pref + conditionPath + "\n" + varsConditionEnd
+		}).Next, op.Sum[string]) +
+		"}\nreturn " + returnNoCase + "}\n"
 
 	return body, use.If(isFunc, name).Else(MethodName(recType, name)), nil
 }

@@ -16,8 +16,7 @@ func cols() []Col {
 		colID,
 		colName,
 		colSurname,
-		colVersion,
-	}
+		colVersion}
 }
 
 func (c Col) field() string {
