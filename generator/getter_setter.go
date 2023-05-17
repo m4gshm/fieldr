@@ -2,11 +2,11 @@ package generator
 
 import (
 	"github.com/m4gshm/fieldr/struc"
+	"github.com/m4gshm/gollections/expr/get"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/op/delay/replace"
 	"github.com/m4gshm/gollections/op/delay/string_"
 	"github.com/m4gshm/gollections/op/delay/sum"
-	"github.com/m4gshm/gollections/op/get"
 	"github.com/m4gshm/gollections/slice/split"
 )
 
@@ -34,7 +34,7 @@ func GenerateGetter(model *struc.Model, pkgName, receiverVar, methodName, fieldN
 	typeParamsDecl := TypeParamsDeclarationString(model.Typ.TypeParams(), outPkgPath)
 	_, conditionalPath, conditions := FiledPathAndAccessCheckCondition(receiverVar, isReceiverReference, false, fieldParts)
 	varsConditionStart, varsConditionEnd := split.AndReduce(conditions, string_.Wrap("if ", " {\n"), replace.By("}\n"), op.Sum[string], op.Sum[string])
-	
+
 	emptyVar := "no"
 	emptyResult := "var " + emptyVar + " " + fieldType
 

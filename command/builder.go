@@ -10,14 +10,14 @@ import (
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/struc"
+	"github.com/m4gshm/gollections/expr/get"
+	"github.com/m4gshm/gollections/expr/use"
 	"github.com/m4gshm/gollections/loop"
 	"github.com/m4gshm/gollections/loop/convert"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/op/delay/replace"
 	"github.com/m4gshm/gollections/op/delay/string_/wrap"
 	"github.com/m4gshm/gollections/op/delay/sum"
-	"github.com/m4gshm/gollections/op/get"
-	"github.com/m4gshm/gollections/op/use"
 	"github.com/m4gshm/gollections/slice/split"
 )
 

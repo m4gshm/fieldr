@@ -7,7 +7,7 @@ import (
 	"github.com/m4gshm/fieldr/struc"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/op/delay/sum"
-	"github.com/m4gshm/gollections/op/get"
+	"github.com/m4gshm/gollections/expr/get"
 	"github.com/m4gshm/gollections/slice"
 )
 

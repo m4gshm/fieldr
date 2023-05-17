@@ -32,8 +32,8 @@ import (
 	"github.com/m4gshm/gollections/collection/mutable/ordered/map_"
 	"github.com/m4gshm/gollections/collection/mutable/ordered/set"
 	"github.com/m4gshm/gollections/convert/as"
+	"github.com/m4gshm/gollections/expr/use"
 	"github.com/m4gshm/gollections/loop"
-	"github.com/m4gshm/gollections/op/use"
 	"github.com/m4gshm/gollections/slice"
 	"github.com/m4gshm/gollections/slice/iter"
 )

@@ -4,6 +4,8 @@ import (
 	"go/types"
 
 	"github.com/m4gshm/fieldr/struc"
+	"github.com/m4gshm/gollections/expr/get"
+	"github.com/m4gshm/gollections/expr/use"
 	"github.com/m4gshm/gollections/loop"
 	"github.com/m4gshm/gollections/loop/convert"
 	"github.com/m4gshm/gollections/op"
@@ -11,9 +13,7 @@ import (
 	"github.com/m4gshm/gollections/op/delay/string_/join"
 	"github.com/m4gshm/gollections/op/delay/string_/wrap"
 	"github.com/m4gshm/gollections/op/delay/sum"
-	"github.com/m4gshm/gollections/op/get"
 	"github.com/m4gshm/gollections/op/string_"
-	"github.com/m4gshm/gollections/op/use"
 	"github.com/m4gshm/gollections/slice/iter"
 	"github.com/m4gshm/gollections/slice/split"
 )
