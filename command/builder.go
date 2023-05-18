@@ -172,28 +172,6 @@ func NewBuilderStruct() *Command {
 	)
 }
 
-type Catcher struct {
-}
-
-func (t Catcher) TryRun(func(try T)) Catcher {
-	return t
-}
-
-func (t Catcher) Err() error {
-	return nil
-}
-
-type T struct {
-}
-
-func (t T) Catch(err error) T {
-	return t
-}
-
-func (t T) ThenTryRun(func()) T {
-	return t
-}
-
 type builderParts struct {
 	constructorMethodBody, structBody   string
 	fieldMethodNames, fieldMethodBodies []string
