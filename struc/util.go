@@ -3,16 +3,18 @@ package struc
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
 
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/gollections/c"
+	"github.com/m4gshm/gollections/map_"
 	"github.com/m4gshm/gollections/op"
 
 	"golang.org/x/tools/go/packages"
 )
 
-func FindTypePackageFile(typeName string, pkgs c.ForLoop[*packages.Package]) (*types.Named, *packages.Package, *ast.File, error) {
+func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.ForLoop[*packages.Package]) (*types.Named, *packages.Package, *ast.File, error) {
 	var resultType *types.Named
 	var resultPkg *packages.Package
 	var resultFile *ast.File
@@ -26,14 +28,21 @@ func FindTypePackageFile(typeName string, pkgs c.ForLoop[*packages.Package]) (*t
 		} else {
 			resultType = structType
 			resultPkg = pkg
+			logger.Debugf("look package '%s', syntax file count %d", pkg.Name, len(pkg.Syntax))
 			for _, file := range pkg.Syntax {
-				if lookup := file.Scope.Lookup(typeName); lookup == nil {
-					logger.Debugf("no type '%s' in file '%s' package '%s'", typeName, file.Name, pkgTypes.Name())
-				} else if _, ok := lookup.Decl.(*ast.TypeSpec); !ok {
-					return fmt.Errorf("type '%s' is not struct in file %s", typeName, file.Name)
-				} else {
-					resultFile = file
-					break
+				if tokenFile := fileSet.File(file.Pos()); tokenFile != nil {
+					fileName := tokenFile.Name()
+					logger.Debugf("file by position '%d', name %s", file.Pos(), fileName)
+					if lookup := file.Scope.Lookup(typeName); lookup == nil {
+						types := map_.Keys(file.Scope.Objects)
+						logger.Debugf("no type '%s' in file '%s', package '%s', types %#v", typeName, fileName, pkgTypes.Name(), types)
+					} else if _, ok := lookup.Decl.(*ast.TypeSpec); !ok {
+						return fmt.Errorf("type '%s' is not struct in file '%s'", typeName, fileName)
+					} else {
+						resultFile = file
+						logger.Debugf("found type file '%s'", fileName)
+						break
+					}
 				}
 			}
 			return c.ErrBreak

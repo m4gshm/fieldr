@@ -34,6 +34,7 @@ import (
 	"github.com/m4gshm/gollections/convert/as"
 	"github.com/m4gshm/gollections/expr/use"
 	"github.com/m4gshm/gollections/loop"
+	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/slice"
 	"github.com/m4gshm/gollections/slice/iter"
 )
@@ -227,7 +228,7 @@ func run() error {
 			return fuse.Err("no type arg")
 		}
 
-		typ, typPkg, typFile, err := struc.FindTypePackageFile(typeName, pkgs)
+		typ, typPkg, typFile, err := struc.FindTypePackageFile(typeName, fileSet, pkgs)
 		if err != nil {
 			return fmt.Errorf("find type %s: %w", typeName, err)
 		} else if typ == nil {
@@ -261,7 +262,13 @@ func run() error {
 			logger.Debugf("trying to find output file %s", outputName)
 		}
 
-		outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, pkgs, outputName)
+		if typPkg == nil {
+			return fmt.Errorf("type package not found: type %s", typeName)
+		}
+		typModule := typPkg.Module
+		moduleDir := typModule.Dir
+
+		outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, pkgs, outputName, moduleDir)
 		if err != nil {
 			return err
 		}
@@ -269,12 +276,6 @@ func run() error {
 		if outFile == nil {
 			logger.Debugf("out file not found, trying to fix")
 			buildTag := typeConfig.OutBuildTags
-			if typPkg == nil {
-				return fmt.Errorf("type package not found: type %s", typeName)
-			}
-			typModule := typPkg.Module
-
-			moduleDir := typModule.Dir
 
 			if dir, err := getDir(outputName); err != nil {
 				return err
@@ -288,19 +289,21 @@ func run() error {
 
 				if outPkgs, err := loadFilePackage(dir, fileSet, buildTag); err != nil {
 					return err
-				} else if outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, outPkgs, outputName); err != nil {
+				} else if outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, outPkgs, outputName, moduleDir); err != nil {
 					return fmt.Errorf("findPkgFile: out file %s :%w", outputName, err)
 				}
 				if outPkg == nil {
-					logger.Debugf("cannot determine output package, create new: output file '%s'", outputName)
+					logger.Debugf("cannot determine output package, create new: output file '%s', moduleDir '%s', dir '%s'", outputName, moduleDir, dir)
 
 					pkgPath, err := filepath.Rel(moduleDir, dir)
 					if err != nil {
 						return err
 					}
-					pkgName := filepath.Base(pkgPath)
+					pkgPath = op.IfElse(pkgPath == ".", "", pkgPath)
+					pkgName := op.IfElse(pkgPath != "", filepath.Base(pkgPath), "")
 					typs := types.NewPackage(pkgPath, pkgName)
 					outPkg = &packages.Package{PkgPath: pkgPath, ID: pkgPath, Name: pkgName, Types: typs, Module: typModule}
+					logger.Debugf("create package type %#v", outPkg)
 				}
 			}
 		}
@@ -341,17 +344,18 @@ func run() error {
 	})
 }
 
-func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], outputName string) (*packages.Package, *ast.File, *token.File, error) {
-	logger.Debugf("findPkgFile: %s", outputName)
+func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], outputName, moduleDir string) (*packages.Package, *ast.File, *token.File, error) {
+	logger.Debugf("findPkgFile: outputName %s", outputName)
 	for i, p, ok := pkgs.First(); ok; p, ok = i.Next() {
 		logger.Debugf("findPkgFile: look pkg %s, ID %s", p.PkgPath, p.ID)
 		for _, s := range p.Syntax {
-			info := fileSet.File(s.Pos())
-			if srcFileName := info.Name(); srcFileName == outputName {
-				logger.Debugf("finPkgFile: file found %s", outputName)
-				return p, s, info, nil
-			} else {
-				logger.Debugf("findPkgFile: looked file %s", srcFileName)
+			if info := fileSet.File(s.Pos()); info != nil {
+				if srcFileName := info.Name(); srcFileName == outputName {
+					logger.Debugf("finPkgFile: file found %s", outputName)
+					return p, s, info, nil
+				} else {
+					logger.Debugf("findPkgFile: looked file %s", srcFileName)
+				}
 			}
 		}
 	}
@@ -360,6 +364,22 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 
 	if dir, err := getDir(outputName); err != nil {
 		return nil, nil, nil, err
+	} else if dir == moduleDir {
+		logger.Debugf("findPkgFile: find root package")
+		for i, p, ok := pkgs.First(); ok; p, ok = i.Next() {
+			for _, s := range p.Syntax {
+				if info := fileSet.File(s.Pos()); info != nil {
+					if fileDir, err := getDir(info.Name()); err != nil {
+						return nil, nil, nil, err
+					} else if fileDir == moduleDir {
+						logger.Debugf("findPkgFile: found root package by file %s", info.Name())
+						return p, nil, nil, nil
+					}
+				}
+			}
+		}
+		logger.Debugf("findPkgFile: cannot determine root package")
+		return nil, nil, nil, nil
 	} else {
 		pkgName := filepath.Base(dir)
 		logger.Debugf("findPkgFile: select package by name: %s, path %s", pkgName, dir)

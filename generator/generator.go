@@ -265,9 +265,9 @@ func (g *Generator) WriteBody(outPackageName string) error {
 			return err
 		}
 	} else {
-		logger.Debugf("injects to output file")
 		//injects
 		name := g.outFileInfo.Name()
+		logger.Debugf("injects to output file '%s'", name)
 
 		chunks, err := g.getInjectChunks(g.outFile, g.outFileInfo.Base())
 		if err != nil {
