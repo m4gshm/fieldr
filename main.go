@@ -110,7 +110,7 @@ func run() error {
 		return fmt.Errorf("extract packages, workDir %s, build tags %v: %w", workDir, *buildTags, err)
 	}
 
-	files := set.From(collection.Flatt(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }).Next)
+	files := set.From(collection.Flat(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }).Next)
 
 	typeConfigs := map_.Empty[params.TypeConfig, []*command.Command]()
 
@@ -206,7 +206,7 @@ func run() error {
 	}
 
 	if logger.IsDebug() {
-		allSrcFiles := set.From(collection.Flatt(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }).Next)
+		allSrcFiles := set.From(collection.Flat(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }).Next)
 
 		logger.Debugf("source files amount %d", allSrcFiles.Len())
 
@@ -428,7 +428,7 @@ type commentArgs struct {
 }
 
 func getCommentArgs(file *ast.File, fInfo *token.File) ([]commentArgs, error) {
-	return errloop.Slice(loop.Conv(iter.Flatt(file.Comments, func(cg *ast.CommentGroup) []*ast.Comment { return cg.List }).Next,
+	return errloop.Slice(loop.Conv(iter.Flat(file.Comments, func(cg *ast.CommentGroup) []*ast.Comment { return cg.List }).Next,
 		func(comment *ast.Comment) (a commentArgs, err error) {
 			args, err := getCommentCmdArgs(comment.Text)
 			if err == nil && len(args) > 0 {
