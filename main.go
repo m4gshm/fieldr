@@ -16,15 +16,6 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/tools/go/packages"
-
-	"github.com/m4gshm/fieldr/command"
-	"github.com/m4gshm/fieldr/generator"
-	"github.com/m4gshm/fieldr/logger"
-	"github.com/m4gshm/fieldr/params"
-	"github.com/m4gshm/fieldr/struc"
-	fuse "github.com/m4gshm/fieldr/use"
-
 	errloop "github.com/m4gshm/gollections/break/loop"
 	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/collection"
@@ -37,6 +28,14 @@ import (
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/slice"
 	"github.com/m4gshm/gollections/slice/iter"
+	"golang.org/x/tools/go/packages"
+
+	"github.com/m4gshm/fieldr/command"
+	"github.com/m4gshm/fieldr/generator"
+	"github.com/m4gshm/fieldr/logger"
+	"github.com/m4gshm/fieldr/params"
+	"github.com/m4gshm/fieldr/struc"
+	fuse "github.com/m4gshm/fieldr/use"
 )
 
 func usage(commandLine *flag.FlagSet) func() {
@@ -111,13 +110,11 @@ func run() error {
 		return fmt.Errorf("extract packages, workDir %s, build tags %v: %w", workDir, *buildTags, err)
 	}
 
-	files := set.From(collection.Flat(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }).Next)
-
 	typeConfigs := map_.Empty[params.TypeConfig, []*command.Command]()
 
 	typeConfig := *commonTypeConfig
 
-	filesCmdArgs := getFilesCommentArgs(fileSet, files)
+	filesCmdArgs := getFilesCommentArgs(fileSet, getAstFiles(pkgs))
 
 	notCmdLineType := len(typeConfig.Type) == 0
 
@@ -207,7 +204,7 @@ func run() error {
 	}
 
 	if logger.IsDebug() {
-		allSrcFiles := set.From(collection.Flat(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }).Next)
+		allSrcFiles := getAstFiles(pkgs)
 
 		logger.Debugf("source files amount %d", allSrcFiles.Len())
 
@@ -344,6 +341,10 @@ func run() error {
 	})
 }
 
+func getAstFiles(pkgs *ordered.Set[*packages.Package]) *ordered.Set[*ast.File] {
+	return set.From(collection.Flat(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }).Next)
+}
+
 func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], outputName, moduleDir string) (*packages.Package, *ast.File, *token.File, error) {
 	logger.Debugf("findPkgFile: outputName %s", outputName)
 	for i, p, ok := pkgs.First(); ok; p, ok = i.Next() {
@@ -362,42 +363,43 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 
 	logger.Debugf("findPkgFile: output file not found: %s", outputName)
 
-	if dir, err := getDir(outputName); err != nil {
+	dir, err := getDir(outputName)
+	if err != nil {
 		return nil, nil, nil, err
-	} else if dir == moduleDir {
-		logger.Debugf("findPkgFile: find root package")
-		for i, p, ok := pkgs.First(); ok; p, ok = i.Next() {
-			for _, s := range p.Syntax {
-				if info := fileSet.File(s.Pos()); info != nil {
-					if fileDir, err := getDir(info.Name()); err != nil {
-						return nil, nil, nil, err
-					} else if fileDir == moduleDir {
-						logger.Debugf("findPkgFile: found root package by file %s", info.Name())
-						return p, nil, nil, nil
-					}
+	}
+	logger.Debugf("findPkgFile: find package by exist src files")
+	for i, p, ok := pkgs.First(); ok; p, ok = i.Next() {
+		for _, s := range p.Syntax {
+			if info := fileSet.File(s.Pos()); info != nil {
+				if fileDir, err := getDir(info.Name()); err != nil {
+					return nil, nil, nil, err
+				} else if fileDir == dir {
+					logger.Debugf("findPkgFile: found package '%s' by file '%s'", p.Name, info.Name())
+					return p, nil, nil, nil
 				}
 			}
 		}
-		logger.Debugf("findPkgFile: cannot determine root package")
-		return nil, nil, nil, nil
-	} else {
-		pkgName := filepath.Base(dir)
-		logger.Debugf("findPkgFile: select package by name: %s, path %s", pkgName, dir)
-		firstPkg, ok := collection.First(pkgs, func(p *packages.Package) bool {
-			fullPath := filepath.Join(p.Module.Dir, path.Base(p.PkgPath))
-			if fullPath == dir {
-				return true
-			}
-			logger.Debugf("findPkgFile: not match package by name: %s, path %s", p.PkgPath, fullPath)
-			return false
-		})
-		if ok {
-			logger.Debugf("findPkgFile: found package by name %s, %v", pkgName, firstPkg)
-		} else {
-			logger.Debugf("findPkgFile: package not found by name %s", pkgName)
-		}
-		return firstPkg, nil, nil, nil
 	}
+
+	logger.Debugf("findPkgFile: cannot determine package  exist src files")
+
+	pkgName := filepath.Base(dir)
+	logger.Debugf("findPkgFile: select package by name: %s, path %s", pkgName, dir)
+	firstPkg, ok := collection.First(pkgs, func(p *packages.Package) bool {
+		fullPath := filepath.Join(p.Module.Dir, path.Base(p.PkgPath))
+		if fullPath == dir {
+			return true
+		}
+		logger.Debugf("findPkgFile: not match package by name: %s, path %s", p.PkgPath, fullPath)
+		return false
+	})
+	if ok {
+		logger.Debugf("findPkgFile: found package by name %s, %v", pkgName, firstPkg)
+	} else {
+		logger.Debugf("findPkgFile: package not found by name %s", pkgName)
+	}
+	return firstPkg, nil, nil, nil
+
 }
 
 func newConfigFlagSet(name string) *flag.FlagSet {
