@@ -16,28 +16,25 @@ import (
 	"strconv"
 	"strings"
 
-	errloop "github.com/m4gshm/gollections/break/loop"
-	"github.com/m4gshm/gollections/c"
-	"github.com/m4gshm/gollections/collection"
-	"github.com/m4gshm/gollections/collection/convert"
-	"github.com/m4gshm/gollections/collection/mutable/ordered"
-	"github.com/m4gshm/gollections/collection/mutable/ordered/map_"
-	"github.com/m4gshm/gollections/collection/mutable/ordered/set"
-	"github.com/m4gshm/gollections/convert/as"
-	"github.com/m4gshm/gollections/expr/use"
-	"github.com/m4gshm/gollections/kv"
-	"github.com/m4gshm/gollections/loop"
-	"github.com/m4gshm/gollections/op"
-	"github.com/m4gshm/gollections/slice"
-	"github.com/m4gshm/gollections/slice/iter"
-	"golang.org/x/tools/go/packages"
-
 	"github.com/m4gshm/fieldr/command"
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/struc"
 	fuse "github.com/m4gshm/fieldr/use"
+	errloop "github.com/m4gshm/gollections/break/loop"
+	"github.com/m4gshm/gollections/c"
+	"github.com/m4gshm/gollections/collection"
+	"github.com/m4gshm/gollections/collection/mutable/ordered"
+	"github.com/m4gshm/gollections/collection/mutable/ordered/map_"
+	"github.com/m4gshm/gollections/collection/mutable/ordered/set"
+	"github.com/m4gshm/gollections/convert/as"
+	"github.com/m4gshm/gollections/expr/use"
+	"github.com/m4gshm/gollections/loop"
+	"github.com/m4gshm/gollections/op"
+	"github.com/m4gshm/gollections/slice"
+	"github.com/m4gshm/gollections/slice/iter"
+	"golang.org/x/tools/go/packages"
 )
 
 func usage(commandLine *flag.FlagSet) func() {
@@ -388,16 +385,16 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 	pkgName := filepath.Base(dir)
 	logger.Debugf("findPkgFile: select package by name: %s, path %s", pkgName, dir)
 	firstPkg, ok := collection.First(pkgs, func(p *packages.Package) bool {
-		fullPath := filepath.Join(p.Module.Dir, path.Base(p.PkgPath))
-		if fullPath == dir {
+		if fullPath := filepath.Join(p.Module.Dir, path.Base(p.PkgPath)); fullPath == dir {
+			logger.Debugf("findPkgFile: found package by name %s, %v", pkgName, fullPath)
 			return true
+		} else {
+			logger.Debugf("findPkgFile: not match package by name: %s, path %s", p.PkgPath, fullPath)
+			return false
 		}
-		logger.Debugf("findPkgFile: not match package by name: %s, path %s", p.PkgPath, fullPath)
-		return false
 	})
-	if ok {
-		logger.Debugf("findPkgFile: found package by name %s, %v", pkgName, firstPkg)
-	} else {
+
+	if !ok {
 		logger.Debugf("findPkgFile: package not found by name %s", pkgName)
 	}
 	return firstPkg, nil, nil, nil
