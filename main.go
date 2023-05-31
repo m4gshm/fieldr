@@ -19,11 +19,13 @@ import (
 	errloop "github.com/m4gshm/gollections/break/loop"
 	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/collection"
+	"github.com/m4gshm/gollections/collection/convert"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
 	"github.com/m4gshm/gollections/collection/mutable/ordered/map_"
 	"github.com/m4gshm/gollections/collection/mutable/ordered/set"
 	"github.com/m4gshm/gollections/convert/as"
 	"github.com/m4gshm/gollections/expr/use"
+	"github.com/m4gshm/gollections/kv"
 	"github.com/m4gshm/gollections/loop"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/slice"
@@ -204,11 +206,10 @@ func run() error {
 	}
 
 	if logger.IsDebug() {
-		allSrcFiles := getAstFiles(pkgs)
+		pkgsFiles := getAstFiles(pkgs)
+		logger.Debugf("source files amount %d", pkgsFiles.Len())
 
-		logger.Debugf("source files amount %d", allSrcFiles.Len())
-
-		allSrcFiles.ForEach(func(file *ast.File) {
+		pkgsFiles.ForEach(func(file *ast.File) {
 			if info := fileSet.File(file.Pos()); info != nil {
 				logger.Debugf("found source file %s", info.Name())
 			}
@@ -341,23 +342,24 @@ func run() error {
 	})
 }
 
+func getPkgFiles(p *packages.Package) []*ast.File { return p.Syntax }
+
 func getAstFiles(pkgs *ordered.Set[*packages.Package]) *ordered.Set[*ast.File] {
-	return set.From(collection.Flat(pkgs, func(p *packages.Package) []*ast.File { return p.Syntax }).Next)
+	return set.From(collection.Flat(pkgs, getPkgFiles).Next)
 }
 
 func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], outputName, moduleDir string) (*packages.Package, *ast.File, *token.File, error) {
 	logger.Debugf("findPkgFile: outputName %s", outputName)
-	for i, p, ok := pkgs.First(); ok; p, ok = i.Next() {
-		logger.Debugf("findPkgFile: look pkg %s, ID %s", p.PkgPath, p.ID)
-		for _, s := range p.Syntax {
-			if info := fileSet.File(s.Pos()); info != nil {
-				if srcFileName := info.Name(); srcFileName == outputName {
-					logger.Debugf("finPkgFile: file found %s", outputName)
-					return p, s, info, nil
-				} else {
-					logger.Debugf("findPkgFile: looked file %s", srcFileName)
-				}
+
+	i := loop.FlatValues(pkgs.Loop().Next, as.Is[*packages.Package], getPkgFiles)
+	for p, s, ok := i.Next(); ok; p, s, ok = i.Next() {
+		if info := fileSet.File(s.Pos()); info != nil {
+			srcFileName := info.Name()
+			if srcFileName == outputName {
+				logger.Debugf("finPkgFile: file found %s", outputName)
+				return p, s, info, nil
 			}
+			logger.Debugf("findPkgFile: looked file %s", srcFileName)
 		}
 	}
 
@@ -368,15 +370,15 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 		return nil, nil, nil, err
 	}
 	logger.Debugf("findPkgFile: find package by exist src files")
-	for i, p, ok := pkgs.First(); ok; p, ok = i.Next() {
-		for _, s := range p.Syntax {
-			if info := fileSet.File(s.Pos()); info != nil {
-				if fileDir, err := getDir(info.Name()); err != nil {
-					return nil, nil, nil, err
-				} else if fileDir == dir {
-					logger.Debugf("findPkgFile: found package '%s' by file '%s'", p.Name, info.Name())
-					return p, nil, nil, nil
-				}
+
+	i = loop.FlatValues(pkgs.Loop().Next, as.Is[*packages.Package], getPkgFiles)
+	for p, s, ok := i.Next(); ok; p, s, ok = i.Next() {
+		if info := fileSet.File(s.Pos()); info != nil {
+			if fileDir, err := getDir(info.Name()); err != nil {
+				return nil, nil, nil, err
+			} else if fileDir == dir {
+				logger.Debugf("findPkgFile: found package '%s' by file '%s'", p.Name, info.Name())
+				return p, nil, nil, nil
 			}
 		}
 	}
