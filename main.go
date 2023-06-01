@@ -22,7 +22,7 @@ import (
 	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/struc"
 	fuse "github.com/m4gshm/fieldr/use"
-	errloop "github.com/m4gshm/gollections/break/loop"
+	breakloop "github.com/m4gshm/gollections/break/loop"
 	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/collection"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
@@ -117,7 +117,7 @@ func run() error {
 
 	notCmdLineType := len(typeConfig.Type) == 0
 
-	fileCommentPairs := errloop.FlattValues(filesCmdArgs.Next, as.Is[fileCommentArgs], func(f fileCommentArgs) []commentArgs { return f.commentArgs })
+	fileCommentPairs := breakloop.FlattValues(filesCmdArgs.Next, as.Is[fileCommentArgs], func(f fileCommentArgs) []commentArgs { return f.commentArgs })
 	if err := fileCommentPairs.Track(func(file fileCommentArgs, commentCmd commentArgs) error {
 		configParser := newConfigFlagSet(strings.Join(commentCmd.args, " "))
 		commentConfig := params.NewTypeConfig(configParser)
@@ -431,8 +431,8 @@ type fileCommentArgs struct {
 
 func (f fileCommentArgs) CommentArgs() []commentArgs { return f.commentArgs }
 
-func getFilesCommentArgs(fileSet *token.FileSet, files c.Iterable[*ast.File]) errloop.ConvertCheckIter[*fileCommentArgs, fileCommentArgs] {
-	return errloop.GetValues(collection.Conv(files, func(file *ast.File) (*fileCommentArgs, error) {
+func getFilesCommentArgs(fileSet *token.FileSet, files c.Iterable[*ast.File]) breakloop.ConvertCheckIter[*fileCommentArgs, fileCommentArgs] {
+	return breakloop.GetValues(collection.Conv(files, func(file *ast.File) (*fileCommentArgs, error) {
 		ft := fileSet.File(file.Pos())
 		if args, err := getCommentArgs(file, ft); err != nil {
 			return nil, err
@@ -449,7 +449,7 @@ type commentArgs struct {
 }
 
 func getCommentArgs(file *ast.File, fInfo *token.File) ([]commentArgs, error) {
-	return errloop.Slice(loop.Conv(iter.Flat(file.Comments, func(cg *ast.CommentGroup) []*ast.Comment { return cg.List }).Next,
+	return breakloop.Slice(loop.Conv(iter.Flat(file.Comments, func(cg *ast.CommentGroup) []*ast.Comment { return cg.List }).Next,
 		func(comment *ast.Comment) (a commentArgs, err error) {
 			args, err := getCommentCmdArgs(comment.Text)
 			if err == nil && len(args) > 0 {
@@ -526,7 +526,7 @@ func splitArgs(rawArgs string) ([]string, error) {
 }
 
 func loadFilesPackages(fileSet *token.FileSet, inputs []string, buildTags []string) (*ordered.Set[*packages.Package], error) {
-	return errloop.Reducee(iter.Conv(inputs, func(srcFile string) (*ordered.Set[*packages.Package], error) {
+	return breakloop.Reducee(iter.Conv(inputs, func(srcFile string) (*ordered.Set[*packages.Package], error) {
 		return loadFilePackage(srcFile, fileSet, buildTags...)
 	}).Next, func(l, r *ordered.Set[*packages.Package]) (*ordered.Set[*packages.Package], error) {
 		_ = l.AddAllNew(r)
