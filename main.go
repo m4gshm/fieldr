@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/m4gshm/expressions/error_"
 	"github.com/m4gshm/fieldr/command"
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/logger"
@@ -28,7 +29,6 @@ import (
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
 	"github.com/m4gshm/gollections/collection/mutable/ordered/map_"
 	"github.com/m4gshm/gollections/collection/mutable/ordered/set"
-	"github.com/m4gshm/gollections/convert/as"
 	"github.com/m4gshm/gollections/expr/use"
 	"github.com/m4gshm/gollections/loop"
 	"github.com/m4gshm/gollections/op"
@@ -117,7 +117,7 @@ func run() error {
 
 	notCmdLineType := len(typeConfig.Type) == 0
 
-	fileCommentPairs := breakloop.FlattValues(filesCmdArgs.Next, as.Is[fileCommentArgs], func(f fileCommentArgs) []commentArgs { return f.commentArgs })
+	fileCommentPairs := breakloop.ExtractValues(filesCmdArgs.Next, fileCommentArgs.CommentArgs)
 	if err := fileCommentPairs.Track(func(file fileCommentArgs, commentCmd commentArgs) error {
 		configParser := newConfigFlagSet(strings.Join(commentCmd.args, " "))
 		commentConfig := params.NewTypeConfig(configParser)
@@ -165,13 +165,10 @@ func run() error {
 			}
 		}
 
-		unusedArgs := configParser.Args()
-		cmtCommands, cmtArgs, err := parseCommands(unusedArgs)
-		if err != nil {
-			var uErr *fuse.Error
-			if errors.As(err, &uErr) {
-				return fuse.FileCommentErr(uErr.Error(), file.astFile, file.tokenFile, commentCmd.comment)
-			}
+		cmtCommands, cmtArgs, err := parseCommands(configParser.Args())
+		if uErr, ok := error_.As[*fuse.Error](err); ok {
+			return fuse.FileCommentErr(uErr.Error(), file.astFile, file.tokenFile, commentCmd.comment)
+		} else if err != nil {
 			return err
 		} else if len(cmtCommands) == 0 {
 			// logger.Debugf("no comment generator commands: file %s, line: %d args %v\n", f.file.Name, cmt.comment.Pos(), cmtArgs)
@@ -348,7 +345,7 @@ func getAstFiles(pkgs *ordered.Set[*packages.Package]) *ordered.Set[*ast.File] {
 func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], outputName, moduleDir string) (*packages.Package, *ast.File, *token.File, error) {
 	logger.Debugf("findPkgFile: outputName %s", outputName)
 
-	i := loop.FlatValues(pkgs.Loop().Next, as.Is[*packages.Package], getPkgFiles)
+	i := loop.ExtractValues(pkgs.Loop().Next, getPkgFiles)
 	for p, s, ok := i.Next(); ok; p, s, ok = i.Next() {
 		if info := fileSet.File(s.Pos()); info != nil {
 			srcFileName := info.Name()
@@ -368,7 +365,7 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 	}
 	logger.Debugf("findPkgFile: find package by exist src files")
 
-	i = loop.FlatValues(pkgs.Loop().Next, as.Is[*packages.Package], getPkgFiles)
+	i = loop.ExtractValues(pkgs.Loop().Next, getPkgFiles)
 	for p, s, ok := i.Next(); ok; p, s, ok = i.Next() {
 		if info := fileSet.File(s.Pos()); info != nil {
 			if fileDir, err := getDir(info.Name()); err != nil {
