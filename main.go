@@ -17,24 +17,26 @@ import (
 	"strings"
 
 	"github.com/m4gshm/expressions/error_"
-	"github.com/m4gshm/fieldr/command"
-	"github.com/m4gshm/fieldr/generator"
-	"github.com/m4gshm/fieldr/logger"
-	"github.com/m4gshm/fieldr/params"
-	"github.com/m4gshm/fieldr/struc"
-	fuse "github.com/m4gshm/fieldr/use"
 	breakloop "github.com/m4gshm/gollections/break/loop"
 	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/collection"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
 	"github.com/m4gshm/gollections/collection/mutable/ordered/map_"
 	"github.com/m4gshm/gollections/collection/mutable/ordered/set"
+	"github.com/m4gshm/gollections/expr/get"
 	"github.com/m4gshm/gollections/expr/use"
 	"github.com/m4gshm/gollections/loop"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/slice"
 	"github.com/m4gshm/gollections/slice/iter"
 	"golang.org/x/tools/go/packages"
+
+	"github.com/m4gshm/fieldr/command"
+	"github.com/m4gshm/fieldr/generator"
+	"github.com/m4gshm/fieldr/logger"
+	"github.com/m4gshm/fieldr/params"
+	"github.com/m4gshm/fieldr/struc"
+	fuse "github.com/m4gshm/fieldr/use"
 )
 
 func usage(commandLine *flag.FlagSet) func() {
@@ -224,40 +226,27 @@ func run() error {
 			return fmt.Errorf("type not found: %s", typeName)
 		}
 
-		outputName := typeConfig.Output
-
-		var outFile *ast.File
-		var outFileInfo *token.File
-		var outPkg *packages.Package
-		if outputName == "" {
-			baseName := typeName + params.DefaultFileSuffix
-			absOutName, err := abs(strings.ToLower(baseName))
-			if err != nil {
-				return err
-			}
-			outputName = absOutName
-		} else if outputName == generator.Autoname {
-			//autoname selected
-			outFile = typFile
-			outFileInfo = fileSet.File(outFile.Pos())
-			outputName = outFileInfo.Name()
-			logger.Debugf("autoselected out file '%s'", outputName)
-		} else {
-			absOutName, err := abs(outputName)
-			if err != nil {
-				return err
-			}
-			outputName = absOutName
-			logger.Debugf("trying to find output file %s", outputName)
+		outputName, err := get.If(typeConfig.Output == generator.Autoname, func() string {
+			outFileInfo := fileSet.File(typFile.Pos())
+			autoselected := outFileInfo.Name()
+			logger.Debugf("autoselected out file '%s'", autoselected)
+			return autoselected
+		}).ElseGetErr(func() (string, error) {
+			out := typeConfig.Output
+			return abs(op.IfElse(len(out) > 0, out, strings.ToLower(typeName+params.DefaultFileSuffix)))
+		})
+		if err != nil {
+			return err
 		}
 
+		logger.Debugf("output file %s", outputName)
 		if typPkg == nil {
 			return fmt.Errorf("type package not found: type %s", typeName)
 		}
 		typModule := typPkg.Module
 		moduleDir := typModule.Dir
 
-		outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, pkgs, outputName, moduleDir)
+		outPkg, outFile, outFileInfo, err := findPkgFile(fileSet, pkgs, outputName, moduleDir)
 		if err != nil {
 			return err
 		}
@@ -266,34 +255,32 @@ func run() error {
 			logger.Debugf("out file not found, trying to fix")
 			buildTag := typeConfig.OutBuildTags
 
-			if dir, err := getDir(outputName); err != nil {
+			dir, err := getDir(outputName)
+			if err != nil {
 				return err
-			} else {
-				if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
-					logger.Debugf("create new package dir %s", dir)
-					if err := os.Mkdir(dir, os.ModePerm); err != nil {
-						return err
-					}
-				}
-
-				if outPkgs, err := loadFilePackage(dir, fileSet, buildTag); err != nil {
+			} else if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
+				logger.Debugf("create new package dir %s", dir)
+				if err := os.Mkdir(dir, os.ModePerm); err != nil {
 					return err
-				} else if outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, outPkgs, outputName, moduleDir); err != nil {
-					return fmt.Errorf("findPkgFile: out file %s :%w", outputName, err)
 				}
-				if outPkg == nil {
-					logger.Debugf("cannot determine output package, create new: output file '%s', moduleDir '%s', dir '%s'", outputName, moduleDir, dir)
+			}
 
-					pkgPath, err := filepath.Rel(moduleDir, dir)
-					if err != nil {
-						return err
-					}
-					pkgPath = op.IfElse(pkgPath == ".", "", pkgPath)
-					pkgName := op.IfElse(pkgPath != "", filepath.Base(pkgPath), "")
-					typs := types.NewPackage(pkgPath, pkgName)
-					outPkg = &packages.Package{PkgPath: pkgPath, ID: pkgPath, Name: pkgName, Types: typs, Module: typModule}
-					logger.Debugf("create package type %#v", outPkg)
+			if outPkgs, err := loadFilePackage(dir, fileSet, buildTag); err != nil {
+				return err
+			} else if outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, outPkgs, outputName, moduleDir); err != nil {
+				return fmt.Errorf("findPkgFile: out file %s :%w", outputName, err)
+			} else if outPkg == nil {
+				logger.Debugf("cannot determine output package, create new: output file '%s', moduleDir '%s', dir '%s'", outputName, moduleDir, dir)
+
+				pkgPath, err := filepath.Rel(moduleDir, dir)
+				if err != nil {
+					return err
 				}
+				pkgPath = op.IfElse(pkgPath == ".", "", pkgPath)
+				pkgName := op.IfElse(pkgPath != "", filepath.Base(pkgPath), "")
+				typs := types.NewPackage(pkgPath, pkgName)
+				outPkg = &packages.Package{PkgPath: pkgPath, ID: pkgPath, Name: pkgName, Types: typs, Module: typModule}
+				logger.Debugf("create package type %#v", outPkg)
 			}
 		}
 
