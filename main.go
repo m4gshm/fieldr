@@ -66,8 +66,7 @@ func main() {
 }
 
 func run() error {
-	appFile := os.Args[0]
-	appArgs := os.Args[1:]
+	appFile, appArgs := os.Args[0], os.Args[1:]
 
 	configParser := newConfigFlagSet(appFile)
 	flag.CommandLine = configParser
@@ -109,15 +108,13 @@ func run() error {
 		return fmt.Errorf("extract packages, workDir %s, build tags %v: %w", workDir, *buildTags, err)
 	}
 
+	
+	typeConfig := *commonTypeConfig
+	notCmdLineType := len(typeConfig.Type) == 0
+	
 	typeConfigs := map_.Empty[params.TypeConfig, []*command.Command]()
 
-	typeConfig := *commonTypeConfig
-
-	filesCmdArgs := getFilesCommentArgs(fileSet, getAstFiles(pkgs))
-
-	notCmdLineType := len(typeConfig.Type) == 0
-
-	fileCommentPairs := breakloop.ExtractValues(filesCmdArgs.Next, fileCommentArgs.CommentArgs)
+	fileCommentPairs := breakloop.ExtraValues(getFilesCommentArgs(fileSet, getAstFiles(pkgs)).Next, fileCommentArgs.CommentArgs)
 	if err := fileCommentPairs.Track(func(file fileCommentArgs, commentCmd commentArgs) error {
 		configParser := newConfigFlagSet(strings.Join(commentCmd.args, " "))
 		commentConfig := params.NewTypeConfig(configParser)
@@ -345,13 +342,12 @@ func getAstFiles(pkgs *ordered.Set[*packages.Package]) *ordered.Set[*ast.File] {
 func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], outputName, moduleDir string) (*packages.Package, *ast.File, *token.File, error) {
 	logger.Debugf("findPkgFile: outputName %s", outputName)
 
-	i := loop.ExtractValues(pkgs.Loop().Next, getPkgFiles)
-	for p, s, ok := i.Next(); ok; p, s, ok = i.Next() {
-		if info := fileSet.File(s.Pos()); info != nil {
+	for iter, pkg, file, ok := collection.ExtraValues(pkgs, getPkgFiles).Start(); ok; pkg, file, ok = iter.Next() {
+		if info := fileSet.File(file.Pos()); info != nil {
 			srcFileName := info.Name()
 			if srcFileName == outputName {
 				logger.Debugf("finPkgFile: file found %s", outputName)
-				return p, s, info, nil
+				return pkg, file, info, nil
 			}
 			logger.Debugf("findPkgFile: looked file %s", srcFileName)
 		}
@@ -365,14 +361,13 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 	}
 	logger.Debugf("findPkgFile: find package by exist src files")
 
-	i = loop.ExtractValues(pkgs.Loop().Next, getPkgFiles)
-	for p, s, ok := i.Next(); ok; p, s, ok = i.Next() {
-		if info := fileSet.File(s.Pos()); info != nil {
+	for iter, pkg, file, ok := collection.ExtraValues(pkgs, getPkgFiles).Start(); ok; pkg, file, ok = iter.Next() {
+		if info := fileSet.File(file.Pos()); info != nil {
 			if fileDir, err := getDir(info.Name()); err != nil {
 				return nil, nil, nil, err
 			} else if fileDir == dir {
-				logger.Debugf("findPkgFile: found package '%s' by file '%s'", p.Name, info.Name())
-				return p, nil, nil, nil
+				logger.Debugf("findPkgFile: found package '%s' by file '%s'", pkg.Name, info.Name())
+				return pkg, nil, nil, nil
 			}
 		}
 	}
@@ -429,7 +424,7 @@ type fileCommentArgs struct {
 func (f fileCommentArgs) CommentArgs() []commentArgs { return f.commentArgs }
 
 func getFilesCommentArgs(fileSet *token.FileSet, files c.Iterable[*ast.File]) breakloop.ConvertCheckIter[*fileCommentArgs, fileCommentArgs] {
-	return breakloop.GetValues(collection.Conv(files, func(file *ast.File) (*fileCommentArgs, error) {
+	return breakloop.NoNilPtrVal(collection.Conv(files, func(file *ast.File) (*fileCommentArgs, error) {
 		ft := fileSet.File(file.Pos())
 		if args, err := getCommentArgs(file, ft); err != nil {
 			return nil, err
