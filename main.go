@@ -535,12 +535,9 @@ func loadFilePackage(srcFile string, fileSet *token.FileSet, buildTags ...string
 const packageMode = packages.NeedSyntax | packages.NeedName | packages.NeedTypesInfo | packages.NeedTypes | packages.NeedModule
 
 func extractPackages(fileSet *token.FileSet, buildTags []string, fileName string) (*ordered.Set[*packages.Package], error) {
-	dir, err := getDir(fileName)
-	if err != nil {
+	if dir, err := getDir(fileName); err != nil {
 		return nil, err
-	}
-
-	if pkgs, err := packages.Load(&packages.Config{
+	} else if pkgs, err := packages.Load(&packages.Config{
 		Dir:        dir,
 		Fset:       fileSet,
 		Mode:       packageMode,
@@ -550,11 +547,7 @@ func extractPackages(fileSet *token.FileSet, buildTags []string, fileName string
 	}, "./..."); err != nil {
 		return nil, err
 	} else {
-		return set.From(iter.Filter(pkgs, func(p *packages.Package) bool {
-			// pID := p.ID
-			// return !(strings.Contains(pID, ".test]") || strings.HasSuffix(pID, ".test"))
-			return true
-		}).Next), nil
+		return set.Of(pkgs...), nil
 	}
 }
 func getDir(fileName string) (string, error) {
