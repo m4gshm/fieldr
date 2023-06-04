@@ -102,13 +102,12 @@ func NewCodeRewriter(fieldValueRewriters []string) (*CodeRewriter, error) {
 }
 
 func (rewrite *CodeRewriter) Transform(fieldName string, fieldType struc.FieldType, fieldRef string) (string, bool) {
-	byFieldName := rewrite.byFieldName
-	byFieldType := rewrite.byFieldType
-
-	rewriters := use.MapVal(byFieldName, fieldName).Or(use.MapVal(byFieldType, fieldType.FullName)).ElseGet(func() []func(string) string {
-		logger.Debugf("no rewriter by type for field %s, type %s", fieldName, fieldType.FullName)
-		return rewrite.all[:]
-	})
+	rewriters := use.MapVal(rewrite.byFieldName, fieldName).
+		Or(use.MapVal(rewrite.byFieldType, fieldType.FullName)).
+		ElseGet(func() []func(string) string {
+			logger.Debugf("no rewriter by type for field %s, type %s", fieldName, fieldType.FullName)
+			return rewrite.all[:]
+		})
 	if len(rewriters) == 0 {
 		return fieldRef, false
 	}
