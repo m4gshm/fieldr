@@ -25,6 +25,7 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
+	github.com/m4gshm/expressions v0.0.0-20230604193252-fd095bea23ba // indirect
 	github.com/m4gshm/gollections v0.0.10-0.20230603135358-6d870b6ab892 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.18 // indirect
