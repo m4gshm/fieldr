@@ -6,6 +6,10 @@ github.com/m4gshm/expressions v0.0.0-20230521072655-844dda90c799 h1:QeVlZj30cvVV
 github.com/m4gshm/expressions v0.0.0-20230521072655-844dda90c799/go.mod h1:hksf9lollrFDUplI/jfEsIUEHZqMyuVswTNBTRP1LOo=
 github.com/m4gshm/expressions v0.0.0-20230521221038-cf8c1d04bc4f h1:wJUNUkNxUAPIzk0oPcxO+xPYHbTF5ScOaj72CMoG1zA=
 github.com/m4gshm/expressions v0.0.0-20230521221038-cf8c1d04bc4f/go.mod h1:JYSo5/gWIjF9pPcw1YWGVQ52WRau/wv6d/D2NtOluSs=
+github.com/m4gshm/expressions v0.0.0-20230605183811-fc339a097220 h1:tIzbeM0Gx7uAR+esusXs5Esg9Kw/i4WnQ6q+WA6aG+o=
+github.com/m4gshm/expressions v0.0.0-20230605183811-fc339a097220/go.mod h1:JYSo5/gWIjF9pPcw1YWGVQ52WRau/wv6d/D2NtOluSs=
+github.com/m4gshm/expressions v0.0.0-20230605190143-d1137e6607bb h1:jVyfRueCnAkkFLg1wKlHbL0uP+YJ4EmJXeTu9GH4lko=
+github.com/m4gshm/expressions v0.0.0-20230605190143-d1137e6607bb/go.mod h1:JYSo5/gWIjF9pPcw1YWGVQ52WRau/wv6d/D2NtOluSs=
 github.com/m4gshm/gollections v0.0.9 h1:I/Y0wMMPNWx4OTAyRPXIB+MNMSHszqcYM2VzotXDGmI=
 github.com/m4gshm/gollections v0.0.9/go.mod h1:TRYgTUE6ik68ZebsEtdEfB1wDVpvVDWPi90xHWrEZgg=
 github.com/m4gshm/gollections v0.0.10-0.20230601081932-8846c6abd89a h1:FK4loF15O3kZy1Ssuj8sYUCcKZiiJ15Lk3ykQUZKPnU=

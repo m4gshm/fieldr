@@ -12,7 +12,7 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/m4gshm/expressions v0.0.0-20230521221038-cf8c1d04bc4f // indirect
+	github.com/m4gshm/expressions v0.0.0-20230605190143-d1137e6607bb // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

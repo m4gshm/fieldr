@@ -6,10 +6,6 @@ import (
 	"go/types"
 	"strings"
 
-	"github.com/m4gshm/fieldr/generator"
-	"github.com/m4gshm/fieldr/logger"
-	"github.com/m4gshm/fieldr/params"
-	"github.com/m4gshm/fieldr/struc"
 	"github.com/m4gshm/gollections/expr/get"
 	"github.com/m4gshm/gollections/expr/use"
 	"github.com/m4gshm/gollections/loop"
@@ -19,6 +15,11 @@ import (
 	"github.com/m4gshm/gollections/op/delay/string_/wrap"
 	"github.com/m4gshm/gollections/op/delay/sum"
 	"github.com/m4gshm/gollections/slice/split"
+
+	"github.com/m4gshm/fieldr/generator"
+	"github.com/m4gshm/fieldr/logger"
+	"github.com/m4gshm/fieldr/params"
+	"github.com/m4gshm/fieldr/struc"
 )
 
 func NewBuilderStruct() *Command {
@@ -192,24 +193,19 @@ func generateBuilderParts(
 			structBody += "\n"
 		}
 		if fieldType := model.FieldsType[fieldName]; fieldType.Embedded {
-			init := ""
 			if fullFieldType, err := g.GetFullFieldTypeName(fieldType, true); err != nil {
 				return nil, err
-			} else {
-				init = get.If(fieldType.RefCount > 0, sum.Of("&", fullFieldType)).Else(fullFieldType)
-			}
-
-			embedParts, err := generateBuilderParts(g, fieldType.Model, uniques, receiverVar, typeName, setterPrefix,
-				isReceiverReference, noMethods, exportMethods, exportFields, nolint)
-			if err != nil {
+			} else if embedParts, err := generateBuilderParts(g, fieldType.Model, uniques, receiverVar, typeName, setterPrefix,
+				isReceiverReference, noMethods, exportMethods, exportFields, nolint); err != nil {
 				return nil, err
-			}
-
-			constructorMethodBody += fieldName + ": " + init + "{\n" + embedParts.constructorMethodBody + "\n}"
-			structBody += embedParts.structBody
-			if !noMethods {
-				fieldMethodBodies = append(fieldMethodBodies, embedParts.fieldMethodBodies...)
-				fieldMethodNames = append(fieldMethodNames, embedParts.fieldMethodNames...)
+			} else {
+				init := get.If(fieldType.RefCount > 0, sum.Of("&", fullFieldType)).Else(fullFieldType)
+				constructorMethodBody += fieldName + ": " + init + "{\n" + embedParts.constructorMethodBody + "\n}"
+				structBody += embedParts.structBody
+				if !noMethods {
+					fieldMethodBodies = append(fieldMethodBodies, embedParts.fieldMethodBodies...)
+					fieldMethodNames = append(fieldMethodNames, embedParts.fieldMethodNames...)
+				}
 			}
 		} else {
 			fullFieldType, err := g.GetFullFieldTypeName(fieldType, false)
