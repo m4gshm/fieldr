@@ -116,7 +116,7 @@ func run() error {
 	
 	typeConfigs := map_.Empty[params.TypeConfig, []*command.Command]()
 
-	fileCommentPairs := breakloop.ExtraValues(getFilesCommentArgs(fileSet, getAstFiles(pkgs)).Next, fileCommentArgs.CommentArgs)
+	fileCommentPairs := breakloop.ExtraVals(getFilesCommentArgs(fileSet, getAstFiles(pkgs)).Next, fileCommentArgs.CommentArgs)
 	if err := fileCommentPairs.Track(func(file fileCommentArgs, commentCmd commentArgs) error {
 		configParser := newConfigFlagSet(strings.Join(commentCmd.args, " "))
 		commentConfig := params.NewTypeConfig(configParser)
@@ -329,7 +329,7 @@ func getAstFiles(pkgs *ordered.Set[*packages.Package]) *ordered.Set[*ast.File] {
 func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], outputName, moduleDir string) (*packages.Package, *ast.File, *token.File, error) {
 	logger.Debugf("findPkgFile: outputName %s", outputName)
 
-	for iter, pkg, file, ok := collection.ExtraValues(pkgs, getPkgFiles).Start(); ok; pkg, file, ok = iter.Next() {
+	for iter, pkg, file, ok := collection.ExtraVals(pkgs, getPkgFiles).Start(); ok; pkg, file, ok = iter.Next() {
 		if info := fileSet.File(file.Pos()); info != nil {
 			srcFileName := info.Name()
 			if srcFileName == outputName {
@@ -348,7 +348,7 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 	}
 	logger.Debugf("findPkgFile: find package by exist src files")
 
-	for iter, pkg, file, ok := collection.ExtraValues(pkgs, getPkgFiles).Start(); ok; pkg, file, ok = iter.Next() {
+	for iter, pkg, file, ok := collection.ExtraVals(pkgs, getPkgFiles).Start(); ok; pkg, file, ok = iter.Next() {
 		if info := fileSet.File(file.Pos()); info != nil {
 			if fileDir, err := getDir(info.Name()); err != nil {
 				return nil, nil, nil, err
