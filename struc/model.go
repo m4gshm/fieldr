@@ -51,14 +51,6 @@ func New(outPkgPath string, structType *types.Named, typePkg Package) (*Model, e
 	return structModel, nil
 }
 
-func newFieldTagValues(fieldTagNames []TagName, tagValues map[TagName]TagValue) map[TagName]TagValue {
-	fieldTagValues := make(map[TagName]TagValue, len(fieldTagNames))
-	for _, fieldTagName := range fieldTagNames {
-		fieldTagValues[fieldTagName] = tagValues[fieldTagName]
-	}
-	return fieldTagValues
-}
-
 func parseTagValues(tags string) (map[TagName]TagValue, []TagName) {
 	tagNames := make([]TagName, 0)
 	tagValues := make(map[TagName]TagValue)

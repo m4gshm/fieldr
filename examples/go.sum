@@ -178,6 +178,12 @@ github.com/m4gshm/gollections v0.0.10-0.20230603132332-347555bc1ae6 h1:xLELbaf83
 github.com/m4gshm/gollections v0.0.10-0.20230603132332-347555bc1ae6/go.mod h1:TRYgTUE6ik68ZebsEtdEfB1wDVpvVDWPi90xHWrEZgg=
 github.com/m4gshm/gollections v0.0.10-0.20230603135358-6d870b6ab892 h1:oAk3/DSaw3DpyDBKhYyZguuQYxAU+nTjTwZGxbD7VPE=
 github.com/m4gshm/gollections v0.0.10-0.20230603135358-6d870b6ab892/go.mod h1:TRYgTUE6ik68ZebsEtdEfB1wDVpvVDWPi90xHWrEZgg=
+github.com/m4gshm/gollections v0.0.10-0.20230610111911-eab2c8ed7951 h1:AknJFkrj3Hhy7LvXHianj8lkOCMe3oK+bysqa4ZhLiQ=
+github.com/m4gshm/gollections v0.0.10-0.20230610111911-eab2c8ed7951/go.mod h1:TRYgTUE6ik68ZebsEtdEfB1wDVpvVDWPi90xHWrEZgg=
+github.com/m4gshm/gollections v0.0.10-0.20230610122021-92a11def20ea h1:lqxqH4Unpg+ruNPgAGV4yYPKBaXSofy95zWlkbxA58k=
+github.com/m4gshm/gollections v0.0.10-0.20230610122021-92a11def20ea/go.mod h1:TRYgTUE6ik68ZebsEtdEfB1wDVpvVDWPi90xHWrEZgg=
+github.com/m4gshm/gollections v0.0.10-0.20230610154326-f31b59325e40 h1:2Y36CyETWkAVE38YMWlTXGx1w1J8Xuqvu6WEfO6Ttf8=
+github.com/m4gshm/gollections v0.0.10-0.20230610154326-f31b59325e40/go.mod h1:TRYgTUE6ik68ZebsEtdEfB1wDVpvVDWPi90xHWrEZgg=
 github.com/mattn/go-colorable v0.1.1/go.mod h1:FuOcm+DKB9mbwrcAfNl7/TZVBZ6rcnceauSikq3lYCQ=
 github.com/mattn/go-colorable v0.1.6/go.mod h1:u6P/XSegPjTcexA+o6vUJrdnUu04hMope9wVRipJSqc=
 github.com/mattn/go-colorable v0.1.12/go.mod h1:u5H1YNBxpqRaxsYJYSkiCWKzEfiAb1Gb520KVy5xxl4=

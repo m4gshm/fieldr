@@ -5,6 +5,10 @@ import (
 	"go/types"
 	"reflect"
 
+	"github.com/m4gshm/gollections/convert/as"
+	"github.com/m4gshm/gollections/map_"
+	"github.com/m4gshm/gollections/slice"
+
 	"github.com/m4gshm/fieldr/logger"
 )
 
@@ -35,7 +39,7 @@ func (b *structModelBuilder) populateTags(fieldName FieldName, tagName TagName, 
 }
 
 func (b *structModelBuilder) populateFields(fldName FieldName, fieldTagNames []TagName, tagValues map[TagName]TagValue) {
-	fieldTagValues := newFieldTagValues(fieldTagNames, tagValues)
+	fieldTagValues := slice.ToMap(fieldTagNames, as.Is[TagName], map_.Getter(tagValues))
 	if len(fieldTagValues) > 0 {
 		b.model.FieldsTagValue[fldName] = fieldTagValues
 	}
