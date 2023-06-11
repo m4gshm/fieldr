@@ -20,7 +20,7 @@ import (
 
 func (g *Generator) GenerateAsMapFunc(
 	model *struc.Model, name, keyType string,
-	constants []fieldConst,
+	constants []FieldConst,
 	rewriter *CodeRewriter,
 	export, snake, returnRefs, noReceiver, nolint, hardcodeValues bool,
 ) (string, string, string, error) {
@@ -75,8 +75,8 @@ func TypeParamsDeclarationString(list *types.TypeParamList, basePkgPath string) 
 	}).Next, op.Sum[string])+get.If(prevElem != nil, func() string { return " " + struc.TypeString(prevElem, basePkgPath) }).Else(""), "]")
 }
 
-func generateMapInits(g *Generator, mapVar, recVar string, rewriter *CodeRewriter, constants []fieldConst) string {
-	return loop.Reduce(iter.Convert(constants, func(constant fieldConst) string {
+func generateMapInits(g *Generator, mapVar, recVar string, rewriter *CodeRewriter, constants []FieldConst) string {
+	return loop.Reduce(iter.Convert(constants, func(constant FieldConst) string {
 		var (
 			_, conditionPath, conditions         = FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
 			varsConditionStart, varsConditionEnd = split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum[string], op.Sum[string])

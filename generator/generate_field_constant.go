@@ -9,16 +9,17 @@ import (
 	"text/template"
 	"unicode"
 
+	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/collection/immutable"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
+	"github.com/m4gshm/gollections/expr/get"
+	"github.com/m4gshm/gollections/expr/use"
 	"github.com/m4gshm/gollections/loop"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/op/delay/replace"
 	"github.com/m4gshm/gollections/op/delay/string_/join"
 	"github.com/m4gshm/gollections/op/delay/string_/wrap"
 	"github.com/m4gshm/gollections/op/delay/sum"
-	"github.com/m4gshm/gollections/expr/get"
-	"github.com/m4gshm/gollections/expr/use"
 	"github.com/m4gshm/gollections/slice/convert"
 	"github.com/m4gshm/gollections/slice/iter"
 	"github.com/m4gshm/gollections/slice/split"
@@ -26,7 +27,6 @@ import (
 
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/struc"
-	"github.com/m4gshm/gollections/c"
 )
 
 type stringer struct {
@@ -45,7 +45,7 @@ func (c *stringer) String() string {
 
 var _ fmt.Stringer = (*stringer)(nil)
 
-func (g *Generator) GenerateFieldConstants(model *struc.Model, typ string, export, snake, allFields bool, flats c.Checkable[string]) ([]fieldConst, error) {
+func (g *Generator) GenerateFieldConstants(model *struc.Model, typ string, export, snake, allFields bool, flats c.Checkable[string]) ([]FieldConst, error) {
 	constants, err := makeFieldConsts(g, model, export, snake, allFields, flats)
 	if err != nil {
 		return nil, err
@@ -152,14 +152,14 @@ func (g *Generator) GenerateFieldConstant(
 	return nil
 }
 
-type fieldConst struct {
+type FieldConst struct {
 	name, value string
 	fieldPath   []FieldInfo
 }
 
-func (constant fieldConst) Name() string { return constant.name }
+func (constant FieldConst) Name() string { return constant.name }
 
-func checkDuplicates(constants []fieldConst, checkValues bool) error {
+func checkDuplicates(constants []FieldConst, checkValues bool) error {
 	uniqueVals, uniqueNames := map[string]string{}, map[string]string{}
 	for _, c := range constants {
 		name, value := c.name, c.value
@@ -181,10 +181,10 @@ func checkDuplicates(constants []fieldConst, checkValues bool) error {
 
 func makeFieldConstsTempl(
 	g *Generator, model *struc.Model, structType, nameTmpl, valueTmpl string, export, snake, usePrivate bool, flats, excludedFields c.Checkable[string],
-) ([]fieldConst, error) {
+) ([]FieldConst, error) {
 	var (
 		usedTags  = &ordered.Set[struc.TagName]{}
-		constants = make([]fieldConst, 0)
+		constants = make([]FieldConst, 0)
 	)
 	if model == nil {
 		return constants, nil
@@ -279,7 +279,7 @@ func makeFieldConstsTempl(
 			}
 
 			if len(val) > 0 {
-				constants = append(constants, fieldConst{
+				constants = append(constants, FieldConst{
 					name:      constName,
 					value:     val,
 					fieldPath: []FieldInfo{{Name: fieldName, Type: fieldType}}})
@@ -291,8 +291,8 @@ func makeFieldConstsTempl(
 	return constants, nil
 }
 
-func makeFieldConsts(g *Generator, model *struc.Model, export, snake, allFields bool, flats c.Checkable[string]) ([]fieldConst, error) {
-	constants := []fieldConst{}
+func makeFieldConsts(g *Generator, model *struc.Model, export, snake, allFields bool, flats c.Checkable[string]) ([]FieldConst, error) {
+	constants := []FieldConst{}
 	for _, fieldName := range model.FieldNames {
 		fieldType := model.FieldsType[fieldName]
 		embedded := fieldType.Embedded
@@ -312,7 +312,7 @@ func makeFieldConsts(g *Generator, model *struc.Model, export, snake, allFields 
 				constants = append(constants, fieldConstants...)
 			}
 		} else if allFields || isExport(fieldName) {
-			constants = append(constants, fieldConst{
+			constants = append(constants, FieldConst{
 				name:      IdentName(fieldName, isExport(fieldName) && export),
 				value:     fieldName,
 				fieldPath: []FieldInfo{filedInfo}})
@@ -454,29 +454,29 @@ func wrapTemplate(text string) string {
 	return text
 }
 
-func generateAggregateFunc(funcName, typ string, constants []fieldConst, export, compact, nolint bool) (string, string, error) {
+func generateAggregateFunc(funcName, typ string, constants []FieldConst, export, compact, nolint bool) (string, string, error) {
 	compact = compact || len(constants) <= oneLineSize
 	var arrayType = "[]" + typ
 	return "func " + funcName + "() " + arrayType + " { " + NoLint(nolint) + "\n return " + arrayType + "{" + op.IfElse(!compact, "\n", "") +
-		convert.AndReduce(constants, fieldConst.Name, func(l, r string) string {
+		convert.AndReduce(constants, FieldConst.Name, func(l, r string) string {
 			return l + op.IfElse(len(l) > 0, op.IfElse(compact, ", ", ",\n"), "") + r
 		}) + "}" + "}", funcName, nil
 }
 
-func (g *Generator) generateConstFieldMethod(typ, name string, constants []fieldConst, export, nolint bool) (string, error) {
+func (g *Generator) generateConstFieldMethod(typ, name string, constants []FieldConst, export, nolint bool) (string, error) {
 	var (
 		receiverVar  = "c"
 		returnType   = BaseConstType
 		returnNoCase = "\"\""
 	)
 	return "func (" + receiverVar + " " + typ + ") " + name + "() " + returnType + " {" + NoLint(nolint) + "\n" +
-		"switch " + receiverVar + " {\n" + loop.Sum(iter.Convert(constants, func(constant fieldConst) string {
+		"switch " + receiverVar + " {\n" + loop.Sum(iter.Convert(constants, func(constant FieldConst) string {
 		return use.If(len(constant.value) == 0, "").ElseGet(sum.Of("case ", constant.name, ":\nreturn \"",
 			convert.AndReduce(constant.fieldPath, func(p FieldInfo) string { return p.Name }, join.NonEmpty(".")), "\"\n"))
 	}).Next) + "}\n" + "return " + returnNoCase + "}\n", nil
 }
 
-func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, name string, constants []fieldConst, export, nolint, ref bool) (string, string, error) {
+func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, name string, constants []FieldConst, export, nolint, ref bool) (string, string, error) {
 	var (
 		argVar          = "f"
 		recVar          = "s"
@@ -496,7 +496,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 	) + returnTypes + " {" + NoLint(nolint) + "\n" +
 		"if " + recVar + " == nil {\nreturn nil\n}\n" +
 		"switch " + argVar + " {\n" +
-		loop.Reduce(iter.Convert(constants, func(constant fieldConst) string {
+		loop.Reduce(iter.Convert(constants, func(constant FieldConst) string {
 			_, conditionPath, conditions := FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
 			varsConditionStart, varsConditionEnd := split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum[string], op.Sum[string])
 			return "case " + constant.name + ":\n" + varsConditionStart + "return " + pref + conditionPath + "\n" + varsConditionEnd
