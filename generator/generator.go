@@ -16,17 +16,17 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/pkg/errors"
-	"golang.org/x/tools/go/packages"
-
-	"github.com/m4gshm/fieldr/logger"
-	"github.com/m4gshm/fieldr/struc"
 	"github.com/m4gshm/gollections/break/loop"
 	"github.com/m4gshm/gollections/loop/conv"
 	"github.com/m4gshm/gollections/map_"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/slice"
 	"github.com/m4gshm/gollections/slice/first"
+	"github.com/pkg/errors"
+	"golang.org/x/tools/go/packages"
+
+	"github.com/m4gshm/fieldr/logger"
+	"github.com/m4gshm/fieldr/struc"
 )
 
 const oneLineSize = 3
@@ -814,16 +814,12 @@ func FuncDeclName(funcDecl *ast.FuncDecl) string {
 	return name
 }
 
-func stringifyAst(node ast.Node) (string, error) {
-	fset := token.NewFileSet()
-	out := &bytes.Buffer{}
-	if node == nil {
-		return "", nil
+func stringifyAst(node ast.Node) (result string, err error) {
+	if node != nil {
+		fset, out := token.NewFileSet(), &bytes.Buffer{}
+		result, err = out.String(), printer.Fprint(out, fset, node)
 	}
-	if err := printer.Fprint(out, fset, node); err != nil {
-		return "", err
-	}
-	return out.String(), nil
+	return result, err
 }
 
 func (g *Generator) AddStruct(s Structure) error {
