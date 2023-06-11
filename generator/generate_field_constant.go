@@ -24,6 +24,7 @@ import (
 	"github.com/m4gshm/gollections/slice/iter"
 	"github.com/m4gshm/gollections/slice/split"
 	"github.com/pkg/errors"
+	"github.com/m4gshm/gollections/c"
 
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/struc"

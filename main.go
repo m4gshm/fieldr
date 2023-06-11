@@ -30,6 +30,16 @@ import (
 	"github.com/m4gshm/gollections/slice"
 	"github.com/m4gshm/gollections/slice/iter"
 	"golang.org/x/tools/go/packages"
+	"github.com/m4gshm/gollections/break/loop"
+	"github.com/m4gshm/gollections/c"
+	"github.com/m4gshm/gollections/collection"
+	"github.com/m4gshm/gollections/collection/mutable/ordered"
+	"github.com/m4gshm/gollections/collection/mutable/ordered/map_"
+	"github.com/m4gshm/gollections/collection/mutable/ordered/set"
+	"github.com/m4gshm/gollections/convert/as"
+	"github.com/m4gshm/gollections/op"
+	"github.com/m4gshm/gollections/slice"
+	"github.com/m4gshm/gollections/slice/iter"
 
 	"github.com/m4gshm/fieldr/command"
 	"github.com/m4gshm/fieldr/generator"
@@ -37,6 +47,7 @@ import (
 	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/struc"
 	fuse "github.com/m4gshm/fieldr/use"
+	"github.com/m4gshm/fieldr/use"
 )
 
 func usage(commandLine *flag.FlagSet) func() {
