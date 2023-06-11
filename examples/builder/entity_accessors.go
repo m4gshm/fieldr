@@ -8,122 +8,147 @@ import (
 	"time"
 )
 
-func (e *Entity[ID]) GetID() ID {
+func (e *Entity[ID, S]) GetID() ID {
 	if e != nil {
-		var no ID
-		return no
+		if be := e.BaseEntity; be != nil {
+			return be.ID
+		}
 	}
-	return e.ID
+
+	var no ID
+	return no
 }
 
-func (e *Entity[ID]) GetCode() string {
+func (e *Entity[ID, S]) GetCode() string {
 	if e != nil {
-		var no string
-		return no
+		if be := e.BaseEntity; be != nil {
+			if rcae := be.RefCodeAwareEntity; rcae != nil {
+				if cae := rcae.CodeAwareEntity; cae != nil {
+					return cae.Code
+				}
+			}
+		}
 	}
-	return e.Code
+
+	var no string
+	return no
 }
 
-func (e *Entity[ID]) GetForeignID() ID {
+func (e *Entity[ID, S]) GetForeignID() ID {
 	if e != nil {
-		var no ID
-		return no
+		if be := e.BaseEntity; be != nil {
+			return be.ForeignIDAwareEntity.ForeignID
+		}
 	}
-	return e.ForeignID
+
+	var no ID
+	return no
 }
 
-func (e *Entity[ID]) GetSchema() string {
+func (e *Entity[ID, S]) GetSchema() string {
 	if e != nil {
-		var no string
-		return no
+		return e.Metadata.Schema
 	}
-	return e.Schema
+
+	var no string
+	return no
 }
 
-func (e *Entity[ID]) GetVersion() int {
+func (e *Entity[ID, S]) GetVersion() int {
 	if e != nil {
-		var no int
-		return no
+		return e.Metadata.Version
 	}
-	return e.Version
+
+	var no int
+	return no
 }
 
-func (e *Entity[ID]) GetNoDB() *NoDBFieldsEntity {
+func (e *Entity[ID, S]) GetNoDB() *NoDBFieldsEntity {
 	if e != nil {
-		var no *NoDBFieldsEntity
-		return no
+		return e.NoDB
 	}
-	return e.NoDB
+
+	var no *NoDBFieldsEntity
+	return no
 }
 
-func (e *Entity[ID]) GetName() StringBasedType[string] {
+func (e *Entity[ID, S]) GetName() StringBasedType[S] {
 	if e != nil {
-		var no StringBasedType[string]
-		return no
+		return e.Name
 	}
-	return e.Name
+
+	var no StringBasedType[S]
+	return no
 }
 
-func (e *Entity[ID]) GetSurname() string {
+func (e *Entity[ID, S]) GetSurname() string {
 	if e != nil {
-		var no string
-		return no
+		return e.Surname
 	}
-	return e.Surname
+
+	var no string
+	return no
 }
 
-func (e *Entity[ID]) GetValues() []int32 {
+func (e *Entity[ID, S]) GetValues() []int32 {
 	if e != nil {
-		var no []int32
-		return no
+		return e.Values
 	}
-	return e.Values
+
+	var no []int32
+	return no
 }
 
-func (e *Entity[ID]) GetTs() []*time.Time {
+func (e *Entity[ID, S]) GetTs() []*time.Time {
 	if e != nil {
-		var no []*time.Time
-		return no
+		return e.Ts
 	}
-	return e.Ts
+
+	var no []*time.Time
+	return no
 }
 
-func (e *Entity[ID]) GetVersioned() sql_base.VersionedEntity {
+func (e *Entity[ID, S]) GetVersioned() sql_base.VersionedEntity {
 	if e != nil {
-		var no sql_base.VersionedEntity
-		return no
+		return e.Versioned
 	}
-	return e.Versioned
+
+	var no sql_base.VersionedEntity
+	return no
 }
 
-func (e *Entity[ID]) GetChan() chan map[time.Time]string {
+func (e *Entity[ID, S]) GetChan() chan map[time.Time]string {
 	if e != nil {
-		var no chan map[time.Time]string
-		return no
+		return e.Chan
 	}
-	return e.Chan
+
+	var no chan map[time.Time]string
+	return no
 }
 
-func (e *Entity[ID]) GetSomeMap() map[StringBasedType[string]]bytes.Buffer {
+func (e *Entity[ID, S]) GetSomeMap() map[StringBasedType[string]]bytes.Buffer {
 	if e != nil {
-		var no map[StringBasedType[string]]bytes.Buffer
-		return no
+		return e.SomeMap
 	}
-	return e.SomeMap
+
+	var no map[StringBasedType[string]]bytes.Buffer
+	return no
 }
 
-func (e *Entity[ID]) GetEmbedded() EmbeddedEntity {
+func (e *Entity[ID, S]) GetEmbedded() EmbeddedEntity {
 	if e != nil {
-		var no EmbeddedEntity
-		return no
+		return e.Embedded
 	}
-	return e.Embedded
+
+	var no EmbeddedEntity
+	return no
 }
 
-func (e *Entity[ID]) GetOldForeignID() *ForeignIDAwareEntity[ID] {
+func (e *Entity[ID, S]) GetOldForeignID() *ForeignIDAwareEntity[ID] {
 	if e != nil {
-		var no *ForeignIDAwareEntity[ID]
-		return no
+		return e.OldForeignID
 	}
-	return e.OldForeignID
+
+	var no *ForeignIDAwareEntity[ID]
+	return no
 }

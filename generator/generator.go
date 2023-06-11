@@ -16,6 +16,12 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/m4gshm/gollections/break/loop"
+	"github.com/m4gshm/gollections/loop/conv"
+	"github.com/m4gshm/gollections/map_"
+	"github.com/m4gshm/gollections/op"
+	"github.com/m4gshm/gollections/slice"
+	"github.com/m4gshm/gollections/slice/first"
 	"github.com/pkg/errors"
 	"golang.org/x/tools/go/packages"
 
@@ -259,9 +265,9 @@ func (g *Generator) WriteBody(outPackageName string) error {
 			return err
 		}
 	} else {
-		logger.Debugf("injects to output file")
 		//injects
 		name := g.outFileInfo.Name()
+		logger.Debugf("injects to output file '%s'", name)
 
 		chunks, err := g.getInjectChunks(g.outFile, g.outFileInfo.Base())
 		if err != nil {
@@ -303,17 +309,8 @@ func isRewrite(outFile *ast.File, outFileInfo *token.File, generatedMarker strin
 	if outFile == nil {
 		return true
 	}
-	for _, comment := range outFile.Comments {
-		pos := comment.Pos()
-		base := outFileInfo.Base()
-		firstComment := int(pos) == base
-		if firstComment {
-			text := comment.Text()
-			generated := strings.HasPrefix(text, generatedMarker)
-			return generated
-		}
-	}
-	return false
+	comment, ok := first.Of(outFile.Comments, func(comment *ast.CommentGroup) bool { return int(comment.Pos()) == outFileInfo.Base() })
+	return ok && strings.HasPrefix(comment.Text(), generatedMarker)
 }
 
 func (g *Generator) findImportPackageAlias(pkgPath string, outFile *ast.File) (string, bool, error) {
@@ -601,14 +598,10 @@ func (g *Generator) getImportsExpr() (string, error) {
 }
 
 func (g *Generator) getImports() *ast.GenDecl {
-	specs := []ast.Spec{}
-	for pack, imp := range g.imports {
-		specs = append(specs, newImport(imp.alias, pack))
+	return &ast.GenDecl{
+		Tok:   token.IMPORT,
+		Specs: map_.ToSlice(g.imports, func(pack string, imp packageImport) ast.Spec { return newImport(imp.alias, pack) }),
 	}
-	// if len(specs) == 0 {
-	// 	return nil
-	// }
-	return &ast.GenDecl{Tok: token.IMPORT, Specs: specs}
 }
 
 func writeSpecs(specs ast.Node, out *bytes.Buffer) error {
@@ -698,15 +691,8 @@ func (g *Generator) writeStructs() error {
 }
 
 func (g *Generator) getTypes() *ast.GenDecl {
-	specs := []ast.Spec{}
-	for _, name := range g.typeNames {
-		value := g.typeValues[name]
-		specs = append(specs, newType(name, value))
-	}
-	if len(specs) == 0 {
-		return nil
-	}
-	return &ast.GenDecl{Tok: token.TYPE, Specs: specs}
+	specs := slice.Convert(g.typeNames, func(name string) ast.Spec { return newType(name, g.typeValues[name]) })
+	return op.IfElse(len(specs) > 0, &ast.GenDecl{Tok: token.TYPE, Specs: specs}, nil)
 }
 
 func (g *Generator) AddType(typeName string, typeValue string) error {
@@ -736,14 +722,7 @@ func getIdentPart(suffix string, snake bool) string {
 }
 
 func IdentName(name string, export bool) string {
-	first := rune(name[0])
-	if export {
-		first = unicode.ToUpper(first)
-	} else {
-		first = unicode.ToLower(first)
-	}
-	result := string(first) + name[1:]
-	return result
+	return string(op.IfElse(export, unicode.ToUpper, unicode.ToLower)(rune(name[0]))) + name[1:]
 }
 
 func IsExported(name string) bool {
@@ -773,8 +752,7 @@ func camel(name string) string {
 	if len(name) == 0 {
 		return name
 	}
-	first := rune(name[0])
-	first = unicode.ToUpper(first)
+	first := unicode.ToUpper(rune(name[0]))
 	result := string(first) + name[1:]
 	return result
 }
@@ -830,22 +808,18 @@ func (g *Generator) AddFuncDecl(node *ast.FuncDecl) error {
 
 func FuncDeclName(funcDecl *ast.FuncDecl) string {
 	name := funcDecl.Name.Name
-	if funcDecl.Recv != nil && len(funcDecl.Recv.List) > 0 {
-		name = funcDecl.Recv.List[0].Names[0].Name + "." + name
+	if recv := funcDecl.Recv; recv != nil && len(recv.List) > 0 {
+		name = recv.List[0].Names[0].Name + "." + name
 	}
 	return name
 }
 
-func stringifyAst(node ast.Node) (string, error) {
-	fset := token.NewFileSet()
-	out := &bytes.Buffer{}
-	if node == nil {
-		return "", nil
+func stringifyAst(node ast.Node) (result string, err error) {
+	if node != nil {
+		fset, out := token.NewFileSet(), &bytes.Buffer{}
+		result, err = out.String(), printer.Fprint(out, fset, node)
 	}
-	if err := printer.Fprint(out, fset, node); err != nil {
-		return "", err
-	}
-	return out.String(), nil
+	return result, err
 }
 
 func (g *Generator) AddStruct(s Structure) error {
@@ -902,16 +876,13 @@ func renameFuncByConfig(funcName, renameTo string) string {
 }
 
 func GetTypeName(typeName string, pkg string) string {
-	return ifElse(len(pkg) > 0, pkg+"."+typeName, typeName)
+	return op.IfElse(len(pkg) > 0, pkg+"."+typeName, typeName)
 }
 
 func (g *Generator) getTagTemplateConstName(typeName string, fieldName struc.FieldName, tags []struc.TagName, export, snake bool) string {
 	fieldName = convertFieldPathToGoIdent(fieldName)
 	export = isExport(fieldName) && export
-	tagsPart := ""
-	for _, tag := range tags {
-		tagsPart += getIdentPart(tag, snake)
-	}
+	tagsPart := slice.Sum(slice.Convert(tags, func(tag string) string { return getIdentPart(tag, snake) }))
 	return LegalIdentName(IdentName(typeName+tagsPart+getIdentPart(fieldName, snake), export))
 }
 
@@ -962,15 +933,14 @@ func (g *Generator) RepackVar(vr *types.Var, basePackagePath string) (*types.Var
 
 func (g *Generator) RepackTuple(vr *types.Tuple, basePackagePath string) (*types.Tuple, error) {
 	repacked := false
-	r := make([]*types.Var, 0, vr.Len())
-	for i := 0; i < vr.Len(); i++ {
-		v := vr.At(i)
+	r, err := loop.Slice(conv.FromIndexed(vr.Len(), vr.At, func(v *types.Var) (*types.Var, error) {
 		rv, err := g.RepackVar(v, basePackagePath)
-		if err != nil {
-			return nil, err
-		}
 		repacked = repacked || rv != v
-		r = append(r, rv)
+		return rv, err
+	}).Next)
+
+	if err != nil {
+		return nil, err
 	}
 
 	if repacked {
@@ -1068,18 +1038,13 @@ func (g *Generator) GetFullFieldTypeName(fieldType struc.FieldType, baseType boo
 	}
 	if baseType {
 		//extract the base typeName for a pointer type
-		if typ, _, err = struc.GetTypeNamed(typ); err != nil {
-			return "", err
-		}
+		typ, _ = struc.GetTypeNamed(typ)
 	}
 	return struc.TypeString(typ, g.OutPkgPath), nil
 }
 
 func NoLint(nolint bool) string {
-	if nolint {
-		return "//nolint"
-	}
-	return ""
+	return op.IfElse(nolint, "//nolint", "")
 }
 
 func filterNotExisted(names []string, values map[string]string) []string {
@@ -1140,12 +1105,5 @@ func newImport(name, path string) *ast.ImportSpec {
 func Quoted(value string) string { return "\"" + value + "\"" }
 
 func GetFieldRef(fields ...struc.FieldName) struc.FieldName {
-	result := ""
-	for _, field := range fields {
-		if len(result) > 0 {
-			result += "."
-		}
-		result += field
-	}
-	return result
+	return slice.Reduce(fields, func(l, r string) string { return l + op.IfElse(len(l) > 0, ".", "") + r })
 }

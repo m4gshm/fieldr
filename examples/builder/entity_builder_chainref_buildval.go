@@ -8,14 +8,14 @@ import (
 	"time"
 )
 
-type EntityBuilderChainRefBuildVal[ID any] struct {
+type EntityBuilderChainRefBuildVal[ID any, S string] struct {
 	ID           ID
 	Code         string
 	ForeignID    ID
 	Schema       string
 	Version      int
 	NoDB         *NoDBFieldsEntity
-	Name         StringBasedType[string]
+	Name         StringBasedType[S]
 	Surname      string
 	Values       []int32
 	Ts           []*time.Time
@@ -26,15 +26,15 @@ type EntityBuilderChainRefBuildVal[ID any] struct {
 	OldForeignID *ForeignIDAwareEntity[ID]
 }
 
-func NewEntityBuilderChainRefBuildVal[ID any]() *EntityBuilderChainRefBuildVal[ID] {
-	return &EntityBuilderChainRefBuildVal[ID]{}
+func NewEntityBuilderChainRefBuildVal[ID any, S string]() *EntityBuilderChainRefBuildVal[ID, S] {
+	return &EntityBuilderChainRefBuildVal[ID, S]{}
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID]) Build() Entity[ID] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) Build() Entity[ID, S] {
 	if b == nil {
-		return Entity[ID]{}
+		return Entity[ID, S]{}
 	}
-	return Entity[ID]{
+	return Entity[ID, S]{
 		BaseEntity: &BaseEntity[ID]{
 			ID: b.ID,
 			RefCodeAwareEntity: &RefCodeAwareEntity{
@@ -63,105 +63,105 @@ func (b *EntityBuilderChainRefBuildVal[ID]) Build() Entity[ID] {
 	}
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID]) SetID(iD ID) *EntityBuilderChainRefBuildVal[ID] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) SetID(iD ID) *EntityBuilderChainRefBuildVal[ID, S] {
 	if b != nil {
 		b.ID = iD
 	}
 	return b
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID]) SetCode(code string) *EntityBuilderChainRefBuildVal[ID] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) SetCode(code string) *EntityBuilderChainRefBuildVal[ID, S] {
 	if b != nil {
 		b.Code = code
 	}
 	return b
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID]) SetForeignID(foreignID ID) *EntityBuilderChainRefBuildVal[ID] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) SetForeignID(foreignID ID) *EntityBuilderChainRefBuildVal[ID, S] {
 	if b != nil {
 		b.ForeignID = foreignID
 	}
 	return b
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID]) SetSchema(schema string) *EntityBuilderChainRefBuildVal[ID] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) SetSchema(schema string) *EntityBuilderChainRefBuildVal[ID, S] {
 	if b != nil {
 		b.Schema = schema
 	}
 	return b
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID]) SetVersion(version int) *EntityBuilderChainRefBuildVal[ID] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) SetVersion(version int) *EntityBuilderChainRefBuildVal[ID, S] {
 	if b != nil {
 		b.Version = version
 	}
 	return b
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID]) SetNoDB(noDB *NoDBFieldsEntity) *EntityBuilderChainRefBuildVal[ID] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) SetNoDB(noDB *NoDBFieldsEntity) *EntityBuilderChainRefBuildVal[ID, S] {
 	if b != nil {
 		b.NoDB = noDB
 	}
 	return b
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID]) SetName(name StringBasedType[string]) *EntityBuilderChainRefBuildVal[ID] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) SetName(name StringBasedType[S]) *EntityBuilderChainRefBuildVal[ID, S] {
 	if b != nil {
 		b.Name = name
 	}
 	return b
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID]) SetSurname(surname string) *EntityBuilderChainRefBuildVal[ID] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) SetSurname(surname string) *EntityBuilderChainRefBuildVal[ID, S] {
 	if b != nil {
 		b.Surname = surname
 	}
 	return b
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID]) SetValues(values []int32) *EntityBuilderChainRefBuildVal[ID] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) SetValues(values []int32) *EntityBuilderChainRefBuildVal[ID, S] {
 	if b != nil {
 		b.Values = values
 	}
 	return b
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID]) SetTs(ts []*time.Time) *EntityBuilderChainRefBuildVal[ID] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) SetTs(ts []*time.Time) *EntityBuilderChainRefBuildVal[ID, S] {
 	if b != nil {
 		b.Ts = ts
 	}
 	return b
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID]) SetVersioned(versioned sql_base.VersionedEntity) *EntityBuilderChainRefBuildVal[ID] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) SetVersioned(versioned sql_base.VersionedEntity) *EntityBuilderChainRefBuildVal[ID, S] {
 	if b != nil {
 		b.Versioned = versioned
 	}
 	return b
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID]) SetChan(chan_ chan map[time.Time]string) *EntityBuilderChainRefBuildVal[ID] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) SetChan(chan_ chan map[time.Time]string) *EntityBuilderChainRefBuildVal[ID, S] {
 	if b != nil {
 		b.Chan = chan_
 	}
 	return b
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID]) SetSomeMap(someMap map[StringBasedType[string]]bytes.Buffer) *EntityBuilderChainRefBuildVal[ID] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) SetSomeMap(someMap map[StringBasedType[string]]bytes.Buffer) *EntityBuilderChainRefBuildVal[ID, S] {
 	if b != nil {
 		b.SomeMap = someMap
 	}
 	return b
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID]) SetEmbedded(embedded EmbeddedEntity) *EntityBuilderChainRefBuildVal[ID] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) SetEmbedded(embedded EmbeddedEntity) *EntityBuilderChainRefBuildVal[ID, S] {
 	if b != nil {
 		b.Embedded = embedded
 	}
 	return b
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID]) SetOldForeignID(oldForeignID *ForeignIDAwareEntity[ID]) *EntityBuilderChainRefBuildVal[ID] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) SetOldForeignID(oldForeignID *ForeignIDAwareEntity[ID]) *EntityBuilderChainRefBuildVal[ID, S] {
 	if b != nil {
 		b.OldForeignID = oldForeignID
 	}

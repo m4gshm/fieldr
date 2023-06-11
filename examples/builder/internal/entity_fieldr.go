@@ -9,14 +9,14 @@ import (
 	"time"
 )
 
-type EntityBuilder[ID any] struct {
+type EntityBuilder[ID any, S string] struct {
 	iD           ID
 	code         string
 	foreignID    ID
 	schema       string
 	version      int
 	noDB         *builder.NoDBFieldsEntity
-	name         builder.StringBasedType[string]
+	name         builder.StringBasedType[S]
 	surname      string
 	values       []int32
 	ts           []*time.Time
@@ -27,15 +27,15 @@ type EntityBuilder[ID any] struct {
 	oldForeignID *builder.ForeignIDAwareEntity[ID]
 }
 
-func NewEntityBuilder[ID any]() *EntityBuilder[ID] {
-	return &EntityBuilder[ID]{}
+func NewEntityBuilder[ID any, S string]() *EntityBuilder[ID, S] {
+	return &EntityBuilder[ID, S]{}
 }
 
-func (b *EntityBuilder[ID]) Build() *builder.Entity[ID] {
+func (b *EntityBuilder[ID, S]) Build() *builder.Entity[ID, S] {
 	if b == nil {
-		return &builder.Entity[ID]{}
+		return &builder.Entity[ID, S]{}
 	}
-	return &builder.Entity[ID]{
+	return &builder.Entity[ID, S]{
 		BaseEntity: &builder.BaseEntity[ID]{
 			ID: b.iD,
 			RefCodeAwareEntity: &builder.RefCodeAwareEntity{
@@ -64,114 +64,114 @@ func (b *EntityBuilder[ID]) Build() *builder.Entity[ID] {
 	}
 }
 
-func (b *EntityBuilder[ID]) ID(iD ID) *EntityBuilder[ID] {
+func (b *EntityBuilder[ID, S]) ID(iD ID) *EntityBuilder[ID, S] {
 	if b != nil {
 		b.iD = iD
 	}
 	return b
 }
 
-func (b *EntityBuilder[ID]) Code(code string) *EntityBuilder[ID] {
+func (b *EntityBuilder[ID, S]) Code(code string) *EntityBuilder[ID, S] {
 	if b != nil {
 		b.code = code
 	}
 	return b
 }
 
-func (b *EntityBuilder[ID]) ForeignID(foreignID ID) *EntityBuilder[ID] {
+func (b *EntityBuilder[ID, S]) ForeignID(foreignID ID) *EntityBuilder[ID, S] {
 	if b != nil {
 		b.foreignID = foreignID
 	}
 	return b
 }
 
-func (b *EntityBuilder[ID]) Schema(schema string) *EntityBuilder[ID] {
+func (b *EntityBuilder[ID, S]) Schema(schema string) *EntityBuilder[ID, S] {
 	if b != nil {
 		b.schema = schema
 	}
 	return b
 }
 
-func (b *EntityBuilder[ID]) Version(version int) *EntityBuilder[ID] {
+func (b *EntityBuilder[ID, S]) Version(version int) *EntityBuilder[ID, S] {
 	if b != nil {
 		b.version = version
 	}
 	return b
 }
 
-func (b *EntityBuilder[ID]) NoDB(noDB *builder.NoDBFieldsEntity) *EntityBuilder[ID] {
+func (b *EntityBuilder[ID, S]) NoDB(noDB *builder.NoDBFieldsEntity) *EntityBuilder[ID, S] {
 	if b != nil {
 		b.noDB = noDB
 	}
 	return b
 }
 
-func (b *EntityBuilder[ID]) Name(name builder.StringBasedType[string]) *EntityBuilder[ID] {
+func (b *EntityBuilder[ID, S]) Name(name builder.StringBasedType[S]) *EntityBuilder[ID, S] {
 	if b != nil {
 		b.name = name
 	}
 	return b
 }
 
-func (b *EntityBuilder[ID]) Surname(surname string) *EntityBuilder[ID] {
+func (b *EntityBuilder[ID, S]) Surname(surname string) *EntityBuilder[ID, S] {
 	if b != nil {
 		b.surname = surname
 	}
 	return b
 }
 
-func (b *EntityBuilder[ID]) Values(values []int32) *EntityBuilder[ID] {
+func (b *EntityBuilder[ID, S]) Values(values []int32) *EntityBuilder[ID, S] {
 	if b != nil {
 		b.values = values
 	}
 	return b
 }
 
-func (b *EntityBuilder[ID]) Ts(ts []*time.Time) *EntityBuilder[ID] {
+func (b *EntityBuilder[ID, S]) Ts(ts []*time.Time) *EntityBuilder[ID, S] {
 	if b != nil {
 		b.ts = ts
 	}
 	return b
 }
 
-func (b *EntityBuilder[ID]) Versioned(versioned sql_base.VersionedEntity) *EntityBuilder[ID] {
+func (b *EntityBuilder[ID, S]) Versioned(versioned sql_base.VersionedEntity) *EntityBuilder[ID, S] {
 	if b != nil {
 		b.versioned = versioned
 	}
 	return b
 }
 
-func (b *EntityBuilder[ID]) Chan_(chan_ chan map[time.Time]string) *EntityBuilder[ID] {
+func (b *EntityBuilder[ID, S]) Chan_(chan_ chan map[time.Time]string) *EntityBuilder[ID, S] {
 	if b != nil {
 		b.chan_ = chan_
 	}
 	return b
 }
 
-func (b *EntityBuilder[ID]) SomeMap(someMap map[builder.StringBasedType[string]]bytes.Buffer) *EntityBuilder[ID] {
+func (b *EntityBuilder[ID, S]) SomeMap(someMap map[builder.StringBasedType[string]]bytes.Buffer) *EntityBuilder[ID, S] {
 	if b != nil {
 		b.someMap = someMap
 	}
 	return b
 }
 
-func (b *EntityBuilder[ID]) Embedded(embedded builder.EmbeddedEntity) *EntityBuilder[ID] {
+func (b *EntityBuilder[ID, S]) Embedded(embedded builder.EmbeddedEntity) *EntityBuilder[ID, S] {
 	if b != nil {
 		b.embedded = embedded
 	}
 	return b
 }
 
-func (b *EntityBuilder[ID]) OldForeignID(oldForeignID *builder.ForeignIDAwareEntity[ID]) *EntityBuilder[ID] {
+func (b *EntityBuilder[ID, S]) OldForeignID(oldForeignID *builder.ForeignIDAwareEntity[ID]) *EntityBuilder[ID, S] {
 	if b != nil {
 		b.oldForeignID = oldForeignID
 	}
 	return b
 }
 
-func ToBuilder[ID any](e *builder.Entity[ID]) *EntityBuilder[ID] {
+func ToBuilder[ID any, S string](e *builder.Entity[ID, S]) *EntityBuilder[ID, S] {
 	if e == nil {
-		return &EntityBuilder[ID]{}
+		return &EntityBuilder[ID, S]{}
 	}
 	var (
 		BaseEntity_ID                                      ID
@@ -188,7 +188,7 @@ func ToBuilder[ID any](e *builder.Entity[ID]) *EntityBuilder[ID] {
 		BaseEntity_ForeignIDAwareEntity_ForeignID = be.ForeignIDAwareEntity.ForeignID
 	}
 
-	return &EntityBuilder[ID]{
+	return &EntityBuilder[ID, S]{
 		iD:           BaseEntity_ID,
 		code:         BaseEntity_RefCodeAwareEntity_CodeAwareEntity_Code,
 		foreignID:    BaseEntity_ForeignIDAwareEntity_ForeignID,

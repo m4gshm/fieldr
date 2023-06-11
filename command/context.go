@@ -22,7 +22,7 @@ func (c *Context) Model() (*struc.Model, error) {
 	}
 	if c.Typ == nil {
 		logger.Debugf("error config without type")
-		return nil, use.Err("no type arg")
+		return nil, use.Err("no type in context")
 	}
 
 	model, err := struc.New(c.Generator.OutPkgPath, c.Typ, c.Pkg)

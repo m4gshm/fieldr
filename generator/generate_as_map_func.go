@@ -3,12 +3,25 @@ package generator
 import (
 	"go/types"
 
+	"github.com/m4gshm/gollections/expr/get"
+	"github.com/m4gshm/gollections/expr/use"
+	"github.com/m4gshm/gollections/loop"
+	"github.com/m4gshm/gollections/loop/convert"
+	"github.com/m4gshm/gollections/op"
+	"github.com/m4gshm/gollections/op/delay/replace"
+	"github.com/m4gshm/gollections/op/delay/string_/join"
+	"github.com/m4gshm/gollections/op/delay/string_/wrap"
+	"github.com/m4gshm/gollections/op/delay/sum"
+	"github.com/m4gshm/gollections/op/string_"
+	"github.com/m4gshm/gollections/slice/iter"
+	"github.com/m4gshm/gollections/slice/split"
+
 	"github.com/m4gshm/fieldr/struc"
 )
 
 func (g *Generator) GenerateAsMapFunc(
 	model *struc.Model, name, keyType string,
-	constants []fieldConst,
+	constants []FieldConst,
 	rewriter *CodeRewriter,
 	export, snake, returnRefs, noReceiver, nolint, hardcodeValues bool,
 ) (string, string, string, error) {
@@ -19,118 +32,58 @@ func (g *Generator) GenerateAsMapFunc(
 	}
 
 	receiverVar := TypeReceiverVar(model.TypeName)
-	receiverRef := ifElse(returnRefs, "&"+receiverVar, receiverVar)
+	receiverRef := op.IfElse(returnRefs, "&"+receiverVar, receiverVar)
 
 	funcName := renameFuncByConfig(IdentName("AsMap", export), name)
 
 	typeLink := GetTypeName(model.TypeName, pkgName) + TypeParamsString(model.Typ.TypeParams(), g.OutPkgPath)
 	mapVar := "m"
-	var body string
-	if noReceiver {
-		body = "func " + funcName + "(" + receiverVar + " *" + typeLink + ") map[" + keyType + "]interface{}"
-	} else {
-		body = "func (" + receiverVar + " *" + typeLink + ") " + funcName + "() map[" + keyType + "]interface{}"
-	}
-	body += " {" + NoLint(nolint)
-	body += "\n"
 
-	body += "if " + receiverVar + " == nil{\nreturn nil\n}\n"
+	body := "func " + get.If(noReceiver,
+		sum.Of(funcName, "(", receiverVar, " *", typeLink, ")"),
+	).ElseGet(
+		sum.Of("(", receiverVar, " *", typeLink, ") ", funcName, "()"),
+	) + " map[" + keyType + "]interface{}" + " {" + NoLint(nolint) + "\n" +
+		"if " + receiverVar + " == nil{\nreturn nil\n}\n" +
+		mapVar + " := map[" + keyType + "]interface{}{}\n" +
+		generateMapInits(g, mapVar, receiverRef, rewriter, constants) +
+		"return " + mapVar + "\n}\n"
 
-	body += mapVar + " := map[" + keyType + "]interface{}{}\n"
-
-	bodyPart, err := generateMapInits(g, mapVar, receiverRef, rewriter, constants)
-	if err != nil {
-		return "", "", "", err
-	}
-	body += bodyPart
-	body += "return " + mapVar + "\n" +
-		"}\n"
-
-	if !noReceiver {
-		funcName = MethodName(model.TypeName, funcName)
-	}
-	return typeLink, funcName, body, nil
-}
-
-func TypeArgsString(targs *types.TypeList, basePkgPath string) string {
-	return loopTypeString(targs, basePkgPath, (*types.TypeList).Len, (*types.TypeList).At)
+	return typeLink, op.IfElse(noReceiver, funcName, MethodName(model.TypeName, funcName)), body, nil
 }
 
 func TypeParamsString(tparams *types.TypeParamList, basePkgPath string) string {
-	return loopTypeString(tparams, basePkgPath, (*types.TypeParamList).Len, (*types.TypeParamList).At)
-}
-
-func loopTypeString[L any, T types.Type](list L, basePkgPath string, len func(L) int, at func(L, int) T) string {
-	l := len(list)
-	if l == 0 {
-		return ""
-	}
-	s := "["
-	for i := 0; i < l; i++ {
-		if i > 0 {
-			s += ", "
-		}
-		elem := at(list, i)
-		var n types.Type = elem
-		if n == nil {
-			s += "/*error: nil type parameter*/"
-			continue
-		}
-		s += struc.TypeString(elem, basePkgPath)
-	}
-	s += "]"
-	return s
+	return string_.WrapNonEmpty("[", loop.Reduce(convert.FromIndexed(tparams.Len(), tparams.At, func(elem *types.TypeParam) string {
+		return use.If(elem == nil, "/*error: nil type parameter*/").ElseGet(
+			func() string { return struc.TypeString(elem, basePkgPath) })
+	}).Next, join.NonEmpty(", ")), "]")
 }
 
 func TypeParamsDeclarationString(list *types.TypeParamList, basePkgPath string) string {
-	l := list.Len()
-	if l == 0 {
-		return ""
-	}
-	s := "["
-	var prevElem types.Type
-	for i := 0; i < l; i++ {
-		elem := list.At(i)
-		if elem == nil {
-			s += "/*error: nil type parameter*/"
-			continue
-		}
-		constraint := elem.Constraint()
-		if i > 0 {
-			if constraint != prevElem {
-				s += " " + struc.TypeString(prevElem, basePkgPath)
-			}
-			s += ","
-		}
-		prevElem = constraint
-		s += struc.TypeString(elem, basePkgPath)
-	}
-	if prevElem != nil {
-		s += " " + struc.TypeString(prevElem, basePkgPath)
-	}
-	s += "]"
-	return s
+	var (
+		prevElem types.Type
+		noFirst  = false
+	)
+	return string_.WrapNonEmpty("[", loop.Reduce(convert.FromIndexed(list.Len(), list.At, func(elem *types.TypeParam) string {
+		s := use.If(elem == nil, "/*error: nil type parameter*/").ElseGet(func() string {
+			constraint := elem.Constraint()
+			s := use.If(!noFirst, "").IfGet(constraint != prevElem, sum.Of(" ", struc.TypeString(prevElem, basePkgPath), ",")).Else(",")
+			prevElem = constraint
+			return s + struc.TypeString(elem, basePkgPath)
+		})
+		noFirst = true
+		return s
+	}).Next, op.Sum[string])+get.If(prevElem != nil, func() string { return " " + struc.TypeString(prevElem, basePkgPath) }).Else(""), "]")
 }
 
-func generateMapInits(
-	g *Generator, mapVar, recVar string, rewriter *CodeRewriter, constants []fieldConst,
-) (string, error) {
-	body := ""
-	for _, constant := range constants {
-		field := constant.fieldPath[len(constant.fieldPath)-1]
-		_, conditionPath, conditions := FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
-		revr, _ := rewriter.Transform(field.Name, field.Type, conditionPath)
-
-		varsConditionStart := ""
-		varsConditionEnd := ""
-		for _, c := range conditions {
-			varsConditionStart += "if " + c + " {\n"
-			varsConditionEnd += "}\n"
-		}
-
-		body += varsConditionStart
-		body += mapVar + "[" + constant.name + "]= " + revr + "\n"
-		body += varsConditionEnd
-	}
-	return body, nil
+func generateMapInits(g *Generator, mapVar, recVar string, rewriter *CodeRewriter, constants []FieldConst) string {
+	return loop.Reduce(iter.Convert(constants, func(constant FieldConst) string {
+		var (
+			_, conditionPath, conditions         = FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
+			varsConditionStart, varsConditionEnd = split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum[string], op.Sum[string])
+			field                                = constant.fieldPath[len(constant.fieldPath)-1]
+			revr, _                              = rewriter.Transform(field.Name, field.Type, conditionPath)
+		)
+		return varsConditionStart + mapVar + "[" + constant.name + "]= " + revr + "\n" + varsConditionEnd
+	}).Next, op.Sum[string])
 }

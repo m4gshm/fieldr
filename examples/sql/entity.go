@@ -1,5 +1,6 @@
 package sql
 
+//go:generate fieldr -debug -type Entity
 //go:fieldr enum-const -name "{{ join \"col\" field.name }}" -val "tag.db" -type col -list . -val-access . -ref-access . -flat NoDBFieldsEntity -flat Versioned
 
 import (
@@ -121,7 +122,7 @@ func (v *Entity) valuesExcept(excepts ...col) []interface{} {
 
 	for _, c := range cols {
 		if _, except := exceptSet[c]; !except {
-			ref := c.ref(v)
+			ref := v.ref(c)
 			if c == colValues {
 				ref = pq.Array(ref)
 			}

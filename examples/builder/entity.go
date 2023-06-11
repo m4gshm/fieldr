@@ -7,6 +7,7 @@ package builder
 //go:fieldr -out entity_builder_noref.go builder -export all -name EntityBuilderVal -build-value -chain-value
 //go:fieldr -out entity_builder_chainref_buildval.go builder -export all -name EntityBuilderChainRefBuildVal -build-value
 //go:fieldr -out entity_tagged.go -out-build-tag integration builder -export all -deconstructor .
+//go:fieldr -out entity_accessors.go get-set -accessors get
 //go:fieldr -type EmbeddedEntity builder -build-value -chain-value -export all -deconstructor .
 
 import (
@@ -41,14 +42,14 @@ type BaseEntity[ID any] struct {
 	ForeignIDAwareEntity[ID]
 }
 
-type Entity[ID any] struct {
+type Entity[ID any, S string] struct {
 	*BaseEntity[ID]
 	Metadata
 	NoDB         *NoDBFieldsEntity
-	Name         StringBasedType[string] `db:"name" json:"name,omitempty"`
-	Surname      StringBasedAlias        `db:"surname" json:"surname,omitempty"`
-	Values       []int32                 `db:"values" json:"values,omitempty"`
-	Ts           []*t.Time               `db:"ts" json:"ts"`
+	Name         StringBasedType[S] `db:"name" json:"name,omitempty"`
+	Surname      StringBasedAlias   `db:"surname" json:"surname,omitempty"`
+	Values       []int32            `db:"values" json:"values,omitempty"`
+	Ts           []*t.Time          `db:"ts" json:"ts"`
 	Versioned    sql_base.VersionedEntity
 	Chan         chan map[t.Time]string
 	SomeMap      map[StringBasedType[string]]bytes.Buffer

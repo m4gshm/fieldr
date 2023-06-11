@@ -3,15 +3,18 @@ package struc
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
 
-	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/gollections/c"
-
+	"github.com/m4gshm/gollections/map_"
+	"github.com/m4gshm/gollections/op"
 	"golang.org/x/tools/go/packages"
+
+	"github.com/m4gshm/fieldr/logger"
 )
 
-func FindTypePackageFile(typeName string, pkgs c.ForLoop[*packages.Package]) (*types.Named, *packages.Package, *ast.File, error) {
+func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.ForLoop[*packages.Package]) (*types.Named, *packages.Package, *ast.File, error) {
 	var resultType *types.Named
 	var resultPkg *packages.Package
 	var resultFile *ast.File
@@ -20,24 +23,24 @@ func FindTypePackageFile(typeName string, pkgs c.ForLoop[*packages.Package]) (*t
 		if lookup := pkgTypes.Scope().Lookup(typeName); lookup == nil {
 			logger.Debugf("no type '%s' in package '%s'", typeName, pkgTypes.Name())
 			return nil
-		} else if structType, _, err := GetStructTypeNamed(lookup.Type()); err != nil {
-			return err
-		} else if structType == nil {
+		} else if structType, _ := GetStructTypeNamed(lookup.Type()); structType == nil {
 			return fmt.Errorf("type '%s' is not struct", typeName)
 		} else {
 			resultType = structType
 			resultPkg = pkg
+			logger.Debugf("look package '%s', syntax file count %d", pkg.Name, len(pkg.Syntax))
 			for _, file := range pkg.Syntax {
-				if lookup := file.Scope.Lookup(typeName); lookup == nil {
-					logger.Debugf("no type '%s' in file '%s' package '%s'", typeName, file.Name, pkgTypes.Name())
-				} else {
-					d := lookup.Data
-					_ = d
-					if ts, ok := lookup.Decl.(*ast.TypeSpec); !ok {
-					} else if ts == nil {
-						return fmt.Errorf("type '%s' is not struct", typeName)
+				if tokenFile := fileSet.File(file.Pos()); tokenFile != nil {
+					fileName := tokenFile.Name()
+					logger.Debugf("file by position '%d', name %s", file.Pos(), fileName)
+					if lookup := file.Scope.Lookup(typeName); lookup == nil {
+						types := map_.Keys(file.Scope.Objects)
+						logger.Debugf("no type '%s' in file '%s', package '%s', types %#v", typeName, fileName, pkgTypes.Name(), types)
+					} else if _, ok := lookup.Decl.(*ast.TypeSpec); !ok {
+						return fmt.Errorf("type '%s' is not struct in file '%s'", typeName, fileName)
 					} else {
 						resultFile = file
+						logger.Debugf("found type file '%s'", fileName)
 						break
 					}
 				}
@@ -47,61 +50,51 @@ func FindTypePackageFile(typeName string, pkgs c.ForLoop[*packages.Package]) (*t
 	})
 }
 
-func GetTypeNamed(typ types.Type) (*types.Named, int, error) {
+func GetTypeNamed(typ types.Type) (*types.Named, int) {
 	switch ftt := typ.(type) {
 	case *types.Named:
-		return ftt, 0, nil
+		return ftt, 0
 	case *types.Pointer:
-		t, p, err := GetTypeNamed(ftt.Elem())
-		if err != nil {
-			return nil, 0, err
-		}
-		return t, p + 1, nil
+		t, p := GetTypeNamed(ftt.Elem())
+		return t, p + 1
 	default:
-		return nil, 0, nil
+		return nil, 0
 	}
 }
 
-func GetStructTypeNamed(typ types.Type) (*types.Named, int, error) {
-	if ftt, p, err := GetTypeNamed(typ); err != nil {
-		return nil, 0, err
-	} else if ftt != nil {
+func GetStructTypeNamed(typ types.Type) (*types.Named, int) {
+	if ftt, p := GetTypeNamed(typ); ftt != nil {
 		und := ftt.Underlying()
 		if _, ok := und.(*types.Struct); ok {
-			return ftt, p, nil
-		} else if sund, sp, err := GetStructTypeNamed(und); err != nil {
-			return nil, sp + p, err
-		} else if sund != nil {
-			return ftt, sp + p, nil
+			return ftt, p
+		} else if sund, sp := GetStructTypeNamed(und); sund != nil {
+			return ftt, sp + p
 		}
 	}
-	return nil, 0, nil
+	return nil, 0
 }
 
-func GetStructType(t types.Type) (*types.Struct, int, error) {
+func GetStructType(t types.Type) (*types.Struct, int) {
 	switch tt := t.(type) {
 	case *types.Struct:
-		return tt, 0, nil
+		return tt, 0
 	case *types.Pointer:
-		s, pc, err := GetStructType(tt.Elem())
-		if err != nil {
-			return nil, 0, err
-		}
-		return s, pc + 1, nil
+		s, pc := GetStructType(tt.Elem())
+		return s, pc + 1
 	case *types.Named:
 		underlying := tt.Underlying()
 		if underlying == t {
-			return nil, 0, nil
+			return nil, 0
 		}
 		return GetStructType(underlying)
 	case types.Type:
 		underlying := tt.Underlying()
 		if underlying == t {
-			return nil, 0, nil
+			return nil, 0
 		}
 		return GetStructType(underlying)
 	default:
-		return nil, 0, nil
+		return nil, 0
 	}
 }
 
@@ -115,10 +108,6 @@ func ObjectString(obj types.Object, outPkgPath string) string {
 
 func basePackQ(outPkgPath string) func(p *types.Package) string {
 	return func(p *types.Package) string {
-		path := p.Path()
-		if path == outPkgPath {
-			return ""
-		}
-		return p.Name()
+		return op.IfElse(p.Path() == outPkgPath, "", p.Name())
 	}
 }
