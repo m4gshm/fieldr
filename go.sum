@@ -4,8 +4,6 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/m4gshm/expressions v0.0.0-20230605220217-66f85e582662 h1:YU5RQ+yghBJnPtTmaDVURlgdjIHY3gOwogAyHkOmFZ0=
 github.com/m4gshm/expressions v0.0.0-20230605220217-66f85e582662/go.mod h1:JYSo5/gWIjF9pPcw1YWGVQ52WRau/wv6d/D2NtOluSs=
-github.com/m4gshm/gollections v0.0.10-0.20230610154326-f31b59325e40 h1:2Y36CyETWkAVE38YMWlTXGx1w1J8Xuqvu6WEfO6Ttf8=
-github.com/m4gshm/gollections v0.0.10-0.20230610154326-f31b59325e40/go.mod h1:TRYgTUE6ik68ZebsEtdEfB1wDVpvVDWPi90xHWrEZgg=
 github.com/m4gshm/gollections v0.0.10 h1:ajMnmJLoB8MjdAjHfRRxnkgw4/uBgQoD4NttXDP8DN0=
 github.com/m4gshm/gollections v0.0.10/go.mod h1:TRYgTUE6ik68ZebsEtdEfB1wDVpvVDWPi90xHWrEZgg=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
