@@ -46,10 +46,10 @@ func usage(commandLine *flag.FlagSet) func() {
 			" based on a structure model: name, fields, tags\n")
 		_, _ = fmt.Fprintf(out, "Usage of "+params.Name+":\n")
 		_, _ = fmt.Fprintf(out, "\t"+params.Name+" [flags] command1 [command-flags] command2 [command-flags]... command [command-flags]\n")
-		_, _ = fmt.Fprintf(out, "Use \"command --help\" to get help of this one\n")
+		_, _ = fmt.Fprintf(out, "Use \"command help\" to get help of this one\n")
 		_, _ = fmt.Fprintf(out, "Flags:\n")
 		commandLine.PrintDefaults()
-		_, _ = fmt.Fprintf(out, "  --help\n")
+		_, _ = fmt.Fprintf(out, "  help\n")
 		_, _ = fmt.Fprintf(out, "\tshow this message\n")
 		command.PrintUsage()
 	}
@@ -543,7 +543,7 @@ func extractPackages(fileSet *token.FileSet, buildTags []string, fileName string
 		BuildFlags: buildTagsArg(buildTags),
 		Tests:      true,
 		Logf:       func(format string, args ...interface{}) { logger.Debugf("packagesLoad: "+format, args...) },
-	}, "./..."); err != nil {
+	}, "."); err != nil {
 		return nil, err
 	} else {
 		return set.Of(pkgs...), nil

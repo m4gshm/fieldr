@@ -6,9 +6,9 @@ Generator of various enumerated constants, types, functions based on structure f
 
 === Supported commands
 
+* enum-const - generate constants based on template applied to struct fields.
 * get-set - generates getters, setters for a structure type.
 * builder - generates builder API of a structure type.
-* enum-const - generate constants based on template applied to struct fields.
 * as-map - generates method or functon that converts the struct type to a map.
 
 === Installation
@@ -22,6 +22,59 @@ or
 ----
 go install github.com/m4gshm/fieldr@HEAD
 ----
+
+=== Enum constant example
+source `entity.go`:
+
+[source,go]
+----
+include::../examples/usage/enum_const/entity.go[]
+----
+
+then running this command in the same directory:
+[source,console]
+----
+go generate .
+----
+will be generated `entity_fieldr.go` file with the next content:
+
+[source,go]
+----
+include::../examples/usage/enum_const/entity_fieldr.go[]
+----
+
+this consist of constants based on the `json` tag contents and the method `jsons` that enumerates these constants.
+
+To get extended help of the command, use the following:
+
+[source,console]
+----
+fieldr enum-const help
+----
+
+==== Extended example
+
+source `entity.go`:
+[source,go]
+----
+include::../examples/usage/enum_const/enum_const_db/entity.go[]
+----
+
+generated `entity_fieldr.go`:
+
+[source,go]
+----
+include::../examples/usage/enum_const/enum_const_db/entity_fieldr.go[]
+----
+
+===== Used parameters of `enum-const`:
+- name "{{ join \"col\" field.name }}" - TODO
+- val "tag.db" - TODO
+- flat Versioned - TODO
+- type column - TODO
+- list . - TODO
+- ref-access . - TODO
+
 
 === Get-set usage example
 
@@ -63,34 +116,6 @@ generated `entity_fieldr.go`
 include::../examples/usage/builder/entity_fieldr.go[]
 ----
 
-=== Enum constant example
-source `entity.go`:
-
-[source,go]
-----
-include::../examples/usage/enum_const/entity.go[]
-----
-
-then running this command in the same directory:
-[source,console]
-----
-go generate .
-----
-will be generated `entity_fieldr.go` file with the next content:
-
-[source,go]
-----
-include::../examples/usage/enum_const/entity_fieldr.go[]
-----
-
-this consist of constants based on the `json` tag contents and the method `jsons` that enumerates these constants.
-
-To get extended help of the command, use the following:
-
-[source,console]
-----
-fieldr enum-const --help
-----
 
 === As-map usage example
 

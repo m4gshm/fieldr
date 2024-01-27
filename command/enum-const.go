@@ -3,9 +3,10 @@ package command
 import (
 	"flag"
 
+	"github.com/m4gshm/gollections/collection/immutable/set"
+
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/params"
-	"github.com/m4gshm/gollections/collection/immutable/set"
 )
 
 func NewEnumConst() *Command {
@@ -51,7 +52,7 @@ func NewEnumConst() *Command {
 		`Examples:
 	` + name + ` -` + flagVal + ` .json - usage of 'json' tag value as constant value, constant name is generated automatically, template corners '{{', '}}' can be omitted
 	` + name + ` -` + flagName + ` '{{name}}' -` + flagVal + ` '{{.json}}' - the same as the previous one, but constant name is based on field's name
-	` + name + ` -` + flagVal + ` 'rexp "(\w+),?" .json' - usage regexp function to extract json property name as constant value with removed ',omitempty' option
+	` + name + ` -` + flagVal + ` 'rexp "(\w+),?" .json' - usage of regexp function to extract json property name as constant value with removed ',omitempty' option
 	` + name + ` -` + flagName + ` '{{(join struct.name field.name)| up}}' -` + flagVal + ` '{{tag.json}}' - usage of functions 'join', 'up' and pipeline character '|' for more complex constant naming"
 Template functions:
 	join, conc - strings concatenation; multiargs
