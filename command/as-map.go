@@ -25,7 +25,7 @@ func NewAsMapMethod() *Command {
 		"', engine '" + string(generator.RewriteEngineFmt) + "'"
 
 	var (
-		flagSet             = flag.NewFlagSet(cmdName, flag.ContinueOnError)
+		flagSet             = flag.NewFlagSet(cmdName, flag.ExitOnError)
 		name                = flagSet.String("name", "", "function/method name")
 		export              = params.Export(flagSet)
 		snake               = params.Snake(flagSet)

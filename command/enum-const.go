@@ -16,7 +16,7 @@ func NewEnumConst() *Command {
 		flagName = "name"
 	)
 	var (
-		flagSet            = flag.NewFlagSet(name, flag.ContinueOnError)
+		flagSet            = flag.NewFlagSet(name, flag.ExitOnError)
 		constName          = flagSet.String("name", "", "constant name template")
 		constValue         = flagSet.String("val", "", "constant value template; must be set")
 		constType          = flagSet.String("type", "", "constant type name")
