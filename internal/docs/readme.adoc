@@ -68,12 +68,12 @@ include::../examples/usage/enum_const/enum_const_db/entity_fieldr.go[]
 ----
 
 ===== explanation of used args:
-- name "{{ join \\"col\\" field.name }}" - defines constant names as 'col' appended by the associated field name.
-- val "tag.db" - defines the value of a constant as a copy of the `db` tag of the associated field name.
-- flat Versioned - also uses the `VersionedEntity` fields as constants source type in addition to the base `Entity` type.
-- type column - adds the `column` type, and uses it as the type of the generated constants.
-- list . - generates the `columns` method that returns constant values. It can be used to build sql queries like INSERT, SELECT.
-- ref-access . - generates the `ref` method that provides access to the filed values, returns a reference pointing to the field associated with the constant. The method can be used in conjunction with Row.Scan from sql package.
+- name _"{{ join \\"col\\" field.name }}"_ - defines constant names as 'col' appended by the associated field name.
+- val _"tag.db"_ - defines the value of a constant as a copy of the `db` tag of the associated field name.
+- flat _Versioned_ - also uses the `VersionedEntity` fields as constants source type in addition to the base `Entity` type.
+- type _column_ - adds the `column` type, and uses it as the type of the generated constants.
+- list _._ - generates the `columns` method that returns constant values. It can be used to build sql queries like INSERT, SELECT.
+- ref-access _._ - generates the `ref` method that provides access to the filed values, returns a reference pointing to the field associated with the constant. The method can be used in conjunction with Row.Scan from sql package.
 
 
 === Get-set usage example
