@@ -62,11 +62,10 @@ Template functions:
 	low - convert string to lower case
 	snake - convert camel to snake case
 Metadata access:
-	name - current field name
-	field - current field metadata map
-	struct - struct type metadata map
-	tag - tag names map
-	t.<tag name> - access to tag name`
+	name, field.name - current field name
+	field.type - current field type
+	struct.type - struct type name
+	tag.<tag name> - access to tag name`
 
 	return c
 }

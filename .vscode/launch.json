@@ -236,6 +236,20 @@
             ]
         },
         {
+            "name": "Debug usage example (enum-const help)",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "internal/examples/usage/enum_const",
+            "args": [
+                "-type",
+                "Entity",
+                "enum-const",
+                "--help"
+            ]
+        },
+        {
             "name": "Launch Package",
             "type": "go",
             "request": "launch",

@@ -73,7 +73,7 @@ To get extended help of the command, use the following:
 fieldr enum-const help
 ```
 
-### Extended example
+### Example of generating ORM elements:
 
 source `entity.go`:
 
@@ -135,19 +135,27 @@ func (s *Entity) ref(f column) interface{} {
 }
 ```
 
-#### Used parameters of `enum-const`:
+#### explanation of used args:
 
-- name "{{ join \\col\\ field.name }}" - TODO
+- name "{{ join \\"col\\" field.name }}" - defines constant names as
+  'col' appended by the associated field name.
 
-- val "tag.db" - TODO
+- val "tag.db" - defines the value of a constant as a copy of the `db`
+  tag of the associated field name.
 
-- flat Versioned - TODO
+- flat Versioned - also uses the `VersionedEntity` fields as constants
+  source type in addition to the base `Entity` type.
 
-- type column - TODO
+- type column - adds the `column` type, and uses it as the type of the
+  generated constants.
 
-- list . - TODO
+- list . - generates the `columns` method that returns constant values.
+  It can be used to build sql queries like INSERT, SELECT.
 
-- ref-access . - TODO
+- ref-access . - generates the `ref` method that provides access to the
+  filed values, returns a reference pointing to the field associated
+  with the constant. The method can be used in conjunction with Row.Scan
+  from sql package.
 
 ## Get-set usage example
 
