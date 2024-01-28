@@ -3,9 +3,10 @@ package command
 import (
 	"flag"
 
+	"github.com/m4gshm/gollections/collection/immutable/set"
+
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/params"
-	"github.com/m4gshm/gollections/collection/immutable/set"
 )
 
 func NewEnumConst() *Command {
@@ -15,7 +16,7 @@ func NewEnumConst() *Command {
 		flagName = "name"
 	)
 	var (
-		flagSet            = flag.NewFlagSet(name, flag.ContinueOnError)
+		flagSet            = flag.NewFlagSet(name, flag.ExitOnError)
 		constName          = flagSet.String("name", "", "constant name template")
 		constValue         = flagSet.String("val", "", "constant value template; must be set")
 		constType          = flagSet.String("type", "", "constant type name")
@@ -51,7 +52,7 @@ func NewEnumConst() *Command {
 		`Examples:
 	` + name + ` -` + flagVal + ` .json - usage of 'json' tag value as constant value, constant name is generated automatically, template corners '{{', '}}' can be omitted
 	` + name + ` -` + flagName + ` '{{name}}' -` + flagVal + ` '{{.json}}' - the same as the previous one, but constant name is based on field's name
-	` + name + ` -` + flagVal + ` 'rexp "(\w+),?" .json' - usage regexp function to extract json property name as constant value with removed ',omitempty' option
+	` + name + ` -` + flagVal + ` 'rexp "(\w+),?" .json' - usage of regexp function to extract json property name as constant value with removed ',omitempty' option
 	` + name + ` -` + flagName + ` '{{(join struct.name field.name)| up}}' -` + flagVal + ` '{{tag.json}}' - usage of functions 'join', 'up' and pipeline character '|' for more complex constant naming"
 Template functions:
 	join, conc - strings concatenation; multiargs
@@ -61,11 +62,10 @@ Template functions:
 	low - convert string to lower case
 	snake - convert camel to snake case
 Metadata access:
-	name - current field name
-	field - current field metadata map
-	struct - struct type metadata map
-	tag - tag names map
-	t.<tag name> - access to tag name`
+	name, field.name - current field name
+	field.type - current field type
+	struct.type - struct type name
+	tag.<tag name> - access to tag name`
 
 	return c
 }

@@ -1,0 +1,149 @@
+= Fieldr
+
+== Fieldr
+
+Generator of various enumerated constants, types, functions based on structure fields and their tags.
+
+=== Supported commands
+
+* enum-const - generate constants based on template applied to struct fields.
+* get-set - generates getters, setters for a structure type.
+* builder - generates builder API of a structure type.
+* as-map - generates method or functon that converts the struct type to a map.
+
+=== Installation
+
+[source,console]
+----
+go install github.com/m4gshm/fieldr@latest
+----
+or
+[source,console]
+----
+go install github.com/m4gshm/fieldr@HEAD
+----
+
+=== Enum constant example
+source `entity.go`:
+
+[source,go]
+----
+include::../examples/usage/enum_const/entity.go[]
+----
+
+then running this command in the same directory:
+[source,console]
+----
+go generate .
+----
+will be generated `entity_fieldr.go` file with the next content:
+
+[source,go]
+----
+include::../examples/usage/enum_const/entity_fieldr.go[]
+----
+
+this consist of constants based on the `json` tag contents and the method `jsons` that enumerates these constants.
+
+To get extended help of the command, use the following:
+
+[source,console]
+----
+fieldr enum-const help
+----
+
+==== Example of generating ORM elements: 
+
+source `entity.go`:
+[source,go]
+----
+include::../examples/usage/enum_const/enum_const_db/entity.go[]
+----
+
+generated `entity_fieldr.go`:
+
+[source,go]
+----
+include::../examples/usage/enum_const/enum_const_db/entity_fieldr.go[]
+----
+
+===== explanation of used args:
+- name _"{{ join \\"col\\" field.name }}"_ - defines constant names as 'col' appended by the associated field name.
+- val _"tag.db"_ - defines the value of a constant as a copy of the `db` tag of the associated field name.
+- flat _Versioned_ - also uses the `VersionedEntity` fields as constants source type in addition to the base `Entity` type.
+- type _column_ - adds the `column` type, and uses it as the type of the generated constants.
+- list _._ - generates the `columns` method that returns constant values. It can be used to build sql queries like INSERT, SELECT.
+- ref-access _._ - generates the `ref` method that provides access to the filed values, returns a reference pointing to the field associated with the constant. The method can be used in conjunction with Row.Scan from sql package.
+
+
+=== Get-set usage example
+
+source `entity.go`
+
+[source,go]
+----
+include::../examples/usage/get_set/entity.go[]
+----
+
+[source,console]
+----
+go generate .
+----
+generated `entity_fieldr.go`
+
+[source,go]
+----
+include::../examples/usage/get_set/entity_fieldr.go[]
+----
+
+=== Builder usage example
+
+source `entity.go`
+
+[source,go]
+----
+include::../examples/usage/builder/entity.go[]
+----
+
+[source,console]
+----
+go generate .
+----
+generated `entity_fieldr.go`
+
+[source,go]
+----
+include::../examples/usage/builder/entity_fieldr.go[]
+----
+
+
+=== As-map usage example
+
+source `struct.go`
+
+[source,go]
+----
+include::../examples/asmap/struct.go[]
+----
+
+[source,console]
+----
+go generate .
+----
+will be generate two files `struct_as_map.go`, `address_as_map.go`
+
+[source,go]
+----
+include::../examples/asmap/struct_as_map.go[]
+----
+[source,go]
+----
+include::../examples/asmap/address_as_map.go[]
+----
+
+
+
+
+See more examples link:./examples/[here]
+
+

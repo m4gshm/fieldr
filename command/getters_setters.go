@@ -16,7 +16,7 @@ func NewGettersSetters() *Command {
 		cmdName = "get-set"
 	)
 	var (
-		flagSet         = flag.NewFlagSet(cmdName, flag.ContinueOnError)
+		flagSet         = flag.NewFlagSet(cmdName, flag.ExitOnError)
 		getPrefix       = flagSet.String("get-prefix", "", "getter methods prefix")
 		setPrefix       = flagSet.String("set-prefix", "Set", "setter methods prefix")
 		noExportMethods = flagSet.Bool("no-export", false, "no export generated methods")

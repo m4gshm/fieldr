@@ -202,12 +202,12 @@
             ]
         },
         {
-            "name": "Debug usage example",
+            "name": "Debug usage example (enum-const, bulder)",
             "type": "go",
             "request": "launch",
             "mode": "debug",
             "program": "main.go",
-            "cwd": "examples/usage",
+            "cwd": "internal/examples/usage",
             "args": [
                 "-type",
                 "Entity",
@@ -220,6 +220,33 @@
                 "builder",
                 "-export",
                 "methods"
+            ]
+        },
+        {
+            "name": "Debug usage example (enum-const)",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "internal/examples/usage/enum_const",
+            "args": [
+                "-type",
+                "Entity",
+                "enum-const"
+            ]
+        },
+        {
+            "name": "Debug usage example (enum-const help)",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "internal/examples/usage/enum_const",
+            "args": [
+                "-type",
+                "Entity",
+                "enum-const",
+                "--help"
             ]
         },
         {

@@ -3,7 +3,7 @@ all: baseMake generate test
 
 .PHONY: baseMake
 baseMake:
-	cd ../ && make
+	cd ../../ && make
 
 .PHONY: generate
 generate:
