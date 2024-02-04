@@ -9,6 +9,7 @@ const (
 	colName    Col = "NAME"
 	colSurname Col = "SURNAME"
 	colVersion Col = "version"
+	pkID       Col = "ID"
 )
 
 func cols() []Col {
@@ -65,4 +66,8 @@ func (s *Entity) ref(f Col) interface{} {
 		return &s.Versioned.Version
 	}
 	return nil
+}
+
+func pk() []Col {
+	return []Col{pkID}
 }

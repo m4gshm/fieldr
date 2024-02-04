@@ -8,8 +8,6 @@ import (
 )
 
 var (
-	pkColumn      = string(colID)
-	dbColumnNames = strings(cols())
 	tableName     = "table_name"
 )
 
@@ -40,11 +38,11 @@ func (e *Entity) Store(db *sql.DB) error {
 }
 
 func getSqlSelectById(table string, id int) sq.SelectBuilder {
-	return sqlSelectWhere(table, dbColumnNames, idEqualTo(id))
+	return sqlSelectWhere(table, cols(), idEqualTo(id))
 }
 
 func (e *Entity) getSqlUpsert(table string) sq.Sqlizer {
-	return sqlUpsert(table, pkColumn, dbColumnNames, e.vals())
+	return sqlUpsert(table, pk(), cols(), e.vals())
 }
 
 func (e *Entity) vals() []interface{} {

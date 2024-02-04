@@ -30,7 +30,8 @@ func NewEnumConst() *Command {
 		private            = params.WithPrivate(flagSet)
 		nolint             = params.Nolint(flagSet)
 		flat               = params.Flat(flagSet)
-		excluded           = params.MultiVal(flagSet, "exclude", []string{}, "excluded field")
+		excluded           = params.MultiVal(flagSet, "exclude", []string{}, "excluded field name")
+		include            = flagSet.String("include", "", "An expression that determines whether the field is used to create constants. This is a template that should be parsed as 'true' or 'false' string.")
 		uniqueValues       = flagSet.Bool("check-unique-val", false, "checks if generated constant values are unique")
 	)
 	c := New(
@@ -44,7 +45,7 @@ func NewEnumConst() *Command {
 			}
 			return g.GenerateFieldConstant(
 				m, *constValue, *constName, *constType, *funcList, *fieldNameAccess, *refAccessor, *valAccessor, *export, false, *nolint, *compact, *private, *notDeclateConsType, *uniqueValues,
-				set.New(*flat), set.New(*excluded),
+				set.New(*flat), set.New(*excluded), *include,
 			)
 		},
 	)
@@ -52,6 +53,7 @@ func NewEnumConst() *Command {
 		`Examples:
 	` + name + ` -` + flagVal + ` .json - usage of 'json' tag value as constant value, constant name is generated automatically, template corners '{{', '}}' can be omitted
 	` + name + ` -` + flagName + ` '{{name}}' -` + flagVal + ` '{{.json}}' - the same as the previous one, but constant name is based on field's name
+	` + name + ` -` + flagVal + ` 'tag.json' -include 'notEmpty tag.json' - same as the previous one, but only includes filled tags
 	` + name + ` -` + flagVal + ` 'rexp "(\w+),?" .json' - usage of regexp function to extract json property name as constant value with removed ',omitempty' option
 	` + name + ` -` + flagName + ` '{{(join struct.name field.name)| up}}' -` + flagVal + ` '{{tag.json}}' - usage of functions 'join', 'up' and pipeline character '|' for more complex constant naming"
 Template functions:
@@ -61,6 +63,8 @@ Template functions:
 	up - convert string to upper case
 	low - convert string to lower case
 	snake - convert camel to snake case
+	isEmpty, notEmpty - empty string predicates
+	isNil, notNil - nil reference check predicates
 Metadata access:
 	name, field.name - current field name
 	field.type - current field type
