@@ -236,17 +236,16 @@
             ]
         },
         {
-            "name": "Debug usage example (enum-const help)",
+            "name": "Debug usage example (enum-const db)",
             "type": "go",
             "request": "launch",
             "mode": "debug",
             "program": "main.go",
-            "cwd": "internal/examples/usage/enum_const",
+            "cwd": "internal/examples/usage/enum_const/enum_const_db",
             "args": [
                 "-type",
                 "Entity",
-                "enum-const",
-                "--help"
+                "enum-const"
             ]
         },
         {

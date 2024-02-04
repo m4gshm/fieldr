@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/token"
+	"reflect"
 	"regexp"
 	"strings"
 	"text/template"
@@ -68,9 +69,9 @@ func (g *Generator) GenerateFieldConstants(model *struc.Model, typ string, expor
 func (g *Generator) GenerateFieldConstant(
 	model *struc.Model, valueTmpl, nameTmpl, typ, funcList, typeMethod, refAccessor, valAccessor string,
 	export, snake, nolint, compact, usePrivate, notDeclateConsType, uniqueValues bool,
-	flats, excludedFields c.Checkable[string],
+	flats, excludedFields c.Checkable[string], include string,
 ) error {
-	valueTmpl, nameTmpl = wrapTemplate(valueTmpl), wrapTemplate(nameTmpl)
+	valueTmpl, nameTmpl, include = wrapTemplate(valueTmpl), wrapTemplate(nameTmpl), wrapTemplate(include)
 
 	wrapType := len(typ) > 0
 	if !wrapType {
@@ -83,7 +84,7 @@ func (g *Generator) GenerateFieldConstant(
 
 	logger.Debugf("GenerateFieldConstant wrapType %v, typ %v, nameTmpl %v valueTmpl %v\n", wrapType, typ, nameTmpl, valueTmpl)
 
-	constants, err := makeFieldConstsTempl(g, model, model.TypeName, nameTmpl, valueTmpl, export, snake, usePrivate, flats, excludedFields)
+	constants, err := makeFieldConstsTempl(g, model, model.TypeName, nameTmpl, valueTmpl, export, snake, usePrivate, flats, excludedFields, include)
 	if err != nil {
 		return err
 	} else if err = checkDuplicates(constants, uniqueValues); err != nil {
@@ -180,7 +181,7 @@ func checkDuplicates(constants []FieldConst, checkValues bool) error {
 }
 
 func makeFieldConstsTempl(
-	g *Generator, model *struc.Model, structType, nameTmpl, valueTmpl string, export, snake, usePrivate bool, flats, excludedFields c.Checkable[string],
+	g *Generator, model *struc.Model, structType, nameTmpl, valueTmpl string, export, snake, usePrivate bool, flats, excludedFields c.Checkable[string], include string,
 ) ([]FieldConst, error) {
 	var (
 		usedTags  = &ordered.Set[struc.TagName]{}
@@ -207,7 +208,7 @@ func makeFieldConstsTempl(
 		fieldModel := fieldType.Model
 		if flat || embedded {
 			subflats := use.If(embedded, flats).Else(immutable.Set[string]{})
-			fieldConstants, err := makeFieldConstsTempl(g, fieldModel, structType, nameTmpl, valueTmpl, export, snake, usePrivate, subflats, excludedFields)
+			fieldConstants, err := makeFieldConstsTempl(g, fieldModel, structType, nameTmpl, valueTmpl, export, snake, usePrivate, subflats, excludedFields, include)
 			if err != nil {
 				return nil, err
 			}
@@ -221,8 +222,7 @@ func makeFieldConstsTempl(
 				inExecute bool
 			)
 			if tagVals := model.FieldsTagValue[fieldName]; tagVals != nil {
-				for k, v := range tagVals {
-					tag := k
+				for tag, v := range tagVals {
 					tags[tag] = &stringer{val: v, callback: func() {
 						if !inExecute {
 							return
@@ -261,6 +261,17 @@ func makeFieldConstsTempl(
 				"tag":    func() map[string]*stringer { return tags },
 			})
 
+			if len(include) > 0 {
+				included, err := parse(fieldName+" const val", tags, funcs, include)
+				if err != nil {
+					return nil, err
+				}
+				if included == "false" {
+					logger.Debugf("field not included: field '%s', include expression '%s', result '%s'", fieldName, include, included)
+					continue
+				}
+			}
+
 			val, err := parse(fieldName+" const val", tags, funcs, valueTmpl)
 			if err != nil {
 				return nil, err
@@ -284,7 +295,7 @@ func makeFieldConstsTempl(
 					value:     val,
 					fieldPath: []FieldInfo{{Name: fieldName, Type: fieldType}}})
 			} else {
-				logger.Infof("constant without value: '%s'", constName)
+				logger.Infof("constant without value: '%s', value template: '%s'", constName, valueTmpl)
 			}
 		}
 	}
@@ -424,6 +435,61 @@ func addCommonFuncs(funcs template.FuncMap) template.FuncMap {
 		}
 		return toString(vals[len(vals)-1])
 	}
+
+	isEmpty := func(val any) bool {
+		if val == nil {
+			return false
+		}
+		switch typed := val.(type) {
+		case string:
+			return len(typed) == 0
+		case *string:
+			if typed != nil {
+				return len(*typed) == 0
+			}
+			return true
+		case stringer:
+			return len(typed.String()) == 0
+		case *stringer:
+			if typed != nil {
+				return len(typed.String()) == 0
+			}
+			return true
+		default:
+			logger.Infof("func empty: unexpected type '%T' of '%s'", val, val)
+			return false
+		}
+	}
+
+	notEmpty := func(val any) bool { return !isEmpty(val) }
+
+	isNil := func(val any) bool {
+		if val == nil {
+			return true
+		}
+
+		switch typed := val.(type) {
+		case string:
+			return false
+		case *string:
+			r := typed == nil
+			return r
+		case *stringer:
+			r := typed == nil
+			return r
+		case stringer:
+			return false
+		}
+
+		switch reflect.TypeOf(val).Kind() {
+		case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
+			return reflect.ValueOf(val).IsNil()
+		}
+		return false
+	}
+
+	notNil := func(val any) bool { return !isNil(val) }
+
 	f := template.FuncMap{
 		"OR":          strOr,
 		"conc":        join,
@@ -436,6 +502,10 @@ func addCommonFuncs(funcs template.FuncMap) template.FuncMap {
 		"toLower":     toLower,
 		"up":          toUpper,
 		"low":         toLower,
+		"isEmpty":     isEmpty,
+		"notEmpty":    notEmpty,
+		"isNil":       isNil,
+		"notNil":      notNil,
 	}
 	for k, v := range f {
 		funcs[k] = v

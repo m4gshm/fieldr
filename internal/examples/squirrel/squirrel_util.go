@@ -1,20 +1,22 @@
 package squirrel
 
 import (
-	"fmt"
+	"strings"
 
 	sq "github.com/Masterminds/squirrel"
+	"github.com/m4gshm/gollections/collection/immutable/set"
+	"github.com/m4gshm/gollections/slice"
 )
 
 var (
 	placeholder = sq.Dollar
 )
 
-func sqlSelect(table string, columns []string) sq.SelectBuilder {
-	return sq.Select(columns...).PlaceholderFormat(placeholder).From(table)
+func sqlSelect[T ~string](table string, columns []T) sq.SelectBuilder {
+	return sq.Select(slice.BehaveAsStrings(columns)...).PlaceholderFormat(placeholder).From(table)
 }
 
-func sqlSelectWhere(table string, columns []string, condition sq.Eq) sq.SelectBuilder {
+func sqlSelectWhere[T ~string](table string, columns []T, condition sq.Eq) sq.SelectBuilder {
 	return sqlSelect(table, columns).Where(condition)
 }
 
@@ -22,20 +24,30 @@ func sqlDeleteWhere(table string, condition sq.Eq) sq.DeleteBuilder {
 	return sq.Delete(table).Where(condition).PlaceholderFormat(placeholder)
 }
 
-func sqlUpsert(table string, pkColumn string, columns []string, values []interface{}) sq.Sqlizer {
-	insert := sq.Insert(table).Columns(columns...).Values(values...)
+func sqlUpsert[T ~string](table string, pkColumns []T, columns []T, values []any) sq.Sqlizer {
+	insert := sq.Insert(table).Columns(slice.BehaveAsStrings(columns)...).Values(values...)
 
 	update := sq.Update(" ")
+
+	pks := set.Of(pkColumns...)
 	for i, column := range columns {
-		if column == pkColumn {
+		if pks.Contains(column) {
 			continue
 		}
-		update = update.Set(columns[i], values[i])
+		update = update.Set(string(columns[i]), values[i])
 	}
 
-	conflictSql := fmt.Sprintf("ON CONFLICT (%s) DO", pkColumn)
+	conflictSql := strings.Builder{}
+	conflictSql.WriteString("ON CONFLICT (")
+	for i, pkColumn := range pkColumns {
+		if i > 0 {
+			conflictSql.WriteString(",")
+		}
+		conflictSql.WriteString(string(pkColumn))
+	}
+	conflictSql.WriteString(") DO")
 
-	return newPlaceholderWrapper(insert.Suffix(conflictSql).SuffixExpr(update), placeholder)
+	return newPlaceholderWrapper(insert.Suffix(conflictSql.String()).SuffixExpr(update), placeholder)
 }
 
 func newPlaceholderWrapper(builder sq.Sqlizer, placeholder sq.PlaceholderFormat) *PlaceholderWrapper {
