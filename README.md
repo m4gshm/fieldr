@@ -143,25 +143,27 @@ func pk() []column {
 
 #### explanation of used args:
 
-- name *"{{ join \\"col\\" field.name }}"* - defines constant names as
-  'col' appended by the associated field name.
+- -name *"'col' + field.name"* - defines constant names as 'col'
+  appended by the associated field name.
 
-- val *"tag.db"* - defines the value of a constant as a copy of the `db`
-  tag of the associated field name.
+- -val *"tag.db"* - defines the value of a constant as a copy of the
+  `db` tag of the associated field name.
 
-- flat *Versioned* - also uses the `VersionedEntity` fields as constants
-  source type in addition to the base `Entity` type.
+- -flat *Versioned* - also uses the `VersionedEntity` fields as
+  constants source type in addition to the base `Entity` type.
 
-- type *column* - adds the `column` type, and uses it as the type of the
-  generated constants.
+- -type *column* - adds the `column` type, and uses it as the type of
+  the generated constants.
 
-- list *.* - generates the `columns` method that returns constant
+- -list *.* - generates the `columns` method that returns constant
   values. It can be used to build sql queries like INSERT, SELECT.
 
-- ref-access *.* - generates the `ref` method that provides access to
+- -ref-access *.* - generates the `ref` method that provides access to
   the filed values, returns a reference pointing to the field associated
   with the constant. The method can be used in conjunction with Row.Scan
   from sql package.
+
+- -include *"tag.pk != nil"* - uses only 'pk' tag having a value.
 
 ## Get-set usage example
 
