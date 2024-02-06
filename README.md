@@ -34,7 +34,7 @@ source `entity.go`:
 ``` go
 package enum_const
 
-//go:generate fieldr -type Entity enum-const -val .json -list jsons
+//go:generate fieldr -type Entity enum-const -val tag.json -list jsons
 type Entity struct {
     Id   int    `json:"id"`
     Name string `json:"name"`
@@ -80,9 +80,9 @@ source `entity.go`:
 ``` go
 package enum_const_db
 
-//go:generate fieldr -debug -type Entity
-//go:fieldr enum-const -name "join \"col\" field.name" -val "tag.db" -flat Versioned -type column -list . -ref-access .
-//go:fieldr enum-const -name "join \"pk\" field.name" -val "tag.db" -include "notNil tag.pk" -type column -list pk
+//go:generate fieldr -type Entity
+//go:fieldr enum-const -name "'col' + field.name" -val "tag.db" -flat Versioned -type column -list . -ref-access .
+//go:fieldr enum-const -name "'pk' + field.name" -val "tag.db" -include "tag.pk != nil" -type column -list pk
 
 type Entity struct {
     BaseEntity
@@ -119,7 +119,7 @@ func columns() []column {
     return []column{colID, colVersion, colName}
 }
 
-func (s *Entity) ref(f column) interface{} {
+func (s *Entity) ref(f column) any {
     if s == nil {
         return nil
     }

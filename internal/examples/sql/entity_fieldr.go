@@ -23,7 +23,7 @@ func cols() []col {
 		colVersion}
 }
 
-func (s *Entity) val(f col) interface{} {
+func (s *Entity) val(f col) any {
 	if s == nil {
 		return nil
 	}
@@ -46,7 +46,7 @@ func (s *Entity) val(f col) interface{} {
 	return nil
 }
 
-func (s *Entity) ref(f col) interface{} {
+func (s *Entity) ref(f col) any {
 	if s == nil {
 		return nil
 	}

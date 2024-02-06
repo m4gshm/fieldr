@@ -13,7 +13,7 @@ func col2s() []Col2 {
 	return []Col2{col2ID, col2Name}
 }
 
-func (s *Entity2) val(f Col2) interface{} {
+func (s *Entity2) val(f Col2) any {
 	if s == nil {
 		return nil
 	}
@@ -26,7 +26,7 @@ func (s *Entity2) val(f Col2) interface{} {
 	return nil
 }
 
-func (s *Entity2) ref(f Col2) interface{} {
+func (s *Entity2) ref(f Col2) any {
 	if s == nil {
 		return nil
 	}

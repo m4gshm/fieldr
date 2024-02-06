@@ -32,7 +32,7 @@ func entityCols() []EntityCol { //nolint
 		ENTITY_COL_UPDATED_AT3}
 }
 
-func (s *Entity) val(f EntityCol) interface{} { //nolint
+func (s *Entity) val(f EntityCol) any { //nolint
 	if s == nil {
 		return nil
 	}
@@ -75,7 +75,7 @@ func (s *Entity) val(f EntityCol) interface{} { //nolint
 	return nil
 }
 
-func (s *Entity) ref(f EntityCol) interface{} { //nolint
+func (s *Entity) ref(f EntityCol) any { //nolint
 	if s == nil {
 		return nil
 	}

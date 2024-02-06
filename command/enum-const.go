@@ -17,8 +17,8 @@ func NewEnumConst() *Command {
 	)
 	var (
 		flagSet            = flag.NewFlagSet(name, flag.ExitOnError)
-		constName          = flagSet.String("name", "", "constant name template")
-		constValue         = flagSet.String("val", "", "constant value template; must be set")
+		constName          = flagSet.String("name", "", "constant name expression")
+		constValue         = flagSet.String("val", "", "constant value expression; must be set")
 		constType          = flagSet.String("type", "", "constant type name")
 		notDeclateConsType = flagSet.Bool("not-declare-type", false, "don't generate constant type declaration")
 		fieldNameAccess    = flagSet.String("field-name-access", "", "add a method that returns the associated struct field name, use "+generator.Autoname+" for autoname")
@@ -31,11 +31,11 @@ func NewEnumConst() *Command {
 		nolint             = params.Nolint(flagSet)
 		flat               = params.Flat(flagSet)
 		excluded           = params.MultiVal(flagSet, "exclude", []string{}, "excluded field name")
-		include            = flagSet.String("include", "", "An expression that determines whether the field is used to create constants. This is a template that should be parsed as 'true' or 'false' string.")
+		include            = flagSet.String("include", "", "An expression that determines whether the field is used to create constants.")
 		uniqueValues       = flagSet.Bool("check-unique-val", false, "checks if generated constant values are unique")
 	)
 	c := New(
-		name, "generate constants based on template applied to struct fields",
+		name, "generate constants based on expressions applied to struct fields",
 		flagSet,
 		func(context *Context) error {
 			g := context.Generator
@@ -51,25 +51,24 @@ func NewEnumConst() *Command {
 	)
 	c.manual =
 		`Examples:
-	` + name + ` -` + flagVal + ` .json - usage of 'json' tag value as constant value, constant name is generated automatically, template corners '{{', '}}' can be omitted
-	` + name + ` -` + flagName + ` '{{name}}' -` + flagVal + ` '{{.json}}' - the same as the previous one, but constant name is based on field's name
-	` + name + ` -` + flagVal + ` 'tag.json' -include 'notEmpty tag.json' - same as the previous one, but only includes filled tags
-	` + name + ` -` + flagVal + ` 'rexp "(\w+),?" .json' - usage of regexp function to extract json property name as constant value with removed ',omitempty' option
-	` + name + ` -` + flagName + ` '{{(join struct.name field.name)| up}}' -` + flagVal + ` '{{tag.json}}' - usage of functions 'join', 'up' and pipeline character '|' for more complex constant naming"
-Template functions:
+	` + name + ` -` + flagVal + ` tag.json - using 'json' tag value as constant value, constant name is generated automatically.
+	` + name + ` -` + flagName + ` 'name' -` + flagVal + ` 'tag.json' - the same as the previous one, but constant name is based on field's name.
+	` + name + ` -` + flagVal + ` 'tag.json' -include 'tag.json != nil' - same as the previous one, but only includes filled tags.
+	` + name + ` -` + flagVal + ` 'rexp("(\w+),?", tag.json)' - using 'regexp' function to extract json property name as constant value with removed ',omitempty' option.
+	` + name + ` -` + flagName + ` 'struct.name + field.name | up()' -` + flagVal + ` 'tag.json' - concatenates type name with field name and converts it to uppercase using 'up' function"
+Main functions:
 	join, conc - strings concatenation; multiargs
 	OR - select first non empty string argument; multiargs
-	rexp - find substring by regular expression; arg1: regular expression, arg2: string value; use 'v' group name as constant value marker, example: (?P<v>\\\\w+)
+	rexp - find substring by regular expression; arg1: regular expression, arg2: string value; use 'v' group name as constant value marker, example: (?P<v>\\w+)
 	up - convert string to upper case
 	low - convert string to lower case
 	snake - convert camel to snake case
-	isEmpty, notEmpty - empty string predicates
-	isNil, notNil - nil reference check predicates
 Metadata access:
 	name, field.name - current field name
 	field.type - current field type
 	struct.type - struct type name
-	tag.<tag name> - access to tag name`
+	tag.<tag name> - access to tag name
+More info about expressions definition can be found here https://expr-lang.org/docs/language-definition`
 
 	return c
 }

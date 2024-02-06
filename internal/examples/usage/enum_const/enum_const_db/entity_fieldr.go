@@ -15,7 +15,7 @@ func columns() []column {
 	return []column{colID, colVersion, colName}
 }
 
-func (s *Entity) ref(f column) interface{} {
+func (s *Entity) ref(f column) any {
 	if s == nil {
 		return nil
 	}

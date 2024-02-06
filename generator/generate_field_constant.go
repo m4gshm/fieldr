@@ -1,15 +1,13 @@
 package generator
 
 import (
-	"bytes"
 	"fmt"
 	"go/token"
-	"reflect"
 	"regexp"
 	"strings"
-	"text/template"
 	"unicode"
 
+	"github.com/expr-lang/expr"
 	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/collection/immutable"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
@@ -36,12 +34,20 @@ type stringer struct {
 }
 
 func (c *stringer) String() string {
-	if c == nil {
+	if c.isNil() {
 		return ""
 	}
 	c.callback()
 	val := c.val
 	return val
+}
+
+func (c *stringer) isNil() bool {
+	return c == nil
+}
+
+func (c *stringer) isEmpty() bool {
+	return len(c.String()) == 0
 }
 
 var _ fmt.Stringer = (*stringer)(nil)
@@ -71,7 +77,7 @@ func (g *Generator) GenerateFieldConstant(
 	export, snake, nolint, compact, usePrivate, notDeclateConsType, uniqueValues bool,
 	flats, excludedFields c.Checkable[string], include string,
 ) error {
-	valueTmpl, nameTmpl, include = wrapTemplate(valueTmpl), wrapTemplate(nameTmpl), wrapTemplate(include)
+	// valueTmpl, nameTmpl, include = wrapTemplate(valueTmpl), wrapTemplate(nameTmpl), wrapTemplate(include)
 
 	wrapType := len(typ) > 0
 	if !wrapType {
@@ -91,8 +97,11 @@ func (g *Generator) GenerateFieldConstant(
 		return err
 	}
 	for _, constant := range constants {
-		if err := g.addConst(constant.name, Quoted(constant.value), typ); err != nil {
+		quoted := Quoted(constant.value)
+		if err := g.addConst(constant.name, quoted, typ); err != nil {
 			return err
+		} else {
+			logger.Debugf("added const %s, %s by name expr %s, val expr %s", constant.name, quoted, nameTmpl, valueTmpl)
 		}
 	}
 	g.addConstDelim()
@@ -222,8 +231,9 @@ func makeFieldConstsTempl(
 				inExecute bool
 			)
 			if tagVals := model.FieldsTagValue[fieldName]; tagVals != nil {
-				for tag, v := range tagVals {
-					tags[tag] = &stringer{val: v, callback: func() {
+				for t, v := range tagVals {
+					tag, val := t, v
+					tags[tag] = &stringer{val: val, callback: func() {
 						if !inExecute {
 							return
 						}
@@ -234,35 +244,39 @@ func makeFieldConstsTempl(
 				}
 			}
 
-			parse := func(name string, data interface{}, funcs template.FuncMap, tmplVal string) (string, error) {
-				logger.Debugf("parse template for \"%s\" %s\n", name, tmplVal)
-				tmpl, err := template.New(name).Option("missingkey=zero").Funcs(funcs).Parse(tmplVal)
-				if err != nil {
-					return "", fmt.Errorf("parse: of '%s', template %s: %w", name, tmplVal, err)
+			parse := func(name string, data any, env map[string]any, tmplVal string) (string, error) {
+				logger.Debugf("parse expression for \"%s\" %s\n", name, tmplVal)
+
+				if len(tmplVal) == 0 {
+					return "", nil
 				}
 
-				buf := bytes.Buffer{}
-				logger.Debugf("template context %+v\n", tags)
 				inExecute = true
-				if err = tmpl.Execute(&buf, data); err != nil {
-					inExecute = false
-					return "", fmt.Errorf("compile: of '%s': field '%s', template %s: %w", name, fieldName, tmplVal, err)
+				defer func() { inExecute = false }()
+				program, err := expr.Compile(tmplVal, expr.Env(env))
+				if err != nil {
+					return "", fmt.Errorf("compile: of '%s', expression %s: %w", name, tmplVal, err)
 				}
-				inExecute = false
-				cmpVal := buf.String()
+
+				cmpVal, err := expr.Run(program, env)
+				if err != nil {
+					return "", fmt.Errorf("run: of '%s', expression %s: %w", name, tmplVal, err)
+				}
+
 				logger.Debugf("parse result: of '%s'; %s\n", name, cmpVal)
-				return cmpVal, nil
+				val := fmt.Sprint(cmpVal)
+				return val, nil
 			}
 
-			funcs := addCommonFuncs(template.FuncMap{
-				"struct": func() map[string]interface{} { return map[string]interface{}{"name": structType} },
-				"name":   func() string { return fieldName },
-				"field":  func() map[string]interface{} { return map[string]interface{}{"name": fieldName, "type": fieldType} },
-				"tag":    func() map[string]*stringer { return tags },
+			env := addCommonFuncs(map[string]any{
+				"struct": map[string]any{"name": structType},
+				"name":   fieldName,
+				"field":  map[string]any{"name": fieldName, "type": fieldType},
+				"tag":    tags,
 			})
 
 			if len(include) > 0 {
-				included, err := parse(fieldName+" const val", tags, funcs, include)
+				included, err := parse(fieldName+" const val", tags, env, include)
 				if err != nil {
 					return nil, err
 				}
@@ -272,14 +286,14 @@ func makeFieldConstsTempl(
 				}
 			}
 
-			val, err := parse(fieldName+" const val", tags, funcs, valueTmpl)
+			val, err := parse(fieldName+" const val", tags, env, valueTmpl)
 			if err != nil {
 				return nil, err
 			}
 
 			var constName string
 			if len(nameTmpl) > 0 {
-				parsedConst, err := parse(fieldName+" const name", tags, funcs, nameTmpl)
+				parsedConst, err := parse(fieldName+" const name", tags, env, nameTmpl)
 				if err != nil {
 					return nil, err
 				}
@@ -295,7 +309,7 @@ func makeFieldConstsTempl(
 					value:     val,
 					fieldPath: []FieldInfo{{Name: fieldName, Type: fieldType}}})
 			} else {
-				logger.Infof("constant without value: '%s', value template: '%s'", constName, valueTmpl)
+				logger.Infof("constant without value: '%s', value expression: '%s'", constName, valueTmpl)
 			}
 		}
 	}
@@ -332,8 +346,8 @@ func makeFieldConsts(g *Generator, model *struc.Model, export, snake, allFields 
 	return constants, nil
 }
 
-func addCommonFuncs(funcs template.FuncMap) template.FuncMap {
-	toString := func(val interface{}) string {
+func addCommonFuncs[M ~map[string]any](funcs M) M {
+	toString := func(val any) string {
 		if val == nil {
 			return ""
 		}
@@ -351,14 +365,14 @@ func addCommonFuncs(funcs template.FuncMap) template.FuncMap {
 		}
 		return str
 	}
-	toStrings := func(vals []interface{}) []string {
+	toStrings := func(vals []any) []string {
 		results := make([]string, len(vals))
 		for i, val := range vals {
 			results[i] = toString(val)
 		}
 		return results
 	}
-	rexp := func(expr interface{}, val interface{}) (string, error) {
+	rexp := func(expr any, val any) (string, error) {
 		sexpr := toString(expr)
 		str := toString(val)
 		if len(sexpr) == 0 {
@@ -387,7 +401,7 @@ func addCommonFuncs(funcs template.FuncMap) template.FuncMap {
 		return "", nil
 	}
 
-	snakeFunc := func(val interface{}) string {
+	snakeFunc := func(val any) string {
 		sval := toString(val)
 		if len(sval) == 0 {
 			return ""
@@ -409,20 +423,20 @@ func addCommonFuncs(funcs template.FuncMap) template.FuncMap {
 		return string(result)
 	}
 
-	toUpper := func(val interface{}) string {
+	toUpper := func(val any) string {
 		return strings.ToUpper(toString(val))
 	}
 
-	toLower := func(val interface{}) string {
+	toLower := func(val any) string {
 		return strings.ToLower(toString(val))
 	}
 
-	join := func(vals ...interface{}) string {
+	join := func(vals ...any) string {
 		result := strings.Join(toStrings(vals), "")
 		return result
 	}
 
-	strOr := func(vals ...interface{}) string {
+	strOr := func(vals ...any) string {
 		if len(vals) == 0 {
 			return ""
 		}
@@ -435,62 +449,7 @@ func addCommonFuncs(funcs template.FuncMap) template.FuncMap {
 		}
 		return toString(vals[len(vals)-1])
 	}
-
-	isEmpty := func(val any) bool {
-		if val == nil {
-			return false
-		}
-		switch typed := val.(type) {
-		case string:
-			return len(typed) == 0
-		case *string:
-			if typed != nil {
-				return len(*typed) == 0
-			}
-			return true
-		case stringer:
-			return len(typed.String()) == 0
-		case *stringer:
-			if typed != nil {
-				return len(typed.String()) == 0
-			}
-			return true
-		default:
-			logger.Infof("func empty: unexpected type '%T' of '%s'", val, val)
-			return false
-		}
-	}
-
-	notEmpty := func(val any) bool { return !isEmpty(val) }
-
-	isNil := func(val any) bool {
-		if val == nil {
-			return true
-		}
-
-		switch typed := val.(type) {
-		case string:
-			return false
-		case *string:
-			r := typed == nil
-			return r
-		case *stringer:
-			r := typed == nil
-			return r
-		case stringer:
-			return false
-		}
-
-		switch reflect.TypeOf(val).Kind() {
-		case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
-			return reflect.ValueOf(val).IsNil()
-		}
-		return false
-	}
-
-	notNil := func(val any) bool { return !isNil(val) }
-
-	f := template.FuncMap{
+	f := map[string]any{
 		"OR":          strOr,
 		"conc":        join,
 		"concatenate": join,
@@ -502,26 +461,11 @@ func addCommonFuncs(funcs template.FuncMap) template.FuncMap {
 		"toLower":     toLower,
 		"up":          toUpper,
 		"low":         toLower,
-		"isEmpty":     isEmpty,
-		"notEmpty":    notEmpty,
-		"isNil":       isNil,
-		"notNil":      notNil,
 	}
 	for k, v := range f {
 		funcs[k] = v
 	}
 	return funcs
-}
-
-func wrapTemplate(text string) string {
-	if len(text) == 0 {
-		return text
-	}
-	if !strings.Contains(text, "{{") {
-		text = "{{" + strings.ReplaceAll(text, "\\", "\\\\") + "}}"
-		logger.Debugf("constant template transformed to '%s'", text)
-	}
-	return text
 }
 
 func generateAggregateFunc(funcName, typ string, constants []FieldConst, export, compact, nolint bool) (string, string, error) {
@@ -553,7 +497,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 		recType         = GetTypeName(model.TypeName, pkgName)
 		recParamType    = recType + TypeParamsString(model.Typ.TypeParams(), g.OutPkgPath)
 		recParamTypeRef = "*" + recParamType
-		returnTypes     = "interface{}"
+		returnTypes     = "any"
 		returnNoCase    = "nil"
 		pref            = op.IfElse(ref, "&", "")
 		isFunc          = len(pkgName) > 0
