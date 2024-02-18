@@ -59,11 +59,3 @@ func (s *Struct[S]) val(f structJson) any {
 	}
 	return nil
 }
-
-const (
-	structID      structJson = "id"
-	structName    structJson = "name,omitempty"
-	structSurname structJson = "surname,omitempty"
-	structNoTag   structJson = "NoTag"
-	structAddress structJson = "address,omitempty"
-)

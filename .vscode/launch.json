@@ -106,7 +106,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "main.go",
-            "cwd": "examples/json",
+            "cwd": "internal/examples/json",
             "args": [
                 "-type",
                 "Struct",
