@@ -155,7 +155,7 @@ func pk() []column {
 - -type *column* - adds the `column` type, and uses it as the type of
   the generated constants.
 
-- -list *.* - generates the `columns` method that returns constant
+- -list *.* - generates the `columns` function that returns constant
   values. It can be used to build sql queries like INSERT, SELECT.
 
 - -ref-access *.* - generates the `ref` method that provides access to
