@@ -31,7 +31,7 @@ func NewEnumConst() *Command {
 		nolint             = params.Nolint(flagSet)
 		flat               = params.Flat(flagSet)
 		excluded           = params.MultiVal(flagSet, "exclude", []string{}, "excluded field name")
-		include            = flagSet.String("include", "", "An expression that determines whether the field is used to create constants.")
+		include            = flagSet.String("include", "", "An expression that determines whether the field is used to create constants")
 		uniqueValues       = flagSet.Bool("check-unique-val", false, "checks if generated constant values are unique")
 	)
 	c := New(
