@@ -12,7 +12,7 @@ func ACols() []Col {
 	return []Col{AlterColID, AlterColName, AlterColSurname}
 }
 
-func (s *Entity) Aval(f Col) interface{} {
+func (s *Entity) Aval(f Col) any {
 	if s == nil {
 		return nil
 	}
@@ -27,7 +27,7 @@ func (s *Entity) Aval(f Col) interface{} {
 	return nil
 }
 
-func (s *Entity) Aref(f Col) interface{} {
+func (s *Entity) Aref(f Col) any {
 	if s == nil {
 		return nil
 	}

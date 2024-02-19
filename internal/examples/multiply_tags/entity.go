@@ -3,11 +3,10 @@ package multiply_tags
 import "time"
 
 //go:generate fieldr -type Entity -out entity_fields.go
-//go:fieldr enum-const -name "{{(join struct.name \"Col\" name) | snake | toUpper}}" -val "{{.gorm | rexp \"column:(\\\\w+),?\" | OR name | snake | up}}" -type EntityCol -list . -ref-access . -val-access . -nolint -flat Upd -flat Upd2 -flat Upd3
-//go:fieldr enum-const -export -val ".gorm | rexp \"column:(\\w+),?\" | OR name | snake | up"
-//go:fieldr enum-const -export -val "rexp \"(?P<v>\\w+),?\" .json"
-//go:fieldr enum-const -export -val "(OR (rexp \"column:(\\w+),?\" .gorm) (rexp \"(?P<v>\\w+),?\" .json))" -list gormOrJsonList
-//go:field1 aggr-const -export -selector type == EntityCol -val ".const.name," -name EntityCols
+//go:fieldr enum-const -name "toUpper(snake(join(struct.name, \"Col\", name)))" -val "up(snake(OR(rexp(`column:(\\w+),?`, tag.gorm), name)))" -type EntityCol -list . -ref-access . -val-access . -nolint -flat Upd -flat Upd2 -flat Upd3
+//go:fieldr enum-const -export -val "OR(rexp(`column:(\\w+),?`, tag.gorm), name) | snake() | up()"
+//go:fieldr enum-const -export -val "rexp(`(?P<v>\\w+),?`, tag.json)"
+//go:fieldr enum-const -export -val "OR(rexp(`column:(\\w+),?`, tag.gorm), rexp(`(?P<v>\\w+),?`, tag.json))" -list gormOrJsonList
 
 type BaseEntity struct {
 	ID int `gorm:"primaryKey" json:"id"`

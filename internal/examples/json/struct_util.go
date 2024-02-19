@@ -35,7 +35,7 @@ func (c structJson) field() string {
 	return ""
 }
 
-func (s *Struct[S]) val(f structJson) interface{} {
+func (s *Struct[S]) val(f structJson) any {
 	if s == nil {
 		return nil
 	}

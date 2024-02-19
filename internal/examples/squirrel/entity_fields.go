@@ -34,7 +34,7 @@ func (c Col) field() string {
 	return ""
 }
 
-func (s *Entity) val(f Col) interface{} {
+func (s *Entity) val(f Col) any {
 	if s == nil {
 		return nil
 	}
@@ -51,7 +51,7 @@ func (s *Entity) val(f Col) interface{} {
 	return nil
 }
 
-func (s *Entity) ref(f Col) interface{} {
+func (s *Entity) ref(f Col) any {
 	if s == nil {
 		return nil
 	}

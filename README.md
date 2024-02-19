@@ -34,7 +34,7 @@ source `entity.go`:
 ``` go
 package enum_const
 
-//go:generate fieldr -type Entity enum-const -val .json -list jsons
+//go:generate fieldr -type Entity enum-const -val tag.json -list jsons
 type Entity struct {
     Id   int    `json:"id"`
     Name string `json:"name"`
@@ -80,9 +80,9 @@ source `entity.go`:
 ``` go
 package enum_const_db
 
-//go:generate fieldr -debug -type Entity
-//go:fieldr enum-const -name "join \"col\" field.name" -val "tag.db" -flat Versioned -type column -list . -ref-access .
-//go:fieldr enum-const -name "join \"pk\" field.name" -val "tag.db" -include "notNil tag.pk" -type column -list pk
+//go:generate fieldr -type Entity
+//go:fieldr enum-const -name "'col' + field.name" -val "tag.db" -flat Versioned -type column -list . -ref-access .
+//go:fieldr enum-const -name "'pk' + field.name" -val "tag.db" -include "tag.pk != nil" -type column -list pk
 
 type Entity struct {
     BaseEntity
@@ -119,7 +119,7 @@ func columns() []column {
     return []column{colID, colVersion, colName}
 }
 
-func (s *Entity) ref(f column) interface{} {
+func (s *Entity) ref(f column) any {
     if s == nil {
         return nil
     }
@@ -143,25 +143,27 @@ func pk() []column {
 
 #### explanation of used args:
 
-- name *"{{ join \\"col\\" field.name }}"* - defines constant names as
-  'col' appended by the associated field name.
+- -name *"'col' + field.name"* - defines constant names as 'col'
+  appended by the associated field name.
 
-- val *"tag.db"* - defines the value of a constant as a copy of the `db`
-  tag of the associated field name.
+- -val *"tag.db"* - defines the value of a constant as a copy of the
+  `db` tag of the associated field name.
 
-- flat *Versioned* - also uses the `VersionedEntity` fields as constants
-  source type in addition to the base `Entity` type.
+- -flat *Versioned* - also uses the `VersionedEntity` fields as
+  constants source type in addition to the base `Entity` type.
 
-- type *column* - adds the `column` type, and uses it as the type of the
-  generated constants.
+- -type *column* - adds the `column` type, and uses it as the type of
+  the generated constants.
 
-- list *.* - generates the `columns` method that returns constant
+- -list *.* - generates the `columns` function that returns constant
   values. It can be used to build sql queries like INSERT, SELECT.
 
-- ref-access *.* - generates the `ref` method that provides access to
+- -ref-access *.* - generates the `ref` method that provides access to
   the filed values, returns a reference pointing to the field associated
   with the constant. The method can be used in conjunction with Row.Scan
   from sql package.
+
+- -include *"tag.pk != nil"* - uses only 'pk' tag having a value.
 
 ## Get-set usage example
 

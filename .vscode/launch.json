@@ -62,7 +62,7 @@
                 "entity_fields.go",
                 "enum-const",
                 "-name",
-                "{{ join \"col\" field.name }}",
+                "join('col', field.name)",
                 "-val",
                 "tag.db",
                 "-type",
@@ -95,7 +95,7 @@
                 "-name",
                 "{{(join struct.name \"Col\" field.name) | snake | toUpper}}",
                 "-val",
-                "{{.gorm | rexp \"column:(\\\\w+),?\" | or field.name | snake | toUpper}}",
+                "{{tag.gorm | rexp \"column:(\\w+),?\" | or field.name | snake | toUpper}}",
                 "-type",
                 "COL"
             ]
@@ -106,7 +106,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "main.go",
-            "cwd": "examples/json",
+            "cwd": "internal/examples/json",
             "args": [
                 "-type",
                 "Struct",
@@ -121,12 +121,13 @@
             "request": "launch",
             "mode": "debug",
             "program": "main.go",
-            "cwd": "examples/multiply_tags",
+            "cwd": "internal/examples/multiply_tags",
             "args": [
                 "-type",
                 "Entity",
                 "-out",
-                "entity_fields.go"
+                "entity_fields.go",
+                "-debug"
             ]
         },
         {
@@ -232,7 +233,11 @@
             "args": [
                 "-type",
                 "Entity",
-                "enum-const"
+                "enum-const",
+                "-val",
+                "tag.json",
+                "-list",
+                "jsons"
             ]
         },
         {

@@ -21,7 +21,7 @@ func cols() []Col { //nolint
 		colVersion}
 }
 
-func val(s *squirrel.Entity, f Col) interface{} { //nolint
+func val(s *squirrel.Entity, f Col) any { //nolint
 	if s == nil {
 		return nil
 	}
@@ -38,7 +38,7 @@ func val(s *squirrel.Entity, f Col) interface{} { //nolint
 	return nil
 }
 
-func ref(s *squirrel.Entity, f Col) interface{} { //nolint
+func ref(s *squirrel.Entity, f Col) any { //nolint
 	if s == nil {
 		return nil
 	}
