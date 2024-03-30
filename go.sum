@@ -24,6 +24,10 @@ github.com/m4gshm/gollections v0.0.12-0.20240330114400-ff606736e401 h1:+BeQESa1t
 github.com/m4gshm/gollections v0.0.12-0.20240330114400-ff606736e401/go.mod h1:M98G706MBft2JXf3iKwtGEakS9tePLReKbG0dK5Fa0s=
 github.com/m4gshm/gollections v0.0.12-0.20240330165225-fbedd243f44d h1:BDCxQaoVQDlr3PnzPVQn+SyT+9eh9X5rwQjq9yXRovg=
 github.com/m4gshm/gollections v0.0.12-0.20240330165225-fbedd243f44d/go.mod h1:M98G706MBft2JXf3iKwtGEakS9tePLReKbG0dK5Fa0s=
+github.com/m4gshm/gollections v0.0.12-0.20240330172342-7b837a37d806 h1:/GOwpBk8OmVWRQUDkNYunK+dYU/h4hZBsU1cNhZq9AY=
+github.com/m4gshm/gollections v0.0.12-0.20240330172342-7b837a37d806/go.mod h1:M98G706MBft2JXf3iKwtGEakS9tePLReKbG0dK5Fa0s=
+github.com/m4gshm/gollections v0.0.12-0.20240330172818-ef9dd7c2b5b6 h1:l5IYplWyPrOsUFy7RBR+DfTMCjpN1+DOnP85kgvpd4E=
+github.com/m4gshm/gollections v0.0.12-0.20240330172818-ef9dd7c2b5b6/go.mod h1:M98G706MBft2JXf3iKwtGEakS9tePLReKbG0dK5Fa0s=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

@@ -277,7 +277,7 @@ func generateToBuilderMethodConditionedParts(
 	variables := []string{}
 	methodBody := ""
 
-	varsConditionStart, varsConditionEnd := split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum[string], op.Sum[string])
+	varsConditionStart, varsConditionEnd := split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum, op.Sum)
 
 	initVars += varsConditionStart
 

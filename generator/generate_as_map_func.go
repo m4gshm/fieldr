@@ -72,14 +72,14 @@ func TypeParamsDeclarationString(list *types.TypeParamList, basePkgPath string) 
 		})
 		noFirst = true
 		return s
-	}), op.Sum[string])+get.If(prevElem != nil, func() string { return " " + struc.TypeString(prevElem, basePkgPath) }).Else(""), "]")
+	}), op.Sum)+get.If(prevElem != nil, func() string { return " " + struc.TypeString(prevElem, basePkgPath) }).Else(""), "]")
 }
 
 func generateMapInits(g *Generator, mapVar, recVar string, rewriter *CodeRewriter, constants []FieldConst) string {
-	return loop.Convert(loop.S(constants), func(constant FieldConst) string {
+	return loop.ConvertS(constants, func(constant FieldConst) string {
 		var (
 			_, conditionPath, conditions         = FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
-			varsConditionStart, varsConditionEnd = split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum[string], op.Sum[string])
+			varsConditionStart, varsConditionEnd = split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum, op.Sum)
 			field                                = constant.fieldPath[len(constant.fieldPath)-1]
 			revr, _                              = rewriter.Transform(field.Name, field.Type, conditionPath)
 		)
