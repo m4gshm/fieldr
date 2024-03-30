@@ -76,7 +76,7 @@ func TypeParamsDeclarationString(list *types.TypeParamList, basePkgPath string) 
 }
 
 func generateMapInits(g *Generator, mapVar, recVar string, rewriter *CodeRewriter, constants []FieldConst) string {
-	return loop.Convert(loop.Of(constants...), func(constant FieldConst) string {
+	return loop.Convert(loop.S(constants), func(constant FieldConst) string {
 		var (
 			_, conditionPath, conditions         = FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
 			varsConditionStart, varsConditionEnd = split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum[string], op.Sum[string])

@@ -425,7 +425,7 @@ type commentArgs struct {
 }
 
 func getCommentArgs(file *ast.File, fInfo *token.File) ([]commentArgs, error) {
-	return breakloop.Slice(loop.Conv(loop.Flat(loop.Of(file.Comments...), func(cg *ast.CommentGroup) []*ast.Comment { return cg.List }),
+	return loop.Conv(loop.Flat(loop.S(file.Comments), func(cg *ast.CommentGroup) []*ast.Comment { return cg.List }),
 		func(comment *ast.Comment) (a commentArgs, err error) {
 			args, err := getCommentCmdArgs(comment.Text)
 			if err == nil && len(args) > 0 {
@@ -433,7 +433,7 @@ func getCommentArgs(file *ast.File, fInfo *token.File) ([]commentArgs, error) {
 			}
 			return commentArgs{comment: comment, args: args}, err
 		},
-	))
+	).Slice()
 }
 
 var commentCmdPrefix = "//" + params.CommentConfigPrefix
@@ -502,9 +502,9 @@ func splitArgs(rawArgs string) ([]string, error) {
 }
 
 func loadFilesPackages(fileSet *token.FileSet, inputs []string, buildTags []string) (*ordered.Set[*packages.Package], error) {
-	return breakloop.Reducee(loop.Conv(loop.Of(inputs...), func(srcFile string) (*ordered.Set[*packages.Package], error) {
+	return loop.Conv(loop.S(inputs), func(srcFile string) (*ordered.Set[*packages.Package], error) {
 		return loadFilePackage(srcFile, fileSet, buildTags...)
-	}), func(l, r *ordered.Set[*packages.Package]) (*ordered.Set[*packages.Package], error) {
+	}).Reducee(func(l, r *ordered.Set[*packages.Package]) (*ordered.Set[*packages.Package], error) {
 		_ = l.AddAllNew(r)
 		return l, nil
 	})

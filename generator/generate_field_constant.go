@@ -483,7 +483,7 @@ func (g *Generator) generateConstFieldMethod(typ, name string, constants []Field
 		returnNoCase = "\"\""
 	)
 	return "func (" + receiverVar + " " + typ + ") " + name + "() " + returnType + " {" + NoLint(nolint) + "\n" +
-		"switch " + receiverVar + " {\n" + loop.Sum(loop.Convert(loop.Of(constants...), func(constant FieldConst) string {
+		"switch " + receiverVar + " {\n" + loop.Sum(loop.Convert(loop.S(constants), func(constant FieldConst) string {
 		return use.If(len(constant.value) == 0, "").ElseGet(sum.Of("case ", constant.name, ":\nreturn \"",
 			convert.AndReduce(constant.fieldPath, func(p FieldInfo) string { return p.Name }, join.NonEmpty(".")), "\"\n"))
 	})) + "}\n" + "return " + returnNoCase + "}\n", nil
@@ -509,7 +509,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 	) + returnTypes + " {" + NoLint(nolint) + "\n" +
 		"if " + recVar + " == nil {\nreturn nil\n}\n" +
 		"switch " + argVar + " {\n" +
-		loop.Convert(loop.Of(constants...), func(constant FieldConst) string {
+		loop.Convert(loop.S(constants), func(constant FieldConst) string {
 			_, conditionPath, conditions := FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
 			varsConditionStart, varsConditionEnd := split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum[string], op.Sum[string])
 			return "case " + constant.name + ":\n" + varsConditionStart + "return " + pref + conditionPath + "\n" + varsConditionEnd
