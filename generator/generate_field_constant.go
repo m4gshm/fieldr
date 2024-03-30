@@ -20,7 +20,6 @@ import (
 	"github.com/m4gshm/gollections/op/delay/string_/wrap"
 	"github.com/m4gshm/gollections/op/delay/sum"
 	"github.com/m4gshm/gollections/slice/convert"
-	"github.com/m4gshm/gollections/slice/iter"
 	"github.com/m4gshm/gollections/slice/split"
 	"github.com/pkg/errors"
 
@@ -484,10 +483,10 @@ func (g *Generator) generateConstFieldMethod(typ, name string, constants []Field
 		returnNoCase = "\"\""
 	)
 	return "func (" + receiverVar + " " + typ + ") " + name + "() " + returnType + " {" + NoLint(nolint) + "\n" +
-		"switch " + receiverVar + " {\n" + loop.Sum(iter.Convert(constants, func(constant FieldConst) string {
+		"switch " + receiverVar + " {\n" + loop.Sum(loop.Convert(loop.Of(constants...), func(constant FieldConst) string {
 		return use.If(len(constant.value) == 0, "").ElseGet(sum.Of("case ", constant.name, ":\nreturn \"",
 			convert.AndReduce(constant.fieldPath, func(p FieldInfo) string { return p.Name }, join.NonEmpty(".")), "\"\n"))
-	}).Next) + "}\n" + "return " + returnNoCase + "}\n", nil
+	})) + "}\n" + "return " + returnNoCase + "}\n", nil
 }
 
 func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, name string, constants []FieldConst, export, nolint, ref bool) (string, string, error) {
@@ -510,11 +509,11 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 	) + returnTypes + " {" + NoLint(nolint) + "\n" +
 		"if " + recVar + " == nil {\nreturn nil\n}\n" +
 		"switch " + argVar + " {\n" +
-		loop.Reduce(iter.Convert(constants, func(constant FieldConst) string {
+		loop.Convert(loop.Of(constants...), func(constant FieldConst) string {
 			_, conditionPath, conditions := FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
 			varsConditionStart, varsConditionEnd := split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum[string], op.Sum[string])
 			return "case " + constant.name + ":\n" + varsConditionStart + "return " + pref + conditionPath + "\n" + varsConditionEnd
-		}).Next, op.Sum[string]) +
+		}).Reduce(op.Sum) +
 		"}\nreturn " + returnNoCase + "}\n"
 
 	return body, use.If(isFunc, name).Else(MethodName(recType, name)), nil

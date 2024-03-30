@@ -13,7 +13,6 @@ import (
 	"github.com/m4gshm/gollections/op/delay/string_/wrap"
 	"github.com/m4gshm/gollections/op/delay/sum"
 	"github.com/m4gshm/gollections/op/string_"
-	"github.com/m4gshm/gollections/slice/iter"
 	"github.com/m4gshm/gollections/slice/split"
 
 	"github.com/m4gshm/fieldr/struc"
@@ -56,7 +55,7 @@ func TypeParamsString(tparams *types.TypeParamList, basePkgPath string) string {
 	return string_.WrapNonEmpty("[", loop.Reduce(convert.FromIndexed(tparams.Len(), tparams.At, func(elem *types.TypeParam) string {
 		return use.If(elem == nil, "/*error: nil type parameter*/").ElseGet(
 			func() string { return struc.TypeString(elem, basePkgPath) })
-	}).Next, join.NonEmpty(", ")), "]")
+	}), join.NonEmpty(", ")), "]")
 }
 
 func TypeParamsDeclarationString(list *types.TypeParamList, basePkgPath string) string {
@@ -73,11 +72,11 @@ func TypeParamsDeclarationString(list *types.TypeParamList, basePkgPath string) 
 		})
 		noFirst = true
 		return s
-	}).Next, op.Sum[string])+get.If(prevElem != nil, func() string { return " " + struc.TypeString(prevElem, basePkgPath) }).Else(""), "]")
+	}), op.Sum[string])+get.If(prevElem != nil, func() string { return " " + struc.TypeString(prevElem, basePkgPath) }).Else(""), "]")
 }
 
 func generateMapInits(g *Generator, mapVar, recVar string, rewriter *CodeRewriter, constants []FieldConst) string {
-	return loop.Reduce(iter.Convert(constants, func(constant FieldConst) string {
+	return loop.Convert(loop.Of(constants...), func(constant FieldConst) string {
 		var (
 			_, conditionPath, conditions         = FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
 			varsConditionStart, varsConditionEnd = split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum[string], op.Sum[string])
@@ -85,5 +84,5 @@ func generateMapInits(g *Generator, mapVar, recVar string, rewriter *CodeRewrite
 			revr, _                              = rewriter.Transform(field.Name, field.Type, conditionPath)
 		)
 		return varsConditionStart + mapVar + "[" + constant.name + "]= " + revr + "\n" + varsConditionEnd
-	}).Next, op.Sum[string])
+	}).Reduce(op.Sum)
 }

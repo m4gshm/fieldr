@@ -10,6 +10,16 @@ github.com/m4gshm/gollections v0.0.10 h1:ajMnmJLoB8MjdAjHfRRxnkgw4/uBgQoD4NttXDP
 github.com/m4gshm/gollections v0.0.10/go.mod h1:TRYgTUE6ik68ZebsEtdEfB1wDVpvVDWPi90xHWrEZgg=
 github.com/m4gshm/gollections v0.0.11 h1:MbbTGit46YEQ7d3Jzc+LF5bDzYeOFe0jY+20V2f5/YQ=
 github.com/m4gshm/gollections v0.0.11/go.mod h1:efChLrSZcTK/243iW9q40Bq3v0i9SWdlZIZXMG5XSF4=
+github.com/m4gshm/gollections v0.0.12-0.20240329221430-963dc63fa3b1 h1:zen9iJvdSmawvh0oZu6nrYgo3HQt3ngmKghBG8fww2Q=
+github.com/m4gshm/gollections v0.0.12-0.20240329221430-963dc63fa3b1/go.mod h1:M98G706MBft2JXf3iKwtGEakS9tePLReKbG0dK5Fa0s=
+github.com/m4gshm/gollections v0.0.12-0.20240329223051-fa24b12c7562 h1:qlt6ycGgOc2KFajcWe3DtTCZRxyHZVzWNEXQBZt/t38=
+github.com/m4gshm/gollections v0.0.12-0.20240329223051-fa24b12c7562/go.mod h1:M98G706MBft2JXf3iKwtGEakS9tePLReKbG0dK5Fa0s=
+github.com/m4gshm/gollections v0.0.12-0.20240329230802-5649492e5245 h1:+y8qvVDAiyomhFG6GMuHHDU7VJVl6KZla7bI0kpN8uY=
+github.com/m4gshm/gollections v0.0.12-0.20240329230802-5649492e5245/go.mod h1:M98G706MBft2JXf3iKwtGEakS9tePLReKbG0dK5Fa0s=
+github.com/m4gshm/gollections v0.0.12-0.20240329231437-64c21b324750 h1:M40Rkd3T1xO8HSY2ngCKUYlXfMseiSV2Ex0xq60JfJE=
+github.com/m4gshm/gollections v0.0.12-0.20240329231437-64c21b324750/go.mod h1:M98G706MBft2JXf3iKwtGEakS9tePLReKbG0dK5Fa0s=
+github.com/m4gshm/gollections v0.0.12-0.20240329232628-b5245ecb0073 h1:Jzs8ozCQ+WdLmlfE0nRZHDs9ZEW9vvtUaX9VUcC6liY=
+github.com/m4gshm/gollections v0.0.12-0.20240329232628-b5245ecb0073/go.mod h1:M98G706MBft2JXf3iKwtGEakS9tePLReKbG0dK5Fa0s=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
@@ -36,6 +46,7 @@ golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1 h1:k/i9J1pBpvlfR+9QsetwPyERs
 golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1/go.mod h1:V1LtkGg67GoY2N1AnLN78QLrzxkLyJw7RJb1gzOOz9w=
 golang.org/x/exp v0.0.0-20240119083558-1b970713d09a h1:Q8/wZp0KX97QFTc2ywcOE0YRjZPVIx+MXInMzdvQqcA=
 golang.org/x/exp v0.0.0-20240119083558-1b970713d09a/go.mod h1:idGWGoKP1toJGkd5/ig9ZLuPcZBC3ewk7SzmH0uou08=
+golang.org/x/exp v0.0.0-20240205201215-2c58cdc269a3/go.mod h1:idGWGoKP1toJGkd5/ig9ZLuPcZBC3ewk7SzmH0uou08=
 golang.org/x/mod v0.10.0 h1:lFO9qtOdlre5W1jxS3r/4szv2/6iXxScdzjoBMXNhYk=
 golang.org/x/mod v0.10.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
 golang.org/x/mod v0.14.0 h1:dGoOF9QVLYng8IHTm7BAyWqCqSheQ5pYWGhzW00YJr0=

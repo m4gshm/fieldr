@@ -14,7 +14,7 @@ import (
 	"github.com/m4gshm/fieldr/logger"
 )
 
-func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.ForLoop[*packages.Package]) (*types.Named, *packages.Package, *ast.File, error) {
+func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.For[*packages.Package]) (*types.Named, *packages.Package, *ast.File, error) {
 	var resultType *types.Named
 	var resultPkg *packages.Package
 	var resultFile *ast.File
@@ -45,7 +45,7 @@ func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.ForLoop
 					}
 				}
 			}
-			return c.ErrBreak
+			return c.Break
 		}
 	})
 }
