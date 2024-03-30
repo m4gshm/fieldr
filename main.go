@@ -199,14 +199,14 @@ func run() error {
 		pkgsFiles := getAstFiles(pkgs)
 		logger.Debugf("source files amount %d", pkgsFiles.Len())
 
-		pkgsFiles.ForEach(func(file *ast.File) {
+		for file := range pkgsFiles.All {
 			if info := fileSet.File(file.Pos()); info != nil {
 				logger.Debugf("found source file %s", info.Name())
 			}
-		})
+		}
 	}
 
-	return typeConfigs.Track(func(typeConfig params.TypeConfig, commands []*command.Command) error {
+	for typeConfig, commands := range typeConfigs.All {
 		logger.Debugf("using type config %+v\n", typeConfig)
 
 		typeName := typeConfig.Type
@@ -313,8 +313,8 @@ func run() error {
 		} else if fmtErr != nil {
 			return fmt.Errorf("go src code formatting error: %s", fmtErr)
 		}
-		return nil
-	})
+	}
+	return nil
 }
 
 func getPkgFiles(p *packages.Package) []*ast.File { return p.Syntax }
