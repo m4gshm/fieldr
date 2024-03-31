@@ -326,7 +326,7 @@ func getAstFiles(pkgs *ordered.Set[*packages.Package]) *ordered.Set[*ast.File] {
 func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], outputName, moduleDir string) (*packages.Package, *ast.File, *token.File, error) {
 	logger.Debugf("findPkgFile: outputName %s", outputName)
 
-	for next, pkg, file, ok := loop.ExtraVals(pkgs.Loop(), getPkgFiles).Crank(); ok; pkg, file, ok = next() {
+	for pkg, file := range loop.ExtraVals(pkgs.Loop(), getPkgFiles).All {
 		if info := fileSet.File(file.Pos()); info != nil {
 			srcFileName := info.Name()
 			if srcFileName == outputName {
@@ -345,7 +345,7 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 	}
 	logger.Debugf("findPkgFile: find package by exist src files")
 
-	for next, pkg, file, ok := loop.ExtraVals(pkgs.Loop(), getPkgFiles).Crank(); ok; pkg, file, ok = next() {
+	for pkg, file := range loop.ExtraVals(pkgs.Loop(), getPkgFiles).All {
 		if info := fileSet.File(file.Pos()); info != nil {
 			if fileDir, err := getDir(info.Name()); err != nil {
 				return nil, nil, nil, err
