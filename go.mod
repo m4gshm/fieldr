@@ -6,7 +6,7 @@ toolchain go1.22.1
 
 require (
 	github.com/m4gshm/expressions v0.0.0-20230605220217-66f85e582662
-	github.com/m4gshm/gollections v0.0.12-0.20240330172818-ef9dd7c2b5b6
+	github.com/m4gshm/gollections v0.0.12
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
