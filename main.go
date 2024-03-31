@@ -113,11 +113,14 @@ func run() error {
 
 	typeConfigs := map_.Empty[params.TypeConfig, []*command.Command]()
 
-	fileCommentPairs := breakloop.ExtraVals(getFilesCommentArgs(fileSet, getAstFiles(pkgs)), fileCommentArgs.CommentArgs)
-	if err := fileCommentPairs.Track(func(file fileCommentArgs, commentCmd commentArgs) error {
+	for file, err := range getFilesCommentArgs(fileSet, getAstFiles(pkgs)).All {
+		if err != nil {
+			return err
+		}
+		commentCmd := file.CommentArgs()
 		configParser := newConfigFlagSet(strings.Join(commentCmd.args, " "))
 		commentConfig := params.NewTypeConfig(configParser)
-		if err := configParser.Parse(commentCmd.args); err != nil {
+		if err = configParser.Parse(commentCmd.args); err != nil {
 			return err
 		}
 		if notCmdLineType {
@@ -172,9 +175,6 @@ func run() error {
 			logger.Debugf("unspent comment line args: %v\n", cmtArgs)
 		}
 		commands = append(commands, cmtCommands...)
-		return nil
-	}); err != nil {
-		return err
 	}
 
 	typeConfigs.Set(typeConfig, commands)
