@@ -14,20 +14,16 @@ import (
 	"github.com/m4gshm/fieldr/logger"
 )
 
-func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.ForLoop[*packages.Package]) (*types.Named, *packages.Package, *ast.File, error) {
-	var resultType *types.Named
-	var resultPkg *packages.Package
-	var resultFile *ast.File
-	return resultType, resultPkg, resultFile, pkgs.For(func(pkg *packages.Package) error {
+func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.All[*packages.Package]) (*types.Named, *packages.Package, *ast.File, error) {
+	for pkg := range pkgs.All {
 		pkgTypes := pkg.Types
 		if lookup := pkgTypes.Scope().Lookup(typeName); lookup == nil {
 			logger.Debugf("no type '%s' in package '%s'", typeName, pkgTypes.Name())
-			return nil
+			continue
 		} else if structType, _ := GetStructTypeNamed(lookup.Type()); structType == nil {
-			return fmt.Errorf("type '%s' is not struct", typeName)
+			return nil, nil, nil, fmt.Errorf("type '%s' is not struct", typeName)
 		} else {
-			resultType = structType
-			resultPkg = pkg
+			var resultFile *ast.File
 			logger.Debugf("look package '%s', syntax file count %d", pkg.Name, len(pkg.Syntax))
 			for _, file := range pkg.Syntax {
 				if tokenFile := fileSet.File(file.Pos()); tokenFile != nil {
@@ -37,7 +33,7 @@ func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.ForLoop
 						types := map_.Keys(file.Scope.Objects)
 						logger.Debugf("no type '%s' in file '%s', package '%s', types %#v", typeName, fileName, pkgTypes.Name(), types)
 					} else if _, ok := lookup.Decl.(*ast.TypeSpec); !ok {
-						return fmt.Errorf("type '%s' is not struct in file '%s'", typeName, fileName)
+						return nil, nil, nil, fmt.Errorf("type '%s' is not struct in file '%s'", typeName, fileName)
 					} else {
 						resultFile = file
 						logger.Debugf("found type file '%s'", fileName)
@@ -45,9 +41,10 @@ func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.ForLoop
 					}
 				}
 			}
-			return c.ErrBreak
+			return structType, pkg, resultFile, nil
 		}
-	})
+	}
+	return nil, nil, nil, nil
 }
 
 func GetTypeNamed(typ types.Type) (*types.Named, int) {

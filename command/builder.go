@@ -74,7 +74,7 @@ func NewBuilderStruct() *Command {
 
 			btyp.SetTypeParams(loop.Slice(convert.FromIndexed(tparams.Len(), tparams.At, func(tp *types.TypeParam) *types.TypeParam {
 				return types.NewTypeParam(tp.Obj(), tp.Constraint())
-			}).Next))
+			})))
 
 			var exportMethods, exportFields bool
 			for _, e := range *exports {
@@ -277,7 +277,7 @@ func generateToBuilderMethodConditionedParts(
 	variables := []string{}
 	methodBody := ""
 
-	varsConditionStart, varsConditionEnd := split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum[string], op.Sum[string])
+	varsConditionStart, varsConditionEnd := split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum, op.Sum)
 
 	initVars += varsConditionStart
 

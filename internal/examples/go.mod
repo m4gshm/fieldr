@@ -1,6 +1,8 @@
 module example
 
-go 1.18
+go 1.22
+
+toolchain go1.22.1
 
 require (
 	github.com/Masterminds/squirrel v1.5.4
@@ -10,7 +12,7 @@ require (
 	github.com/rs/zerolog v1.28.0
 	github.com/simukti/sqldb-logger v0.0.0-20220521163925-faf2f2be0eb6
 	github.com/simukti/sqldb-logger/logadapter/zerologadapter v0.0.0-20220521163925-faf2f2be0eb6
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.4
 )
 
 require (
@@ -25,6 +27,7 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
+	github.com/m4gshm/gollections v0.0.13-0.20240331203319-a34a86e58a24 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect

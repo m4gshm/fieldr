@@ -16,7 +16,7 @@ func GenerateSetter(model *struc.Model, pkgName, receiverVar, methodName, fieldN
 	typeParams := TypeParamsString(model.Typ.TypeParams(), outPkgPath)
 	typeParamsDecl := TypeParamsDeclarationString(model.Typ.TypeParams(), outPkgPath)
 	_, conditionalPath, conditions := FiledPathAndAccessCheckCondition(receiverVar, isReceiverReference, false, fieldParts)
-	varsConditionStart, varsConditionEnd := split.AndReduce(conditions, string_.Wrap("if ", " {\n"), replace.By("}\n"), op.Sum[string], op.Sum[string])
+	varsConditionStart, varsConditionEnd := split.AndReduce(conditions, string_.Wrap("if ", " {\n"), replace.By("}\n"), op.Sum, op.Sum)
 
 	arg := LegalIdentName(IdentName(fieldName, false))
 	return get.If(len(pkgName) == 0,
@@ -33,7 +33,7 @@ func GenerateGetter(model *struc.Model, pkgName, receiverVar, methodName, fieldN
 	typeParams := TypeParamsString(model.Typ.TypeParams(), outPkgPath)
 	typeParamsDecl := TypeParamsDeclarationString(model.Typ.TypeParams(), outPkgPath)
 	_, conditionalPath, conditions := FiledPathAndAccessCheckCondition(receiverVar, isReceiverReference, false, fieldParts)
-	varsConditionStart, varsConditionEnd := split.AndReduce(conditions, string_.Wrap("if ", " {\n"), replace.By("}\n"), op.Sum[string], op.Sum[string])
+	varsConditionStart, varsConditionEnd := split.AndReduce(conditions, string_.Wrap("if ", " {\n"), replace.By("}\n"), op.Sum, op.Sum)
 
 	emptyVar := "no"
 	emptyResult := "var " + emptyVar + " " + fieldType

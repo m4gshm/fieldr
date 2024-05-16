@@ -937,7 +937,7 @@ func (g *Generator) RepackTuple(vr *types.Tuple, basePackagePath string) (*types
 		rv, err := g.RepackVar(v, basePackagePath)
 		repacked = repacked || rv != v
 		return rv, err
-	}).Next)
+	}))
 
 	if err != nil {
 		return nil, err

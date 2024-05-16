@@ -18,7 +18,6 @@ import (
 
 	"github.com/m4gshm/expressions/error_"
 	breakloop "github.com/m4gshm/gollections/break/loop"
-	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/collection"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
 	"github.com/m4gshm/gollections/collection/mutable/ordered/map_"
@@ -28,7 +27,6 @@ import (
 	"github.com/m4gshm/gollections/loop"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/slice"
-	"github.com/m4gshm/gollections/slice/iter"
 	"golang.org/x/tools/go/packages"
 
 	"github.com/m4gshm/fieldr/command"
@@ -115,11 +113,14 @@ func run() error {
 
 	typeConfigs := map_.Empty[params.TypeConfig, []*command.Command]()
 
-	fileCommentPairs := breakloop.ExtraVals(getFilesCommentArgs(fileSet, getAstFiles(pkgs)).Next, fileCommentArgs.CommentArgs)
-	if err := fileCommentPairs.Track(func(file fileCommentArgs, commentCmd commentArgs) error {
+	for file, err := range getFilesCommentArgs(fileSet, getAstFiles(pkgs)).All {
+		if err != nil {
+			return err
+		}
+		commentCmd := file.CommentArgs()
 		configParser := newConfigFlagSet(strings.Join(commentCmd.args, " "))
 		commentConfig := params.NewTypeConfig(configParser)
-		if err := configParser.Parse(commentCmd.args); err != nil {
+		if err = configParser.Parse(commentCmd.args); err != nil {
 			return err
 		}
 		if notCmdLineType {
@@ -174,9 +175,6 @@ func run() error {
 			logger.Debugf("unspent comment line args: %v\n", cmtArgs)
 		}
 		commands = append(commands, cmtCommands...)
-		return nil
-	}); err != nil {
-		return err
 	}
 
 	typeConfigs.Set(typeConfig, commands)
@@ -201,14 +199,14 @@ func run() error {
 		pkgsFiles := getAstFiles(pkgs)
 		logger.Debugf("source files amount %d", pkgsFiles.Len())
 
-		pkgsFiles.ForEach(func(file *ast.File) {
+		for file := range pkgsFiles.All {
 			if info := fileSet.File(file.Pos()); info != nil {
 				logger.Debugf("found source file %s", info.Name())
 			}
-		})
+		}
 	}
 
-	return typeConfigs.Track(func(typeConfig params.TypeConfig, commands []*command.Command) error {
+	for typeConfig, commands := range typeConfigs.All {
 		logger.Debugf("using type config %+v\n", typeConfig)
 
 		typeName := typeConfig.Type
@@ -315,20 +313,20 @@ func run() error {
 		} else if fmtErr != nil {
 			return fmt.Errorf("go src code formatting error: %s", fmtErr)
 		}
-		return nil
-	})
+	}
+	return nil
 }
 
 func getPkgFiles(p *packages.Package) []*ast.File { return p.Syntax }
 
 func getAstFiles(pkgs *ordered.Set[*packages.Package]) *ordered.Set[*ast.File] {
-	return set.From(collection.Flat(pkgs, getPkgFiles).Next)
+	return set.From(collection.Flat(pkgs, getPkgFiles))
 }
 
 func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], outputName, moduleDir string) (*packages.Package, *ast.File, *token.File, error) {
 	logger.Debugf("findPkgFile: outputName %s", outputName)
 
-	for iter, pkg, file, ok := collection.ExtraVals(pkgs, getPkgFiles).Start(); ok; pkg, file, ok = iter.Next() {
+	for pkg, file := range loop.ExtraVals(pkgs.Loop(), getPkgFiles).All {
 		if info := fileSet.File(file.Pos()); info != nil {
 			srcFileName := info.Name()
 			if srcFileName == outputName {
@@ -347,7 +345,7 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 	}
 	logger.Debugf("findPkgFile: find package by exist src files")
 
-	for iter, pkg, file, ok := collection.ExtraVals(pkgs, getPkgFiles).Start(); ok; pkg, file, ok = iter.Next() {
+	for pkg, file := range loop.ExtraVals(pkgs.Loop(), getPkgFiles).All {
 		if info := fileSet.File(file.Pos()); info != nil {
 			if fileDir, err := getDir(info.Name()); err != nil {
 				return nil, nil, nil, err
@@ -409,7 +407,7 @@ type fileCommentArgs struct {
 
 func (f fileCommentArgs) CommentArgs() []commentArgs { return f.commentArgs }
 
-func getFilesCommentArgs(fileSet *token.FileSet, files c.Iterable[*ast.File]) breakloop.ConvertCheckIter[*fileCommentArgs, fileCommentArgs] {
+func getFilesCommentArgs(fileSet *token.FileSet, files collection.Iterable[*ast.File]) breakloop.Loop[fileCommentArgs] {
 	return breakloop.NoNilPtrVal(collection.Conv(files, func(file *ast.File) (*fileCommentArgs, error) {
 		ft := fileSet.File(file.Pos())
 		if args, err := getCommentArgs(file, ft); err != nil {
@@ -418,7 +416,7 @@ func getFilesCommentArgs(fileSet *token.FileSet, files c.Iterable[*ast.File]) br
 			return &fileCommentArgs{astFile: file, tokenFile: ft, commentArgs: args}, nil
 		}
 		return nil, nil
-	}).Next)
+	}))
 }
 
 type commentArgs struct {
@@ -427,7 +425,7 @@ type commentArgs struct {
 }
 
 func getCommentArgs(file *ast.File, fInfo *token.File) ([]commentArgs, error) {
-	return breakloop.Slice(loop.Conv(iter.Flat(file.Comments, func(cg *ast.CommentGroup) []*ast.Comment { return cg.List }).Next,
+	return loop.Conv(loop.FlatS(file.Comments, func(cg *ast.CommentGroup) []*ast.Comment { return cg.List }),
 		func(comment *ast.Comment) (a commentArgs, err error) {
 			args, err := getCommentCmdArgs(comment.Text)
 			if err == nil && len(args) > 0 {
@@ -435,7 +433,7 @@ func getCommentArgs(file *ast.File, fInfo *token.File) ([]commentArgs, error) {
 			}
 			return commentArgs{comment: comment, args: args}, err
 		},
-	).Next)
+	).Slice()
 }
 
 var commentCmdPrefix = "//" + params.CommentConfigPrefix
@@ -504,9 +502,9 @@ func splitArgs(rawArgs string) ([]string, error) {
 }
 
 func loadFilesPackages(fileSet *token.FileSet, inputs []string, buildTags []string) (*ordered.Set[*packages.Package], error) {
-	return breakloop.Reducee(iter.Conv(inputs, func(srcFile string) (*ordered.Set[*packages.Package], error) {
+	return loop.ConvS(inputs, func(srcFile string) (*ordered.Set[*packages.Package], error) {
 		return loadFilePackage(srcFile, fileSet, buildTags...)
-	}).Next, func(l, r *ordered.Set[*packages.Package]) (*ordered.Set[*packages.Package], error) {
+	}).Reducee(func(l, r *ordered.Set[*packages.Package]) (*ordered.Set[*packages.Package], error) {
 		_ = l.AddAllNew(r)
 		return l, nil
 	})
