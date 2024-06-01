@@ -4,6 +4,8 @@ github.com/expr-lang/expr v1.16.0 h1:BQabx+PbjsL2PEQwkJ4GIn3CcuUh8flduHhJ0lHjWwE
 github.com/expr-lang/expr v1.16.0/go.mod h1:uCkhfG+x7fcZ5A5sXHKuQ07jGZRl6J0FCAaf2k4PtVQ=
 github.com/m4gshm/expressions v0.0.0-20230605220217-66f85e582662 h1:YU5RQ+yghBJnPtTmaDVURlgdjIHY3gOwogAyHkOmFZ0=
 github.com/m4gshm/expressions v0.0.0-20230605220217-66f85e582662/go.mod h1:JYSo5/gWIjF9pPcw1YWGVQ52WRau/wv6d/D2NtOluSs=
+github.com/m4gshm/flag v0.0.0-20240527081149-4760f0e89bef h1:1fsIdtGgW769v1lZlmduLkKEJuvv5L/ec8ff2j4JCTg=
+github.com/m4gshm/flag v0.0.0-20240527081149-4760f0e89bef/go.mod h1:+/tHF7E5MdN8WBoH4fXk2yK3b5v0x40MOn3n1YA4Cho=
 github.com/m4gshm/gollections v0.0.12 h1:MLJNwAOT83jLfIstyhuWjlx+XjabXFbjt5bCt8fUXOM=
 github.com/m4gshm/gollections v0.0.12/go.mod h1:M98G706MBft2JXf3iKwtGEakS9tePLReKbG0dK5Fa0s=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
@@ -12,6 +14,7 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
+github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 go.uber.org/goleak v1.2.0 h1:xqgm/S+aQvhWFTtR0XK3Jvg7z8kGV8P4X14IzwN3Eqk=
 go.uber.org/goleak v1.2.0/go.mod h1:XJYK+MuIchqpmGmUSAzotztawfKvYLUIgg7guXrwVUo=
 go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=

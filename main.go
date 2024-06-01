@@ -117,64 +117,65 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		commentCmd := file.CommentArgs()
-		configParser := newConfigFlagSet(strings.Join(commentCmd.args, " "))
-		commentConfig := params.NewTypeConfig(configParser)
-		if err = configParser.Parse(commentCmd.args); err != nil {
-			return err
-		}
-		if notCmdLineType {
-			if len(commentConfig.Type) != 0 {
-				typeConfig.Type = commentConfig.Type
-				if len(typeConfig.Output) == 0 {
-					typeConfig.Output = commentConfig.Output
-				}
-				if len(typeConfig.OutPackage) == 0 {
-					typeConfig.OutPackage = commentConfig.OutPackage
-				}
-				if len(typeConfig.OutBuildTags) == 0 {
-					typeConfig.OutBuildTags = commentConfig.OutBuildTags
-				}
-				logger.Debugf("init first type %+v by comment type %+v", typeConfig, *commentConfig)
+		for _, commentCmd := range file.CommentArgs() {
+			configParser := newConfigFlagSet(strings.Join(commentCmd.args, " "))
+			commentConfig := params.NewTypeConfig(configParser)
+			if err = configParser.Parse(commentCmd.args); err != nil {
+				return err
 			}
-			notCmdLineType = false
-		}
-
-		if commentConfig.Type == typeConfig.Type && commentConfig.Output == typeConfig.Output {
-			logger.Debugf("skip comment config because its type and out are equal to prev: comment config %+v, prev %+v", commentConfig, typeConfig)
-			//skip
-		} else if len(commentConfig.Type) == 0 && commentConfig.Output == typeConfig.Output {
-			//skip
-			logger.Debugf("skip comment config because its out is equal to prev: comment config %+v, prev %+v", commentConfig, typeConfig)
-		} else if len(commentConfig.Type) != 0 || len(commentConfig.Output) != 0 {
-			if len(commentConfig.Type) == 0 {
-				(*commentConfig).Type = typeConfig.Type
+			if notCmdLineType {
+				if len(commentConfig.Type) != 0 {
+					typeConfig.Type = commentConfig.Type
+					if len(typeConfig.Output) == 0 {
+						typeConfig.Output = commentConfig.Output
+					}
+					if len(typeConfig.OutPackage) == 0 {
+						typeConfig.OutPackage = commentConfig.OutPackage
+					}
+					if len(typeConfig.OutBuildTags) == 0 {
+						typeConfig.OutBuildTags = commentConfig.OutBuildTags
+					}
+					logger.Debugf("init first type %+v by comment type %+v", typeConfig, *commentConfig)
+				}
+				notCmdLineType = false
 			}
 
-			logger.Debugf("detect another type %+v\n", *commentConfig)
+			if commentConfig.Type == typeConfig.Type && commentConfig.Output == typeConfig.Output {
+				logger.Debugf("skip comment config because its type and out are equal to prev: comment config %+v, prev %+v", commentConfig, typeConfig)
+				//skip
+			} else if len(commentConfig.Type) == 0 && commentConfig.Output == typeConfig.Output {
+				//skip
+				logger.Debugf("skip comment config because its out is equal to prev: comment config %+v, prev %+v", commentConfig, typeConfig)
+			} else if len(commentConfig.Type) != 0 || len(commentConfig.Output) != 0 {
+				if len(commentConfig.Type) == 0 {
+					(*commentConfig).Type = typeConfig.Type
+				}
 
-			if len(commands) == 0 {
-				logger.Debugf("no commands for type %v", typeConfig)
-				typeConfig = *commentConfig
-			} else {
-				typeConfigs.Set(typeConfig, commands)
-				logger.Debugf("set type %+v, commands %d\n", typeConfig, len(commands))
-				typeConfig = *commentConfig
-				commands = []*command.Command{}
+				logger.Debugf("detect another type %+v\n", *commentConfig)
+
+				if len(commands) == 0 {
+					logger.Debugf("no commands for type %v", typeConfig)
+					typeConfig = *commentConfig
+				} else {
+					typeConfigs.Set(typeConfig, commands)
+					logger.Debugf("set type %+v, commands %d\n", typeConfig, len(commands))
+					typeConfig = *commentConfig
+					commands = []*command.Command{}
+				}
 			}
-		}
 
-		cmtCommands, cmtArgs, err := parseCommands(configParser.Args())
-		if uErr, ok := error_.As[*fuse.Error](err); ok {
-			return fuse.FileCommentErr(uErr.Error(), file.astFile, file.tokenFile, commentCmd.comment)
-		} else if err != nil {
-			return err
-		} else if len(cmtCommands) == 0 {
-			// logger.Debugf("no comment generator commands: file %s, line: %d args %v\n", f.file.Name, cmt.comment.Pos(), cmtArgs)
-		} else if len(cmtArgs) > 0 {
-			logger.Debugf("unspent comment line args: %v\n", cmtArgs)
+			cmtCommands, cmtArgs, err := parseCommands(configParser.Args())
+			if uErr, ok := error_.As[*fuse.Error](err); ok {
+				return fuse.FileCommentErr(uErr.Error(), file.astFile, file.tokenFile, commentCmd.comment)
+			} else if err != nil {
+				return err
+			} else if len(cmtCommands) == 0 {
+				// logger.Debugf("no comment generator commands: file %s, line: %d args %v\n", f.file.Name, cmt.comment.Pos(), cmtArgs)
+			} else if len(cmtArgs) > 0 {
+				logger.Debugf("unspent comment line args: %v\n", cmtArgs)
+			}
+			commands = append(commands, cmtCommands...)
 		}
-		commands = append(commands, cmtCommands...)
 	}
 
 	typeConfigs.Set(typeConfig, commands)
