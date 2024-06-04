@@ -3,7 +3,6 @@ package generator
 import (
 	goconstant "go/constant"
 	"go/types"
-	"strings"
 
 	"github.com/m4gshm/gollections/collection"
 	ordermap "github.com/m4gshm/gollections/collection/immutable/ordered/map_"
@@ -33,7 +32,7 @@ func (g *Generator) GenerateEnumStringify(model *enum.Model, name string, export
 	maxConstsPerVal := loop.Reduce(collection.Convert(conctValNamesMap.Values(), slice.Len), op.Max)
 	returnSlice := maxConstsPerVal > 1
 
-	internalContent := ConstsSwitchExpr(conctValNamesMap, !returnSlice)
+	internalContent := ConstsSwitchExpr(conctValNamesMap, receiverVar, !returnSlice)
 	typParams := model.Typ().TypeParams()
 	receiverType := GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
 	returnType := op.IfElse(returnSlice, "[]string", "string")
@@ -41,47 +40,20 @@ func (g *Generator) GenerateEnumStringify(model *enum.Model, name string, export
 	return MethodName(typeName, funcName), body, nil
 }
 
-func ConstsSwitchExpr[C collection.Map[goconstant.Value, []string]](consts C, onlyFirst bool) string {
-	varName := "e"
-
-	switchCaseBody := strings.Builder{}
-	switchCaseBody.WriteString("switch ")
-	switchCaseBody.WriteString(varName)
-	switchCaseBody.WriteString(" {\n")
-
+func ConstsSwitchExpr[C collection.Map[goconstant.Value, []string]](consts C, receiverVar string, onlyFirst bool) string {
+	expr := "switch " + receiverVar + " {\n"
 	for val, names := range consts.All {
-		vs := val.ExactString()
-		switchCaseBody.WriteString("case ")
-		switchCaseBody.WriteString(vs)
-		switchCaseBody.WriteString(":\n")
-		switchCaseBody.WriteString("\treturn")
+		expr += "case " + val.ExactString() + ":\n" + "\treturn"
 		if onlyFirst {
-			switchCaseBody.WriteString("\"")
-			switchCaseBody.WriteString(names[0])
-			switchCaseBody.WriteString("\"")
+			expr += "\"" + names[0] + "\""
 		} else {
-			switchCaseBody.WriteString("[]string{")
+			expr += "[]string{"
 			for i, name := range names {
-				if i > 0 {
-					switchCaseBody.WriteString(",")
-				}
-				switchCaseBody.WriteString("\"")
-				switchCaseBody.WriteString(name)
-				switchCaseBody.WriteString("\"")
+				expr += op.IfElse(i > 0, ",", "") + "\"" + name + "\""
 			}
-			switchCaseBody.WriteString("}")
+			expr += "}"
 		}
-		switchCaseBody.WriteString("\n")
+		expr += "\n"
 	}
-
-	switchCaseBody.WriteString("default:\n\treturn ")
-	if onlyFirst {
-		switchCaseBody.WriteString("\"\"")
-	} else {
-		switchCaseBody.WriteString("nil")
-	}
-	switchCaseBody.WriteString("\n}")
-
-	s := switchCaseBody.String()
-	return s
+	return expr + "default:\n\treturn " + op.IfElse(onlyFirst, "\"\"", "nil") + "\n}"
 }
