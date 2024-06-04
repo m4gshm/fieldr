@@ -5,12 +5,12 @@ all: build test readme
 test:
 	$(info #Running tests...)
 	go clean -testcache
-	GOEXPERIMENT=rangefunc go test
+	go test
 
 .PHONY: build
 build:
 	$(info #Building...)
-	GOEXPERIMENT=rangefunc go install
+	go install
 
 .PHONY: lint
 lint:

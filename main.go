@@ -113,7 +113,7 @@ func run() error {
 
 	typeConfigs := map_.Empty[params.TypeConfig, []*command.Command]()
 
-	for file, err := range getFilesCommentArgs(fileSet, getAstFiles(pkgs)).All {
+	for next, file, ok, err := getFilesCommentArgs(fileSet, getAstFiles(pkgs)).Crank(); ok; file, ok, err = next() {
 		if err != nil {
 			return err
 		}
@@ -200,14 +200,14 @@ func run() error {
 		pkgsFiles := getAstFiles(pkgs)
 		logger.Debugf("source files amount %d", pkgsFiles.Len())
 
-		for file := range pkgsFiles.All {
+		pkgsFiles.ForEach(func(file *ast.File) {
 			if info := fileSet.File(file.Pos()); info != nil {
 				logger.Debugf("found source file %s", info.Name())
 			}
-		}
+		})
 	}
 
-	for typeConfig, commands := range typeConfigs.All {
+	for iter, typeConfig, commands, ok := typeConfigs.First(); ok; typeConfig, commands, ok = iter.Next() {
 		logger.Debugf("using type config %+v\n", typeConfig)
 
 		typeName := typeConfig.Type
@@ -330,7 +330,7 @@ func getAstFiles(pkgs *ordered.Set[*packages.Package]) *ordered.Set[*ast.File] {
 func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], outputName, moduleDir string) (*packages.Package, *ast.File, *token.File, error) {
 	logger.Debugf("findPkgFile: outputName %s", outputName)
 
-	for pkg, file := range loop.ExtraVals(pkgs.Loop(), getPkgFiles).All {
+	for next, pkg, file, ok := loop.ExtraVals(pkgs.Loop(), getPkgFiles).Crank(); ok; pkg, file, ok = next() {
 		if info := fileSet.File(file.Pos()); info != nil {
 			srcFileName := info.Name()
 			if srcFileName == outputName {
@@ -349,7 +349,7 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 	}
 	logger.Debugf("findPkgFile: find package by exist src files")
 
-	for pkg, file := range loop.ExtraVals(pkgs.Loop(), getPkgFiles).All {
+	for next, pkg, file, ok := loop.ExtraVals(pkgs.Loop(), getPkgFiles).Crank(); ok; pkg, file, ok = next() {
 		if info := fileSet.File(file.Pos()); info != nil {
 			if fileDir, err := getDir(info.Name()); err != nil {
 				return nil, nil, nil, err
