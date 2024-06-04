@@ -32,8 +32,8 @@ import (
 	"github.com/m4gshm/fieldr/command"
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/logger"
+	"github.com/m4gshm/fieldr/model/util"
 	"github.com/m4gshm/fieldr/params"
-	"github.com/m4gshm/fieldr/struc"
 	fuse "github.com/m4gshm/fieldr/use"
 )
 
@@ -217,7 +217,7 @@ func run() error {
 			return fuse.Err("no type arg")
 		}
 
-		typ, typPkg, typFile, err := struc.FindTypePackageFile(typeName, fileSet, pkgs)
+		typ, typPkg, typFile, err := util.FindTypePackageFile(typeName, fileSet, pkgs)
 		if err != nil {
 			return fmt.Errorf("find type %s: %w", typeName, err)
 		} else if typ == nil {
@@ -293,7 +293,10 @@ func run() error {
 			pkgPath = outPkg.PkgPath
 		}
 		g := generator.New(params.Name, typeConfig.OutBuildTags, outFile, outFileInfo, pkgPath, pkgTypes)
-		ctx := &command.Context{Generator: g, Typ: typ, Pkg: struc.Package{Name: typPkg.Name, Path: typPkg.PkgPath}}
+		o := typ.Obj()
+		pp := o.Pkg()
+		_ = pp
+		ctx := &command.Context{Generator: g, Typ: typ}
 		for _, c := range commands {
 			logger.Debugf("run command %s", c.Name())
 			if err := c.Run(ctx); err != nil {

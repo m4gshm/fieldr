@@ -18,8 +18,9 @@ import (
 
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/logger"
+	"github.com/m4gshm/fieldr/model/struc"
+	"github.com/m4gshm/fieldr/model/util"
 	"github.com/m4gshm/fieldr/params"
-	"github.com/m4gshm/fieldr/struc"
 )
 
 func NewBuilderStruct() *Command {
@@ -51,17 +52,18 @@ func NewBuilderStruct() *Command {
 		cmdName, "generates builder API of a structure type",
 		flagSet,
 		func(context *Context) error {
-			model, err := context.Model()
+			model, err := context.StructModel()
 			if err != nil {
 				return err
 			}
 			g := context.Generator
-			pkgName, err := g.GetPackageName(model.Package.Name, model.Package.Path)
+			pkgName, err := g.GetPackageNameOrAlias(model.Package().Name(), model.Package().Path())
 			if err != nil {
 				return err
 			}
-			buildedType := generator.GetTypeName(model.TypeName, pkgName)
-			builderName := use.If(*name != generator.Autoname, *name).ElseGet(sum.Of(model.TypeName, "Builder"))
+			typeName := model.TypeName()
+			buildedType := generator.GetTypeName(typeName, pkgName)
+			builderName := use.If(*name != generator.Autoname, *name).ElseGet(sum.Of(typeName, "Builder"))
 
 			typ := model.Typ
 			obj := typ.Obj()
@@ -126,7 +128,7 @@ func NewBuilderStruct() *Command {
 				"return " + op.IfElse(*buildValue, "", "&") + buildedType + typeParams + " {\n" + parts.constructorMethodBody + "}\n" +
 				"}\n"
 
-			builderBody := struc.TypeString(btyp, g.OutPkgPath) + " struct {" + generator.NoLint(*nolint) + "\n" + parts.structBody + "}"
+			builderBody := util.TypeString(btyp, g.OutPkgPath) + " struct {" + generator.NoLint(*nolint) + "\n" + parts.structBody + "}"
 
 			if !*light {
 				if err := g.AddFuncOrMethod(builderConstructorMethodName, builderConstructorMethodBody); err != nil {
@@ -153,13 +155,14 @@ func NewBuilderStruct() *Command {
 				builderType := op.IfElse(*chainValue, "", "*") + builderName + typeParams
 				builderInstantiate := op.IfElse(*chainValue, "", "&") + builderName + typeParams
 				instanceType := op.IfElse(*buildValue, "", "*") + buildedType + typeParams
-				instanceReceiver := generator.TypeReceiverVar(model.TypeName)
+				typeName := model.TypeName()
+				instanceReceiver := generator.TypeReceiverVar(typeName)
 
 				b, pre, err := generateToBuilderMethodParts(g, model, instanceReceiver, "", !(*buildValue), exportFields)
 				if err != nil {
 					return err
 				}
-				return g.AddMethod(model.TypeName, *toBuilderMethodName, "func "+get.If(len(pkgName) > 0,
+				return g.AddMethod(typeName, *toBuilderMethodName, "func "+get.If(len(pkgName) > 0,
 					sum.Of(*toBuilderMethodName, typeParamsDecl, "(", instanceReceiver, " ", instanceType, ") "),
 				).ElseGet(
 					sum.Of("(", instanceReceiver, " ", instanceType, ") ", *toBuilderMethodName, "() "),

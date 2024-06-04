@@ -10,6 +10,7 @@ import (
 	"github.com/m4gshm/gollections/slice"
 
 	"github.com/m4gshm/fieldr/logger"
+	"github.com/m4gshm/fieldr/model/util"
 )
 
 type handledStructs = map[types.Type]*Model
@@ -65,22 +66,18 @@ func (b *structModelBuilder) populateByStruct(typ *types.Struct) error {
 			b.populateTags(fldName, fieldTagName, tagValues[fieldTagName])
 		}
 		fieldType := fieldVar.Type()
-		fieldTypeName := TypeString(fieldType, b.outPkgPath)
+		fieldTypeName := util.TypeString(fieldType, b.outPkgPath)
 		ref := 0
 		var fieldModel *Model
-		if structType, p := GetStructTypeNamed(fieldType); structType != nil {
-			var (
-				obj      = structType.Obj()
-				pkg      = obj.Pkg()
-				typeName = obj.Name()
-			)
+		if structType, p := util.GetStructTypeNamed(fieldType); structType != nil {
+			typeName := structType.Obj().Name()
 			ref = p
 			fieldTypeName = typeName
 			if b.deep {
-				if model, ok := b.loopControl[structType]; ok {
+				if fmodel, ok := b.loopControl[structType]; ok {
 					logger.Debugf("found handled type %v", typeName)
-					fieldModel = model
-				} else if model, err := newBuilder(b.outPkgPath, b.loopControl).newModel(Package{Name: pkg.Name(), Path: pkg.Path()}, structType); err != nil {
+					fieldModel = fmodel
+				} else if model, err := newBuilder(b.outPkgPath, b.loopControl).newModel(structType); err != nil {
 					return fmt.Errorf("nested field %v.%v; %w", typeName, fldName, err)
 				} else {
 					fieldModel = model
@@ -89,23 +86,28 @@ func (b *structModelBuilder) populateByStruct(typ *types.Struct) error {
 		}
 		b.model.FieldsType[fldName] = FieldType{
 			Embedded: fieldVar.Embedded(), RefCount: ref, Name: fieldTypeName,
-			FullName: TypeString(fieldType, b.outPkgPath),
+			FullName: util.TypeString(fieldType, b.outPkgPath),
 			Type:     fieldType, Model: fieldModel,
 		}
 	}
 	return nil
 }
 
-func (b *structModelBuilder) newModel(pkg Package, typ *types.Named) (*Model, error) {
-	typName := typ.Obj().Name()
+func (b *structModelBuilder) newModel(typ *types.Named) (*Model, error) {
+	obj := typ.Obj()
+	typName := obj.Name()
 	if _, ok := b.loopControl[typ]; ok {
 		return nil, fmt.Errorf("already handled type %v", typName)
 	}
-	st, rc := GetStructType(typ)
+	typStruct, rc := util.GetTypeStruct(typ)
+	if typStruct == nil {
+		return nil, fmt.Errorf("'%s' is not a struct type", typName)
+	}
+
 	model := &Model{
 		Typ:            typ,
-		TypeName:       typName,
-		Package:        pkg,
+		typeName:       typName,
+		pkg:            obj.Pkg(),
 		OutPkgPath:     b.outPkgPath,
 		FieldsTagValue: map[FieldName]map[TagName]TagValue{},
 		TagsFieldValue: map[TagName]map[FieldName]TagValue{},
@@ -116,7 +118,7 @@ func (b *structModelBuilder) newModel(pkg Package, typ *types.Named) (*Model, er
 	b.loopControl[typ] = model
 	b.model = model
 
-	if err := b.populateByStruct(st); err != nil {
+	if err := b.populateByStruct(typStruct); err != nil {
 		return nil, err
 	}
 	return b.model, nil

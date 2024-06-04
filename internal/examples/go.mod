@@ -28,7 +28,7 @@ require (
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/m4gshm/flag v0.0.0-20240527081149-4760f0e89bef // indirect
-	github.com/m4gshm/gollections v0.0.13-0.20240331203319-a34a86e58a24 // indirect
+	github.com/m4gshm/gollections v0.0.13-0.20240604073150-a8042c983d31 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect

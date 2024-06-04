@@ -26,7 +26,8 @@ import (
 	"golang.org/x/tools/go/packages"
 
 	"github.com/m4gshm/fieldr/logger"
-	"github.com/m4gshm/fieldr/struc"
+	"github.com/m4gshm/fieldr/model/struc"
+	model "github.com/m4gshm/fieldr/model/util"
 )
 
 const oneLineSize = 3
@@ -186,14 +187,14 @@ func OutPackageName(outPackageName string, outPackage *packages.Package) string 
 	return outPackageName
 }
 
-func (g *Generator) GetPackageName(pkgName, pkgPath string) (string, error) {
-	logger.Debugf("GetPackageName pkgName %s, pkgPath %s", pkgName, pkgPath)
+func (g *Generator) GetPackageNameOrAlias(pkgName, pkgPath string) (string, error) {
+	logger.Debugf("GetPackageNameOrAlias pkgName %s, pkgPath %s", pkgName, pkgPath)
 	needImport := pkgPath != g.OutPkgPath
 	if !needImport {
 		return "", nil
 	}
 	if exists, ok := g.imports[pkgPath]; ok {
-		logger.Debugf("GetPackageName exists %s", exists)
+		logger.Debugf("GetPackageNameOrAlias exists %s", exists)
 		return exists.name, nil
 	}
 	pkgAlias := pkgName
@@ -224,7 +225,7 @@ func (g *Generator) GetPackageName(pkgName, pkgPath string) (string, error) {
 			if !duplicated && i > 0 {
 				pkgAlias = structPackageSuffixed
 			} else {
-				logger.Debugf("GetPackageName duplicated %v, iter $d", duplicated, i)
+				logger.Debugf("GetPackageNameOrAlias duplicated %v, iter $d", duplicated, i)
 			}
 		}
 	}
@@ -1038,9 +1039,9 @@ func (g *Generator) GetFullFieldTypeName(fieldType struc.FieldType, baseType boo
 	}
 	if baseType {
 		//extract the base typeName for a pointer type
-		typ, _ = struc.GetTypeNamed(typ)
+		typ, _ = model.GetTypeNamed(typ)
 	}
-	return struc.TypeString(typ, g.OutPkgPath), nil
+	return model.TypeString(typ, g.OutPkgPath), nil
 }
 
 func NoLint(nolint bool) string {

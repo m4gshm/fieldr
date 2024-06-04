@@ -15,7 +15,8 @@ import (
 	"github.com/m4gshm/gollections/op/string_"
 	"github.com/m4gshm/gollections/slice/split"
 
-	"github.com/m4gshm/fieldr/struc"
+	"github.com/m4gshm/fieldr/model/struc"
+	"github.com/m4gshm/fieldr/model/util"
 )
 
 func (g *Generator) GenerateAsMapFunc(
@@ -25,36 +26,42 @@ func (g *Generator) GenerateAsMapFunc(
 	export, snake, returnRefs, noReceiver, nolint, hardcodeValues bool,
 ) (string, string, string, error) {
 
-	pkgName, err := g.GetPackageName(model.Package.Name, model.Package.Path)
+	pkgName, err := g.GetPackageNameOrAlias(model.Package().Name(), model.Package().Path())
 	if err != nil {
 		return "", "", "", err
 	}
 
-	receiverVar := TypeReceiverVar(model.TypeName)
+	typeName := model.TypeName()
+	receiverVar := TypeReceiverVar(typeName)
 	receiverRef := op.IfElse(returnRefs, "&"+receiverVar, receiverVar)
 
-	funcName := renameFuncByConfig(IdentName("AsMap", export), name)
-
-	typeLink := GetTypeName(model.TypeName, pkgName) + TypeParamsString(model.Typ.TypeParams(), g.OutPkgPath)
 	mapVar := "m"
-
-	body := "func " + get.If(noReceiver,
-		sum.Of(funcName, "(", receiverVar, " *", typeLink, ")"),
-	).ElseGet(
-		sum.Of("(", receiverVar, " *", typeLink, ") ", funcName, "()"),
-	) + " map[" + keyType + "]interface{}" + " {" + NoLint(nolint) + "\n" +
-		"if " + receiverVar + " == nil{\nreturn nil\n}\n" +
+	internal := "if " + receiverVar + " == nil{\nreturn nil\n}\n" +
 		mapVar + " := map[" + keyType + "]interface{}{}\n" +
 		generateMapInits(g, mapVar, receiverRef, rewriter, constants) +
-		"return " + mapVar + "\n}\n"
+		"return " + mapVar
 
-	return typeLink, op.IfElse(noReceiver, funcName, MethodName(model.TypeName, funcName)), body, nil
+	funcName := renameFuncByConfig(IdentName("AsMap", export), name)
+	typParams := model.Typ.TypeParams()
+	receiverType := GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
+	returnType := "map[" + keyType + "]interface{}"
+	body := FuncBody(funcName, noReceiver, receiverVar, "*"+receiverType, returnType, nolint, internal)
+
+	return receiverType, op.IfElse(noReceiver, funcName, MethodName(typeName, funcName)), body, nil
+}
+
+func FuncBody(name string, isFunc bool, methodReceiverVar, methodReceiverType, returnType string, nolint bool, content string) string {
+	return "func " + get.If(isFunc,
+		sum.Of(name, "(", methodReceiverVar, " ", methodReceiverType, ")"),
+	).ElseGet(
+		sum.Of("(", methodReceiverVar, " ", methodReceiverType, ") ", name, "()"),
+	) + " " + returnType + " {" + NoLint(nolint) + "\n" + content + "\n}\n"
 }
 
 func TypeParamsString(tparams *types.TypeParamList, basePkgPath string) string {
 	return string_.WrapNonEmpty("[", loop.Reduce(convert.FromIndexed(tparams.Len(), tparams.At, func(elem *types.TypeParam) string {
 		return use.If(elem == nil, "/*error: nil type parameter*/").ElseGet(
-			func() string { return struc.TypeString(elem, basePkgPath) })
+			func() string { return util.TypeString(elem, basePkgPath) })
 	}), join.NonEmpty(", ")), "]")
 }
 
@@ -66,13 +73,13 @@ func TypeParamsDeclarationString(list *types.TypeParamList, basePkgPath string) 
 	return string_.WrapNonEmpty("[", loop.Reduce(convert.FromIndexed(list.Len(), list.At, func(elem *types.TypeParam) string {
 		s := use.If(elem == nil, "/*error: nil type parameter*/").ElseGet(func() string {
 			constraint := elem.Constraint()
-			s := use.If(!noFirst, "").IfGet(constraint != prevElem, sum.Of(" ", struc.TypeString(prevElem, basePkgPath), ",")).Else(",")
+			s := use.If(!noFirst, "").IfGet(constraint != prevElem, sum.Of(" ", util.TypeString(prevElem, basePkgPath), ",")).Else(",")
 			prevElem = constraint
-			return s + struc.TypeString(elem, basePkgPath)
+			return s + util.TypeString(elem, basePkgPath)
 		})
 		noFirst = true
 		return s
-	}), op.Sum)+get.If(prevElem != nil, func() string { return " " + struc.TypeString(prevElem, basePkgPath) }).Else(""), "]")
+	}), op.Sum)+get.If(prevElem != nil, func() string { return " " + util.TypeString(prevElem, basePkgPath) }).Else(""), "]")
 }
 
 func generateMapInits(g *Generator, mapVar, recVar string, rewriter *CodeRewriter, constants []FieldConst) string {

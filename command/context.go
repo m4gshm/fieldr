@@ -5,19 +5,20 @@ import (
 
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/logger"
-	"github.com/m4gshm/fieldr/struc"
+	"github.com/m4gshm/fieldr/model/enum"
+	"github.com/m4gshm/fieldr/model/struc"
 	"github.com/m4gshm/fieldr/use"
 )
 
 type Context struct {
-	Generator *generator.Generator
-	model     *struc.Model
-	Typ       *types.Named
-	Pkg       struc.Package
+	Generator   *generator.Generator
+	structModel *struc.Model
+	enumModel   *enum.Model
+	Typ         *types.Named
 }
 
-func (c *Context) Model() (*struc.Model, error) {
-	if m := c.model; m != nil {
+func (c *Context) StructModel() (*struc.Model, error) {
+	if m := c.structModel; m != nil {
 		return m, nil
 	}
 	if c.Typ == nil {
@@ -25,7 +26,21 @@ func (c *Context) Model() (*struc.Model, error) {
 		return nil, use.Err("no type in context")
 	}
 
-	model, err := struc.New(c.Generator.OutPkgPath, c.Typ, c.Pkg)
-	c.model = model
+	model, err := struc.New(c.Generator.OutPkgPath, c.Typ)
+	c.structModel = model
+	return model, err
+}
+
+func (c *Context) EnumModel() (*enum.Model, error) {
+	if m := c.enumModel; m != nil {
+		return m, nil
+	}
+	if c.Typ == nil {
+		logger.Debugf("error config without type")
+		return nil, use.Err("no type in context")
+	}
+
+	model, err := enum.New(c.Generator.OutPkgPath, c.Typ, true)
+	c.enumModel = model
 	return model, err
 }

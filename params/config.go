@@ -37,12 +37,12 @@ func Nolint(flagSet *flag.FlagSet) *bool {
 	return flagSet.Bool("nolint", false, "add 'nolint' comment to generated content")
 }
 
-func ExportCont(flagSet *flag.FlagSet, content string) *bool {
-	return flagSet.Bool("export", false, "export generated "+content)
+func ExportCont(flagSet *flag.FlagSet, value bool, content string) *bool {
+	return flagSet.Bool("export", value, "export generated "+content)
 }
 
-func Export(flagSet *flag.FlagSet) *bool {
-	return ExportCont(flagSet, "content")
+func Export(flagSet *flag.FlagSet, value bool) *bool {
+	return ExportCont(flagSet, value, "content")
 }
 
 func Flat(flagSet *flag.FlagSet) *[]string {

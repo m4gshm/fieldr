@@ -254,6 +254,19 @@
             ]
         },
         {
+            "name": "Debug usage example (stringify-enum)",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "internal/examples/usage/stringify_enum/",
+            "args": [
+                "-type",
+                "Enum",
+                "stringify-enum"
+            ]
+        },        
+        {
             "name": "Launch Package",
             "type": "go",
             "request": "launch",

@@ -78,6 +78,7 @@ var commands = []func() *Command{
 	NewAsMapMethod,
 	NewBuilderStruct,
 	NewGettersSetters,
+	NewStringifyEnum,
 }
 
 var index = slice.ToMap(commands, func(c func() *Command) string { return c().name }, as.Is[func() *Command])

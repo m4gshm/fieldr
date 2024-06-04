@@ -9,7 +9,7 @@ import (
 	"github.com/m4gshm/fieldr/coderewriter"
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/params"
-	"github.com/m4gshm/fieldr/struc"
+	"github.com/m4gshm/fieldr/model/struc"
 )
 
 func NewAsMapMethod() *Command {
@@ -27,7 +27,7 @@ func NewAsMapMethod() *Command {
 	var (
 		flagSet             = flag.NewFlagSet(cmdName, flag.ExitOnError)
 		name                = flagSet.String("name", "", "function/method name")
-		export              = params.Export(flagSet)
+		export              = params.Export(flagSet, false)
 		snake               = params.Snake(flagSet)
 		keyType             = flagSet.String("key-type", "", "generated constants type, use "+generator.Autoname+" for autoname")
 		ref                 = flagSet.Bool("ref", false, "use struct field references in generated method")
@@ -42,10 +42,10 @@ func NewAsMapMethod() *Command {
 
 	return New(cmdName, "generates method or functon that converts the struct type to a map", flagSet, func(context *Context) error {
 		g := context.Generator
-		if model, err := context.Model(); err != nil {
+		if model, err := context.StructModel(); err != nil {
 			return err
 		} else if kType, err := get.IfErr(*keyType == generator.Autoname, func() (string, error) {
-			kType := generator.GetFieldType(model.TypeName, *export, *snake)
+			kType := generator.GetFieldType(model.TypeName(), *export, *snake)
 			return kType, g.AddType(kType, generator.BaseConstType)
 		}).If(len(*keyType) == 0, generator.BaseConstType).Else(*keyType); err != nil {
 			return err

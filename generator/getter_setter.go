@@ -1,17 +1,18 @@
 package generator
 
 import (
-	"github.com/m4gshm/fieldr/struc"
 	"github.com/m4gshm/gollections/expr/get"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/op/delay/replace"
 	"github.com/m4gshm/gollections/op/delay/string_"
 	"github.com/m4gshm/gollections/op/delay/sum"
 	"github.com/m4gshm/gollections/slice/split"
+
+	"github.com/m4gshm/fieldr/model/struc"
 )
 
 func GenerateSetter(model *struc.Model, pkgName, receiverVar, methodName, fieldName, fieldType, outPkgPath string, nolint bool, isReceiverReference bool, fieldParts []FieldInfo) string {
-	buildedType := GetTypeName(model.TypeName, pkgName)
+	buildedType := GetTypeName(model.TypeName(), pkgName)
 	typeName := op.IfElse(isReceiverReference, "*", "") + buildedType
 	typeParams := TypeParamsString(model.Typ.TypeParams(), outPkgPath)
 	typeParamsDecl := TypeParamsDeclarationString(model.Typ.TypeParams(), outPkgPath)
@@ -28,7 +29,7 @@ func GenerateSetter(model *struc.Model, pkgName, receiverVar, methodName, fieldN
 }
 
 func GenerateGetter(model *struc.Model, pkgName, receiverVar, methodName, fieldName, fieldType, outPkgPath string, nolint bool, isReceiverReference bool, fieldParts []FieldInfo) string {
-	buildedType := GetTypeName(model.TypeName, pkgName)
+	buildedType := GetTypeName(model.TypeName(), pkgName)
 	typeName := op.IfElse(isReceiverReference, "*", "") + buildedType
 	typeParams := TypeParamsString(model.Typ.TypeParams(), outPkgPath)
 	typeParamsDecl := TypeParamsDeclarationString(model.Typ.TypeParams(), outPkgPath)

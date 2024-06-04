@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/m4gshm/fieldr/logger"
-	"github.com/m4gshm/fieldr/struc"
+	"github.com/m4gshm/fieldr/model/struc"
 )
 
 type RewriteTrigger string
