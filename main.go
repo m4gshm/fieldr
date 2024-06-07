@@ -41,7 +41,7 @@ func usage(commandLine *flag.FlagSet) func() {
 	return func() {
 		out := commandLine.Output()
 		_, _ = fmt.Fprintf(out, params.Name+" is a tool for generating constants, variables, functions and methods"+
-			" based on a structure model: name, fields, tags\n")
+			" based on a type properties like name, structure fields, tags or base type nature.\n")
 		_, _ = fmt.Fprintf(out, "Usage of "+params.Name+":\n")
 		_, _ = fmt.Fprintf(out, "\t"+params.Name+" [flags] command1 [command-flags] command2 [command-flags]... command [command-flags]\n")
 		_, _ = fmt.Fprintf(out, "Use \"command --help\" to get help of this one\n")

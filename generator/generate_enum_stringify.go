@@ -15,7 +15,6 @@ import (
 )
 
 func (g *Generator) GenerateEnumStringify(model *enum.Model, name string, export bool, nolint bool) (string, string, error) {
-
 	typ := model.Typ()
 	obj := typ.Obj()
 	pkg := obj.Pkg()
