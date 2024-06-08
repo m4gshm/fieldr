@@ -1,4 +1,4 @@
-package enric_enum
+package enrich_enum
 
 //go:generate fieldr -type EnumWithDuplicates enrich-enum
 
