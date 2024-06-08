@@ -32,10 +32,10 @@ func (g *Generator) GenerateEnumStringify(model *enum.Model, name string, export
 	returnSlice := maxConstsPerVal > 1
 
 	internalContent := ConstsSwitchExpr(conctValNamesMap, receiverVar, !returnSlice)
-	typParams := model.Typ().TypeParams()
+	typParams := typ.TypeParams()
 	receiverType := GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
 	returnType := op.IfElse(returnSlice, "[]string", "string")
-	body := FuncBody(funcName, false, receiverVar, receiverType, returnType, nolint, internalContent)
+	body := MethodBody(funcName, false, receiverVar, receiverType, returnType, nolint, internalContent)
 	return MethodName(typeName, funcName), body, nil
 }
 

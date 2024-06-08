@@ -1,6 +1,6 @@
-package stringify_enum
+package enric_enum
 
-//go:generate fieldr -type EnumWithDuplicates stringify-enum
+//go:generate fieldr -type EnumWithDuplicates enrich-enum
 
 type EnumWithDuplicates int
 
@@ -18,5 +18,5 @@ func do() {
 }
 
 const (
-	F EnumWithDuplicates = B + C
+	F EnumWithDuplicates = B
 )

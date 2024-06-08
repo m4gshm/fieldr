@@ -2,7 +2,7 @@
 
 == Fieldr
 
-Generator of various enumerated constants, types, functions based on structure fields and their tags.
+Generator of various enumerated constants, types, functions based on a type properties like name, structure fields, tags or base type nature.
 
 === Supported commands
 

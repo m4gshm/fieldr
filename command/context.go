@@ -40,7 +40,7 @@ func (c *Context) EnumModel() (*enum.Model, error) {
 		return nil, use.Err("no type in context")
 	}
 
-	model, err := enum.New(c.Generator.OutPkgPath, c.Typ, true)
+	model, err := enum.New(c.Generator.OutPkgPath, c.Typ, false)
 	c.enumModel = model
 	return model, err
 }

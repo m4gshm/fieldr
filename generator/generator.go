@@ -511,8 +511,6 @@ func (g *Generator) moveFuncToChunks(name string, chunks map[int]map[int]string,
 	}
 }
 
-func MethodName(typ, fun string) string { return typ + "." + fun }
-
 func getReceiverName(typ ast.Expr) (string, error) {
 	switch tt := typ.(type) {
 	case *ast.StarExpr:
