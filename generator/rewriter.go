@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/m4gshm/expressions/expr/use"
 	"github.com/pkg/errors"
 
 	"github.com/m4gshm/fieldr/logger"
@@ -102,12 +101,14 @@ func NewCodeRewriter(fieldValueRewriters []string) (*CodeRewriter, error) {
 }
 
 func (rewrite *CodeRewriter) Transform(fieldName string, fieldType struc.FieldType, fieldRef string) (string, bool) {
-	rewriters := use.MapVal(rewrite.byFieldName, fieldName).
-		Or(use.MapVal(rewrite.byFieldType, fieldType.FullName)).
-		ElseGet(func() []func(string) string {
+	rewriters, ok := rewrite.byFieldName[fieldName]
+	if !ok {
+		if rewriters, ok = rewrite.byFieldType[fieldType.FullName]; !ok {
 			logger.Debugf("no rewriter by type for field %s, type %s", fieldName, fieldType.FullName)
-			return rewrite.all[:]
-		})
+			rewriters = rewrite.all[:]
+		}
+	}
+
 	if len(rewriters) == 0 {
 		return fieldRef, false
 	}

@@ -11,5 +11,5 @@ func MultiVal(flagSet *flag.FlagSet, name string, defValues []string, usage stri
 }
 
 func MultiValFixed(flagSet *flag.FlagSet, name string, defaulValues, expected []string, usage string) *[]string {
-	return flagenum.New(flagSet).MultipleStrings(name, usage, defaulValues, expected)
+	return flagenum.New(flagSet).Strings(name, defaulValues, expected, usage)
 }

@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/m4gshm/expressions/error_"
+	"github.com/m4gshm/gollections/error_"
 	breakloop "github.com/m4gshm/gollections/break/loop"
 	"github.com/m4gshm/gollections/collection"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
