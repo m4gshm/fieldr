@@ -18,8 +18,7 @@ func (e EnumWithDuplicates) String() []string {
 func EnumWithDuplicatesValues() []EnumWithDuplicates {
 	return []EnumWithDuplicates{
 		A,
-		B,
+		B, //F
 		C,
-		F,
 	}
 }

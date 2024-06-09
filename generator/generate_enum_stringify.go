@@ -27,11 +27,11 @@ func (g *Generator) GenerateEnumStringify(model *enum.Model, name string, export
 	receiverVar := TypeReceiverVar(typeName)
 	funcName := IdentName(name, export)
 
-	conctValNamesMap := ordermap.New(group.Order(model.Consts(), (*types.Const).Val, (*types.Const).Name))
-	maxConstsPerVal := loop.Reduce(collection.Convert(conctValNamesMap.Values(), slice.Len), op.Max)
+	constValNamesMap := ordermap.New(group.Order(model.Consts(), (*types.Const).Val, (*types.Const).Name))
+	maxConstsPerVal := loop.Reduce(collection.Convert(constValNamesMap.Values(), slice.Len), op.Max)
 	returnSlice := maxConstsPerVal > 1
 
-	internalContent := ConstsSwitchExpr(conctValNamesMap, receiverVar, !returnSlice)
+	internalContent := constsSwitchExpr(constValNamesMap, receiverVar, !returnSlice)
 	typParams := typ.TypeParams()
 	receiverType := GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
 	returnType := op.IfElse(returnSlice, "[]string", "string")
@@ -39,7 +39,7 @@ func (g *Generator) GenerateEnumStringify(model *enum.Model, name string, export
 	return MethodName(typeName, funcName), body, nil
 }
 
-func ConstsSwitchExpr[C collection.Map[goconstant.Value, []string]](consts C, receiverVar string, onlyFirst bool) string {
+func constsSwitchExpr[C collection.Map[goconstant.Value, []string]](consts C, receiverVar string, onlyFirst bool) string {
 	expr := "switch " + receiverVar + " {\n"
 	consts.TrackEach(func(val goconstant.Value, names []string) {
 		expr += "case " + val.ExactString() + ":\n" + "\treturn"
