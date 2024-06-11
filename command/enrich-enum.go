@@ -52,7 +52,8 @@ func NewStringifyEnum() *Command {
 			if err != nil {
 				return err
 			}
-			funcName, funcBody, err = g.GenerateEnumFromString(typ, constValNamesMap, *fromStringMethodName, *export, *nolint)
+			
+			funcName, funcBody, err = g.GenerateEnumFromString(typ, constValNamesMap.Values(), *fromStringMethodName, *export, *nolint)
 			if err != nil {
 				return err
 			}

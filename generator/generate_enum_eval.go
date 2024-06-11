@@ -1,17 +1,16 @@
 package generator
 
 import (
-	goconstant "go/constant"
 	"go/types"
 
-	"github.com/m4gshm/gollections/collection"
+	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/slice"
 )
 
 const DefaultMethodSuffixFromString = "FromString"
 
-func (g *Generator) GenerateEnumFromString(typ *types.Named, constValNamesMap collection.Map[goconstant.Value, []string],
+func (g *Generator) GenerateEnumFromString(typ *types.Named, constNames c.Collection[[]string],
 	name string, export bool, nolint bool) (string, string, error) {
 
 	obj := typ.Obj()
@@ -30,15 +29,15 @@ func (g *Generator) GenerateEnumFromString(typ *types.Named, constValNamesMap co
 		funcName    = IdentName(op.IfElse(name == Autoname, typeName+DefaultMethodSuffixFromString, name), export)
 		resultVar   = TypeReceiverVar(typeName)
 		receiverVar = "s"
-		body        = FuncBodyWithArgs(funcName, slice.Of(receiverVar+" string"), "("+resultVar+" "+returnType+", ok bool)", nolint, enumEvalExpr(constValNamesMap, receiverVar, resultVar))
+		body        = FuncBodyWithArgs(funcName, slice.Of(receiverVar+" string"), "("+resultVar+" "+returnType+", ok bool)", nolint, enumEvalExpr(constNames, receiverVar, resultVar))
 	)
 	return funcName, body, nil
 }
 
-func enumEvalExpr[C collection.Map[goconstant.Value, []string]](consts C, receiverVar, resultVar string) string {
+func enumEvalExpr[C c.Collection[[]string]](consts C, receiverVar, resultVar string) string {
 	expr := "ok = true\n"
 	expr += "switch " + receiverVar + " {\n"
-	consts.TrackEach(func(val goconstant.Value, names []string) {
+	consts.ForEach(func(names []string) {
 		expr += "case "
 		for i, name := range names {
 			expr += op.IfElse(i > 0, ",", "") + "\"" + name + "\""
