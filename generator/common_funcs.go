@@ -2,8 +2,8 @@ package generator
 
 import (
 	"go/types"
+	"strings"
 
-	"github.com/m4gshm/fieldr/model/util"
 	"github.com/m4gshm/gollections/expr/get"
 	"github.com/m4gshm/gollections/expr/use"
 	"github.com/m4gshm/gollections/loop"
@@ -12,12 +12,18 @@ import (
 	"github.com/m4gshm/gollections/op/delay/string_/join"
 	"github.com/m4gshm/gollections/op/delay/sum"
 	"github.com/m4gshm/gollections/op/string_"
+
+	"github.com/m4gshm/fieldr/model/util"
 )
 
 func MethodName(typ, fun string) string { return typ + "." + fun }
 
 func FuncBodyNoArg(name string, returnType string, nolint bool, content string) string {
-	return "func " + name + "()" + returnType + " {" + NoLint(nolint) + "\n" + content + "\n}\n"
+	return FuncBodyWithArgs(name, nil, returnType, nolint, content)
+}
+
+func FuncBodyWithArgs(name string, args []string, returnType string, nolint bool, content string) string {
+	return "func " + name + "(" + strings.Join(args, ", ") + ")" + returnType + " {" + NoLint(nolint) + "\n" + content + "\n}\n"
 }
 
 func MethodBody(name string, isFunc bool, methodReceiverVar, methodReceiverType, returnType string, nolint bool, content string) string {

@@ -5,17 +5,15 @@ import (
 	"go/types"
 
 	"github.com/m4gshm/gollections/collection"
-	ordermap "github.com/m4gshm/gollections/collection/immutable/ordered/map_"
+	"github.com/m4gshm/gollections/collection/immutable/ordered"
 	"github.com/m4gshm/gollections/loop"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/slice"
-	"github.com/m4gshm/gollections/slice/group"
-
-	"github.com/m4gshm/fieldr/model/enum"
 )
 
-func (g *Generator) GenerateEnumStringify(model *enum.Model, name string, export bool, nolint bool) (string, string, error) {
-	typ := model.Typ()
+func (g *Generator) GenerateEnumStringify(typ *types.Named, constValNamesMap ordered.Map[goconstant.Value, []string],
+	name string, export bool, nolint bool) (string, string, error) {
+
 	obj := typ.Obj()
 	pkg := obj.Pkg()
 
@@ -23,19 +21,19 @@ func (g *Generator) GenerateEnumStringify(model *enum.Model, name string, export
 	if err != nil {
 		return "", "", err
 	}
+
 	typeName := obj.Name()
-	receiverVar := TypeReceiverVar(typeName)
-	funcName := IdentName(name, export)
-
-	constValNamesMap := ordermap.New(group.Order(model.Consts(), (*types.Const).Val, (*types.Const).Name))
-	maxConstsPerVal := loop.Reduce(collection.Convert(constValNamesMap.Values(), slice.Len), op.Max)
-	returnSlice := maxConstsPerVal > 1
-
-	internalContent := constsSwitchExpr(constValNamesMap, receiverVar, !returnSlice)
 	typParams := typ.TypeParams()
-	receiverType := GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
-	returnType := op.IfElse(returnSlice, "[]string", "string")
-	body := MethodBody(funcName, false, receiverVar, receiverType, returnType, nolint, internalContent)
+
+	var (
+		returnSlice     = loop.Reduce(collection.Convert(constValNamesMap.Values(), slice.Len), op.Max) > 1
+		returnType      = op.IfElse(returnSlice, "[]string", "string")
+		receiverType    = GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
+		receiverVar     = TypeReceiverVar(typeName)
+		internalContent = constsSwitchExpr(constValNamesMap, receiverVar, !returnSlice)
+		funcName        = IdentName(name, export)
+		body            = MethodBody(funcName, false, receiverVar, receiverType, returnType, nolint, internalContent)
+	)
 	return MethodName(typeName, funcName), body, nil
 }
 

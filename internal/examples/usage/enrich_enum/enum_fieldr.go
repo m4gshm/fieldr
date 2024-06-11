@@ -25,3 +25,20 @@ func EnumValues() []Enum {
 		DD,
 	}
 }
+
+func EnumFromString(s string) (e Enum, ok bool) {
+	ok = true
+	switch s {
+	case "AA":
+		e = AA
+	case "BB":
+		e = BB
+	case "CC":
+		e = CC
+	case "DD":
+		e = DD
+	default:
+		ok = false
+	}
+	return
+}

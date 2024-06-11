@@ -22,3 +22,18 @@ func EnumWithDuplicatesValues() []EnumWithDuplicates {
 		C,
 	}
 }
+
+func EnumWithDuplicatesFromString(s string) (e EnumWithDuplicates, ok bool) {
+	ok = true
+	switch s {
+	case "A":
+		e = A
+	case "B", "F":
+		e = B
+	case "C":
+		e = C
+	default:
+		ok = false
+	}
+	return
+}

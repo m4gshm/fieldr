@@ -6,6 +6,8 @@ github.com/m4gshm/flag v0.0.0-20240531074408-c2ba7c00e77f h1:wAobKRJNJ9UX9x+Cu+q
 github.com/m4gshm/flag v0.0.0-20240531074408-c2ba7c00e77f/go.mod h1:+/tHF7E5MdN8WBoH4fXk2yK3b5v0x40MOn3n1YA4Cho=
 github.com/m4gshm/gollections v0.0.13-0.20240608132135-c730e00bda21 h1:qcS6WZxzy3q2jCtHY7Gm50HO1OMfrBSPAIAbMdlp0WI=
 github.com/m4gshm/gollections v0.0.13-0.20240608132135-c730e00bda21/go.mod h1:M98G706MBft2JXf3iKwtGEakS9tePLReKbG0dK5Fa0s=
+github.com/m4gshm/gollections v0.0.13-0.20240610223218-b3e5bcb61a9b h1:khvhuL0J9lo0SDO41PK35uepu7Z9vTAqqIFjh8Wu6wA=
+github.com/m4gshm/gollections v0.0.13-0.20240610223218-b3e5bcb61a9b/go.mod h1:M98G706MBft2JXf3iKwtGEakS9tePLReKbG0dK5Fa0s=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

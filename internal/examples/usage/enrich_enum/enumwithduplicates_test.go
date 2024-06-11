@@ -10,10 +10,12 @@ import (
 func Test_EnumWithDuplicatesValues(t *testing.T) {
 	values := EnumWithDuplicatesValues()
 
-	assert.Equal(t, []EnumWithDuplicates{A, B, C}, values)
-	assert.Equal(t, []EnumWithDuplicates{A, F, C}, values)
+	assert.Equal(t, slice.Of(A, B, C), values)
+	assert.Equal(t, slice.Of(A, F, C), values)
 
 	names := slice.Convert(values, EnumWithDuplicates.String)
 
 	assert.Equal(t, [][]string{{"A"}, {"B", "F"}, {"C"}}, names)
+
+	assert.Equal(t, slice.Of(A, B, F, C), slice.ConvertOK(slice.Of("A", "B", "F", "C"), EnumWithDuplicatesFromString))
 }

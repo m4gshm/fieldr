@@ -8,11 +8,17 @@ import (
 )
 
 func Test_Enum(t *testing.T) {
-	values := EnumValues()
+	var (
+		expectedValues = []Enum{AA, BB, CC, DD}
+		values         = EnumValues()
+		strings        = []string{"AA", "BB", "CC", "DD"}
+	)
 
-	assert.Equal(t, []Enum{AA, BB, CC, DD}, values)
+	assert.Equal(t, expectedValues, values)
 
 	names := slice.Convert(values, Enum.String)
 
-	assert.Equal(t, []string{"AA", "BB", "CC", "DD"}, names)
+	assert.Equal(t, strings, names)
+
+	assert.Equal(t, expectedValues,  slice.ConvertOK(strings, EnumFromString))
 }
