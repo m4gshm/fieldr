@@ -7,7 +7,7 @@ toolchain go1.22.1
 require (
 	github.com/expr-lang/expr v1.16.9
 	github.com/m4gshm/flag v0.0.0-20240531074408-c2ba7c00e77f
-	github.com/m4gshm/gollections v0.0.13-0.20240610223218-b3e5bcb61a9b
+	github.com/m4gshm/gollections v0.0.13-0.20240611223836-05d5afba3225
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0

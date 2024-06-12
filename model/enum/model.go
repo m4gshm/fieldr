@@ -50,5 +50,5 @@ func getConstsAll(scope *types.Scope) []*types.Const {
 
 func getConstsLevel(scope *types.Scope) []*types.Const {
 	objects := slice.Convert(scope.Names(), scope.Lookup)
-	return slice.ConvertFit(objects, convert.ToType[*types.Const])
+	return slice.ConvertOK(objects, convert.ToType[*types.Const])
 }
