@@ -4,13 +4,13 @@ package stringify_enum
 
 func (e Enum) String() string {
 	switch e {
-	case 1:
+	case AA:
 		return "AA"
-	case 2:
+	case BB:
 		return "BB"
-	case 3:
+	case CC:
 		return "CC"
-	case 4:
+	case DD:
 		return "DD"
 	default:
 		return ""

@@ -4,11 +4,11 @@ package stringify_enum
 
 func (e EnumWithDuplicates) String() []string {
 	switch e {
-	case 0:
+	case A:
 		return []string{"A"}
-	case 1:
+	case B:
 		return []string{"B", "F"}
-	case 2:
+	case C:
 		return []string{"C"}
 	default:
 		return nil

@@ -40,7 +40,7 @@ func (g *Generator) GenerateEnumStringify(typ *types.Named, constValNamesMap ord
 func constsSwitchExpr[C collection.Map[goconstant.Value, []string]](consts C, receiverVar string, onlyFirst bool) string {
 	expr := "switch " + receiverVar + " {\n"
 	consts.TrackEach(func(val goconstant.Value, names []string) {
-		expr += "case " + val.ExactString() + ":\n" + "\treturn"
+		expr += "case " + names[0] + ":\n" + "\treturn"
 		if onlyFirst {
 			expr += "\"" + names[0] + "\""
 		} else {
