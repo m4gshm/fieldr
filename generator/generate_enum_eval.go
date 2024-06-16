@@ -27,7 +27,7 @@ func (g *Generator) GenerateEnumFromString(typ *types.Named, constNames c.Collec
 	var (
 		returnType  = GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
 		funcName    = IdentName(op.IfElse(name == Autoname, typeName+DefaultMethodSuffixFromString, name), export)
-		resultVar   = TypeReceiverVar(typeName)
+		resultVar   = "r"
 		receiverVar = "s"
 		body        = FuncBodyWithArgs(funcName, slice.Of(receiverVar+" string"), "("+resultVar+" "+returnType+", ok bool)", nolint, enumEvalExpr(constNames, receiverVar, resultVar))
 	)

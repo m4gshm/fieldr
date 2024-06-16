@@ -26,7 +26,7 @@ func NewEnumConst() *Command {
 		valAccessor        = flagSet.String("val-access", "", "add a function or method that returns a value to the struct field for each generated constant, use "+generator.Autoname+" for autoname")
 		funcList           = flagSet.String("list", "", "generate function that return list of all generated constant values, use "+generator.Autoname+" for autoname")
 		compact            = flagSet.Bool("compact", false, "generate single line code in aggregate functions, constants")
-		export             = params.ExportCont(flagSet, false, "constants")
+		export             = params.ExportCont(flagSet, "constants")
 		private            = params.WithPrivate(flagSet)
 		nolint             = params.Nolint(flagSet)
 		flat               = params.Flat(flagSet)

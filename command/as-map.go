@@ -8,8 +8,8 @@ import (
 
 	"github.com/m4gshm/fieldr/coderewriter"
 	"github.com/m4gshm/fieldr/generator"
-	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/model/struc"
+	"github.com/m4gshm/fieldr/params"
 )
 
 func NewAsMapMethod() *Command {
@@ -27,7 +27,7 @@ func NewAsMapMethod() *Command {
 	var (
 		flagSet             = flag.NewFlagSet(cmdName, flag.ExitOnError)
 		name                = flagSet.String("name", "", "function/method name")
-		export              = params.Export(flagSet, false)
+		export              = params.Export(flagSet)
 		snake               = params.Snake(flagSet)
 		keyType             = flagSet.String("key-type", "", "generated constants type, use "+generator.Autoname+" for autoname")
 		ref                 = flagSet.Bool("ref", false, "use struct field references in generated method")

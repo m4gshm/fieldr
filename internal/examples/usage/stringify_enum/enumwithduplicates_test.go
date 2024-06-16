@@ -1,4 +1,4 @@
-package enrich_enum
+package stringify_enum
 
 import (
 	"testing"

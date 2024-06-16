@@ -1,4 +1,4 @@
-package enrich_enum
+package stringify_enum
 
 import (
 	"testing"
@@ -20,5 +20,5 @@ func Test_Enum(t *testing.T) {
 
 	assert.Equal(t, strings, names)
 
-	assert.Equal(t, expectedValues,  slice.ConvertOK(strings, EnumFromString))
+	assert.Equal(t, expectedValues, slice.ConvertOK(strings, EnumFromString))
 }
