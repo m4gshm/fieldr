@@ -24,7 +24,7 @@ or
 go install github.com/m4gshm/fieldr@HEAD
 ----
 
-=== Enum constant example
+=== enum-constant example
 source `entity.go`:
 
 [source,go]
@@ -98,7 +98,7 @@ generates `entity_fieldr.go`
 include::../examples/usage/get_set/entity_fieldr.go[]
 ----
 
-=== Builder usage example
+=== builder usage example
 
 source `entity.go`
 
@@ -119,7 +119,7 @@ include::../examples/usage/builder/entity_fieldr.go[]
 ----
 
 
-=== As map usage example
+=== as-map usage example
 
 source `struct.go`
 
@@ -143,7 +143,7 @@ include::../examples/asmap/struct_as_map.go[]
 include::../examples/asmap/address_as_map.go[]
 ----
 
-=== Stringify enum usage example
+=== stringify-enum usage example
 source `enum.go`
 
 [source,go]

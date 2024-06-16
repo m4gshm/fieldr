@@ -30,7 +30,7 @@ or
 go install github.com/m4gshm/fieldr@HEAD
 ```
 
-## Enum constant example
+## enum-constant example
 
 source `entity.go`:
 
@@ -269,7 +269,7 @@ func (e *Entity[ID]) SetTs(ts time.Time) {
 }
 ```
 
-## Builder usage example
+## builder usage example
 
 source `entity.go`
 
@@ -377,7 +377,7 @@ func (e *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
 }
 ```
 
-## As map usage example
+## as-map usage example
 
 source `struct.go`
 
@@ -487,14 +487,14 @@ func (e *EmbeddedAddress) AsMap() map[EmbeddedAddressField]any {
 }
 ```
 
-## Stringify enum usage example
+## stringify-enum usage example
 
 source `enum.go`
 
 ``` go
 package stringify_enum
 
-//go:generate fieldr -type Enum enrich-enum
+//go:generate fieldr -type Enum stringify-enum -export
 
 type Enum int
 
@@ -541,17 +541,17 @@ func EnumValues() []Enum {
     }
 }
 
-func EnumFromString(s string) (e Enum, ok bool) {
+func EnumFromString(s string) (r Enum, ok bool) {
     ok = true
     switch s {
     case "AA":
-        e = AA
+        r = AA
     case "BB":
-        e = BB
+        r = BB
     case "CC":
-        e = CC
+        r = CC
     case "DD":
-        e = DD
+        r = DD
     default:
         ok = false
     }

@@ -26,17 +26,17 @@ func EnumValues() []Enum {
 	}
 }
 
-func EnumFromString(s string) (e Enum, ok bool) {
+func EnumFromString(s string) (r Enum, ok bool) {
 	ok = true
 	switch s {
 	case "AA":
-		e = AA
+		r = AA
 	case "BB":
-		e = BB
+		r = BB
 	case "CC":
-		e = CC
+		r = CC
 	case "DD":
-		e = DD
+		r = DD
 	default:
 		ok = false
 	}

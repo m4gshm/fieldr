@@ -1,6 +1,6 @@
 package stringify_enum
 
-//go:generate fieldr -type Enum enrich-enum
+//go:generate fieldr -type Enum stringify-enum -export
 
 type Enum int
 

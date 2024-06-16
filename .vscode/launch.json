@@ -254,7 +254,7 @@
             ]
         },
         {
-            "name": "Debug usage example (enrich-enum)",
+            "name": "Debug usage example (stringify-enum)",
             "type": "go",
             "request": "launch",
             "mode": "debug",
@@ -263,7 +263,7 @@
             "args": [
                 "-type",
                 "Enum",
-                "enrich-enum"
+                "stringify-enum"
             ]
         },        
         {
