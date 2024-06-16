@@ -8,7 +8,7 @@ require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/jackc/pgx/v4 v4.17.2
 	github.com/lib/pq v1.10.9
-	github.com/m4gshm/gollections v0.0.13-0.20240610223218-b3e5bcb61a9b
+	github.com/m4gshm/gollections v0.0.13
 	github.com/pressly/goose/v3 v3.20.0
 	github.com/rs/zerolog v1.28.0
 	github.com/simukti/sqldb-logger v0.0.0-20220521163925-faf2f2be0eb6
@@ -36,7 +36,7 @@ require (
 	github.com/sethvargo/go-retry v0.2.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.21.0 // indirect
-	golang.org/x/exp v0.0.0-20240604190554-fc45aab8b7f8 // indirect
+	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect

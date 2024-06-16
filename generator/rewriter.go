@@ -108,7 +108,6 @@ func (rewrite *CodeRewriter) Transform(fieldName string, fieldType struc.FieldTy
 			rewriters = rewrite.all[:]
 		}
 	}
-
 	if len(rewriters) == 0 {
 		return fieldRef, false
 	}

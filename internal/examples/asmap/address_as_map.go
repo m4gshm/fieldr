@@ -9,11 +9,11 @@ const (
 	AddressLine EmbeddedAddressField = "AddressLine"
 )
 
-func (e *EmbeddedAddress) AsMap() map[EmbeddedAddressField]interface{} {
+func (e *EmbeddedAddress) AsMap() map[EmbeddedAddressField]any {
 	if e == nil {
 		return nil
 	}
-	m := map[EmbeddedAddressField]interface{}{}
+	m := map[EmbeddedAddressField]any{}
 	m[ZipCode] = e.ZipCode
 	m[AddressLine] = e.AddressLine
 	return m

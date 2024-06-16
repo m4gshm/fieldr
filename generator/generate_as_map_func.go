@@ -28,20 +28,20 @@ func (g *Generator) GenerateAsMapFunc(
 
 	mapVar := "m"
 	internal := "if " + receiverVar + " == nil{\nreturn nil\n}\n" +
-		mapVar + " := map[" + keyType + "]interface{}{}\n" +
-		generateMapInits(g, mapVar, receiverRef, rewriter, constants) +
+		mapVar + " := map[" + keyType + "]any{}\n" +
+		generateMapInits(mapVar, receiverRef, rewriter, constants) +
 		"return " + mapVar
 
 	funcName := renameFuncByConfig(IdentName("AsMap", export), name)
 	typParams := model.Typ.TypeParams()
 	receiverType := GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
-	returnType := "map[" + keyType + "]interface{}"
+	returnType := "map[" + keyType + "]any"
 	body := MethodBody(funcName, noReceiver, receiverVar, "*"+receiverType, returnType, nolint, internal)
 
 	return receiverType, op.IfElse(noReceiver, funcName, MethodName(typeName, funcName)), body, nil
 }
 
-func generateMapInits(g *Generator, mapVar, recVar string, rewriter *CodeRewriter, constants []FieldConst) string {
+func generateMapInits(mapVar, recVar string, rewriter *CodeRewriter, constants []FieldConst) string {
 	return loop.ConvertS(constants, func(constant FieldConst) string {
 		var (
 			_, conditionPath, conditions         = FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
