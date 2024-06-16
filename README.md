@@ -559,4 +559,4 @@ func EnumFromString(s string) (r Enum, ok bool) {
 }
 ```
 
-See more examples [here](./examples/)
+See more examples [here](./internal/examples/)

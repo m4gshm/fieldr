@@ -163,6 +163,6 @@ include::../examples/usage/stringify_enum/enum_fieldr.go[]
 ----
 
 
-See more examples link:./examples/[here]
+See more examples link:./internal/examples/[here]
 
 
