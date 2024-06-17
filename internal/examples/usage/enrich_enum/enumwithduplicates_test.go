@@ -1,4 +1,4 @@
-package stringify_enum
+package enrich_enum
 
 import (
 	"testing"
@@ -8,14 +8,14 @@ import (
 )
 
 func Test_EnumWithDuplicatesValues(t *testing.T) {
-	values := EnumWithDuplicatesValues()
+	values := EnumWithDuplicatesAll()
 
 	assert.Equal(t, slice.Of(A, B, C), values)
 	assert.Equal(t, slice.Of(A, F, C), values)
 
-	names := slice.Convert(values, EnumWithDuplicates.String)
+	names := slice.Convert(values, EnumWithDuplicates.Name)
 
 	assert.Equal(t, [][]string{{"A"}, {"B", "F"}, {"C"}}, names)
 
-	assert.Equal(t, slice.Of(A, B, F, C), slice.ConvertOK(slice.Of("A", "B", "F", "C"), EnumWithDuplicatesFromString))
+	assert.Equal(t, slice.Of(A, B, F, C), slice.ConvertOK(slice.Of("A", "B", "F", "C"), EnumWithDuplicatesByName))
 }

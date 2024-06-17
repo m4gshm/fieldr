@@ -10,7 +10,7 @@ Generator of various enumerated constants, types, functions based on a type prop
 * get-set - generates getters, setters for a structure type.
 * builder - generates builder API of a structure type.
 * as-map - generates method or functon that converts the struct type to a map.
-* stringify-enum - generates method and functions for converting an enum const to a string and vice versa.
+* enrich-enum - generates method and functions for converting an enum const to a string and vice versa.
 
 === Installation
 
@@ -143,12 +143,12 @@ include::../examples/asmap/struct_as_map.go[]
 include::../examples/asmap/address_as_map.go[]
 ----
 
-=== stringify-enum usage example
+=== enrich-enum usage example
 source `enum.go`
 
 [source,go]
 ----
-include::../examples/usage/stringify_enum/enum.go[]
+include::../examples/usage/enrich_enum/enum.go[]
 ----
 
 [source,console]
@@ -159,7 +159,7 @@ generates `enum_fieldr.go`
 
 [source,go]
 ----
-include::../examples/usage/stringify_enum/enum_fieldr.go[]
+include::../examples/usage/enrich_enum/enum_fieldr.go[]
 ----
 
 

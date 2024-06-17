@@ -254,16 +254,16 @@
             ]
         },
         {
-            "name": "Debug usage example (stringify-enum)",
+            "name": "Debug usage example (enrich-enum)",
             "type": "go",
             "request": "launch",
             "mode": "debug",
             "program": "main.go",
-            "cwd": "internal/examples/usage/enric_enum/",
+            "cwd": "internal/examples/usage/enrich_enum/",
             "args": [
                 "-type",
                 "Enum",
-                "stringify-enum"
+                "enrich-enum"
             ]
         },        
         {

@@ -1,6 +1,6 @@
-package stringify_enum
+package enrich_enum
 
-//go:generate fieldr -type EnumWithDuplicates stringify-enum -export
+//go:generate fieldr -type EnumWithDuplicates enrich-enum -export
 
 type EnumWithDuplicates int
 

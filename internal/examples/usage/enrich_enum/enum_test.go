@@ -1,4 +1,4 @@
-package stringify_enum
+package enrich_enum
 
 import (
 	"testing"
@@ -10,15 +10,17 @@ import (
 func Test_Enum(t *testing.T) {
 	var (
 		expectedValues = []Enum{AA, BB, CC, DD}
-		values         = EnumValues()
+		values         = EnumAll()
 		strings        = []string{"AA", "BB", "CC", "DD"}
+		ints           = []int{1, 2, 3, 4}
 	)
 
 	assert.Equal(t, expectedValues, values)
 
-	names := slice.Convert(values, Enum.String)
+	names := slice.Convert(values, Enum.Name)
 
 	assert.Equal(t, strings, names)
 
-	assert.Equal(t, expectedValues, slice.ConvertOK(strings, EnumFromString))
+	assert.Equal(t, expectedValues, slice.ConvertOK(strings, EnumByName))
+	assert.Equal(t, expectedValues, slice.ConvertOK(ints, EnumByValue))
 }
