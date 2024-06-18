@@ -10,7 +10,7 @@ Generator of various enumerated constants, types, functions based on a type prop
 * get-set - generates getters, setters for a structure type.
 * builder - generates builder API of a structure type.
 * as-map - generates a method or functon that converts the struct type to a map.
-* enrich-const-type - extends a constants type by 'get name' method, 'enum all values' function and `get the constant by a value of the underlying type` function.
+* enrich-const-type - extends a constants type by 'get name' method, 'enum all values' function and 'get a constant by a value of the underlying type' function.
 
 === Installation
 

@@ -16,8 +16,8 @@ type properties like name, structure fields, tags or base type nature.
   to a map.
 
 - enrich-const-type - extends a constants type by 'get name' method,
-  'enum all values' function and
-  `get the constant by a value of the underlying type` function.
+  'enum all values' function and 'get a constant by a value of the
+  underlying type' function.
 
 ## Installation
 
