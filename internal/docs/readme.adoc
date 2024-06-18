@@ -170,7 +170,6 @@ include::../examples/usage/enrich_enum/stringenum_fieldr.go[]
 ----
 
 
-
 See more examples link:./internal/examples/[here]
 
 
