@@ -1,6 +1,6 @@
 package enrich_enum
 
-//go:generate fieldr -type Enum enrich-enum -export
+//go:generate fieldr -type Enum enrich-const-type -export
 
 type Enum int
 
@@ -11,7 +11,7 @@ const (
 	DD
 )
 
-//go:generate fieldr -type StringEnum enrich-enum -export
+//go:generate fieldr -type StringEnum enrich-const-type -export
 
 type BaseStringEnum string
 type StringEnum BaseStringEnum

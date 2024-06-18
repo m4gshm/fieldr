@@ -5,18 +5,19 @@ type properties like name, structure fields, tags or base type nature.
 
 ## Supported commands
 
-- enum-const - generate constants based on template applied to struct
-  fields.
+- fields-to-consts - generate constants based on template applied to
+  struct fields.
 
 - get-set - generates getters, setters for a structure type.
 
 - builder - generates builder API of a structure type.
 
-- as-map - generates method or functon that converts the struct type to
-  a map.
+- as-map - generates a method or functon that converts the struct type
+  to a map.
 
-- enrich-enum - generates method and functions for converting an enum
-  const to a string and vice versa.
+- enrich-const-type - extends a constants type by 'get name' method,
+  'enum all values' function and
+  `get the constant by a value of the underlying type` function.
 
 ## Installation
 
@@ -30,14 +31,14 @@ or
 go install github.com/m4gshm/fieldr@HEAD
 ```
 
-## enum-constant example
+## fields-to-consts example
 
 source `entity.go`:
 
 ``` go
 package enum_const
 
-//go:generate fieldr -type Entity enum-const -val tag.json -list jsons
+//go:generate fieldr -type Entity fields-to-consts -val tag.json -list jsons
 type Entity struct {
     Id   int    `json:"id"`
     Name string `json:"name"`
@@ -73,7 +74,7 @@ method `jsons` that enumerates these constants.
 To get extended help of the command, use the following:
 
 ``` console
-fieldr enum-const help
+fieldr fields-to-consts help
 ```
 
 ### Example of generating ORM elements:
@@ -84,13 +85,13 @@ source `entity.go`:
 package enum_const_db
 
 //go:generate fieldr -type Entity
-//go:fieldr enum-const -name "'col' + field.name" -val "tag.db" -flat Versioned -type column -list . -ref-access .
-//go:fieldr enum-const -name "'pk' + field.name" -val "tag.db" -include "tag.pk != nil" -type column -list pk
+//go:fieldr fields-to-consts -name "'col' + field.name" -val "tag.db" -flat Versioned -type column -list . -ref-access .
+//go:fieldr fields-to-consts -name "'pk' + field.name" -val "tag.db" -include "tag.pk != nil" -type column -list pk
 
 type Entity struct {
     BaseEntity
     Versioned *VersionedEntity
-    Name string `db:"name"`
+    Name      string `db:"name"`
 }
 
 type BaseEntity struct {
@@ -487,14 +488,14 @@ func (e *EmbeddedAddress) AsMap() map[EmbeddedAddressField]any {
 }
 ```
 
-## enrich-enum usage example
+## enrich-const-type usage example
 
 source `enum.go`
 
 ``` go
 package enrich_enum
 
-//go:generate fieldr -type Enum enrich-enum -export
+//go:generate fieldr -type Enum enrich-const-type -export
 
 type Enum int
 
@@ -505,7 +506,7 @@ const (
     DD
 )
 
-//go:generate fieldr -type StringEnum enrich-enum -export
+//go:generate fieldr -type StringEnum enrich-const-type -export
 
 type BaseStringEnum string
 type StringEnum BaseStringEnum

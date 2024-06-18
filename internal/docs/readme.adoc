@@ -6,11 +6,11 @@ Generator of various enumerated constants, types, functions based on a type prop
 
 === Supported commands
 
-* enum-const - generate constants based on template applied to struct fields.
+* fields-to-consts - generate constants based on template applied to struct fields.
 * get-set - generates getters, setters for a structure type.
 * builder - generates builder API of a structure type.
-* as-map - generates method or functon that converts the struct type to a map.
-* enrich-enum - generates method and functions for converting an enum const to a string and vice versa.
+* as-map - generates a method or functon that converts the struct type to a map.
+* enrich-const-type - extends a constants type by 'get name' method, 'enum all values' function and `get the constant by a value of the underlying type` function.
 
 === Installation
 
@@ -24,7 +24,7 @@ or
 go install github.com/m4gshm/fieldr@HEAD
 ----
 
-=== enum-constant example
+=== fields-to-consts example
 source `entity.go`:
 
 [source,go]
@@ -50,7 +50,7 @@ To get extended help of the command, use the following:
 
 [source,console]
 ----
-fieldr enum-const help
+fieldr fields-to-consts help
 ----
 
 ==== Example of generating ORM elements: 
@@ -143,7 +143,7 @@ include::../examples/asmap/struct_as_map.go[]
 include::../examples/asmap/address_as_map.go[]
 ----
 
-=== enrich-enum usage example
+=== enrich-const-type usage example
 source `enum.go`
 
 [source,go]

@@ -1,6 +1,6 @@
 package enrich_enum
 
-//go:generate fieldr -type EnumWithDuplicates enrich-enum -export
+//go:generate fieldr -type EnumWithDuplicates enrich-const-type -export
 
 type EnumWithDuplicates int
 

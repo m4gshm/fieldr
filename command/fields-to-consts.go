@@ -9,9 +9,9 @@ import (
 	"github.com/m4gshm/fieldr/params"
 )
 
-func NewEnumConst() *Command {
+func NewFieldsToConsts() *Command {
 	const (
-		name     = "enum-const"
+		name     = "fields-to-consts"
 		flagVal  = "val"
 		flagName = "name"
 	)

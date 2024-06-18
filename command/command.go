@@ -74,11 +74,11 @@ func PrintUsage() {
 }
 
 var commands = []func() *Command{
-	NewEnumConst,
+	NewFieldsToConsts,
 	NewAsMapMethod,
 	NewBuilderStruct,
 	NewGettersSetters,
-	NewStringifyEnum,
+	NewEnrichConstType,
 }
 
 var index = slice.ToMap(commands, func(c func() *Command) string { return c().name }, as.Is[func() *Command])
