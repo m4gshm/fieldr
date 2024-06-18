@@ -81,7 +81,7 @@ func (g *Generator) GenerateEnumFromName(typ *types.Named, constNames c.Collecti
 	var (
 		returnType  = GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
 		funcName    = IdentName(op.IfElse(name == Autoname, typeName+DefaultMethodSuffixByName, name), export)
-		resultVar   = "v"
+		resultVar   = "e"
 		receiverVar = "name"
 		body        = FuncBodyWithArgs(funcName, slice.Of(receiverVar+" string"), "("+resultVar+" "+returnType+", ok bool)", nolint, enumFromNameSwitchExpr(constNames, receiverVar, resultVar))
 	)

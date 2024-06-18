@@ -23,15 +23,15 @@ func StringEnumAll() []StringEnum {
 	}
 }
 
-func StringEnumByName(name string) (v StringEnum, ok bool) {
+func StringEnumByName(name string) (e StringEnum, ok bool) {
 	ok = true
 	switch name {
 	case "FIRST":
-		v = FIRST
+		e = FIRST
 	case "SECOND":
-		v = SECOND
+		e = SECOND
 	case "THIRD":
-		v = THIRD
+		e = THIRD
 	default:
 		ok = false
 	}

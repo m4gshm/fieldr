@@ -555,17 +555,17 @@ func EnumAll() []Enum {
     }
 }
 
-func EnumByName(name string) (v Enum, ok bool) {
+func EnumByName(name string) (e Enum, ok bool) {
     ok = true
     switch name {
     case "AA":
-        v = AA
+        e = AA
     case "BB":
-        v = BB
+        e = BB
     case "CC":
-        v = CC
+        e = CC
     case "DD":
-        v = DD
+        e = DD
     default:
         ok = false
     }
@@ -618,15 +618,15 @@ func StringEnumAll() []StringEnum {
     }
 }
 
-func StringEnumByName(name string) (v StringEnum, ok bool) {
+func StringEnumByName(name string) (e StringEnum, ok bool) {
     ok = true
     switch name {
     case "FIRST":
-        v = FIRST
+        e = FIRST
     case "SECOND":
-        v = SECOND
+        e = SECOND
     case "THIRD":
-        v = THIRD
+        e = THIRD
     default:
         ok = false
     }

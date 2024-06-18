@@ -26,17 +26,17 @@ func EnumAll() []Enum {
 	}
 }
 
-func EnumByName(name string) (v Enum, ok bool) {
+func EnumByName(name string) (e Enum, ok bool) {
 	ok = true
 	switch name {
 	case "AA":
-		v = AA
+		e = AA
 	case "BB":
-		v = BB
+		e = BB
 	case "CC":
-		v = CC
+		e = CC
 	case "DD":
-		v = DD
+		e = DD
 	default:
 		ok = false
 	}
