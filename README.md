@@ -5,19 +5,21 @@ type properties like name, structure fields, tags or base type nature.
 
 ## Supported commands
 
-- fields-to-consts - generate constants based on template applied to
-  struct fields.
+- [fields-to-consts](#fields-to-consts-example) - generate constants
+  based on template applied to struct fields.
 
-- get-set - generates getters, setters for a structure type.
+- [get-set](#get-set-usage-example) - generates getters, setters for a
+  structure type.
 
-- builder - generates builder API of a structure type.
+- [builder](#builder-usage-example) - generates builder API of a
+  structure type.
 
-- as-map - generates a method or functon that converts the struct type
-  to a map.
+- [as-map](#as-map-usage-example) - generates a method or functon that
+  converts the struct type to a map.
 
-- enrich-const-type - extends a constants type by 'get name' method,
-  'enum all values' function and 'get a constant by a value of the
-  underlying type' function.
+- [enrich-const-type](#enrich-const-type-usage-example) - extends a
+  constants type by 'get name' method, 'enum all values' function and
+  'get a constant by a value of the underlying type' function.
 
 ## Installation
 
