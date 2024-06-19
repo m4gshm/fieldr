@@ -4,6 +4,8 @@ github.com/expr-lang/expr v1.16.9 h1:WUAzmR0JNI9JCiF0/ewwHB1gmcGw5wW7nWt8gc6PpCI
 github.com/expr-lang/expr v1.16.9/go.mod h1:8/vRC7+7HBzESEqt5kKpYXxrxkr31SaO8r40VO/1IT4=
 github.com/m4gshm/flag v0.0.0-20240531074408-c2ba7c00e77f h1:wAobKRJNJ9UX9x+Cu+qf1vU9HVHH2EvRookDauCKY4k=
 github.com/m4gshm/flag v0.0.0-20240531074408-c2ba7c00e77f/go.mod h1:+/tHF7E5MdN8WBoH4fXk2yK3b5v0x40MOn3n1YA4Cho=
+github.com/m4gshm/flag v0.0.0-20240619213502-937bc2cc0840 h1:juouAL4g8Yy9ui4XXu9A8IYcb75Vck5YO8kKQpbMOKY=
+github.com/m4gshm/flag v0.0.0-20240619213502-937bc2cc0840/go.mod h1:+/tHF7E5MdN8WBoH4fXk2yK3b5v0x40MOn3n1YA4Cho=
 github.com/m4gshm/gollections v0.0.13-0.20240608132135-c730e00bda21 h1:qcS6WZxzy3q2jCtHY7Gm50HO1OMfrBSPAIAbMdlp0WI=
 github.com/m4gshm/gollections v0.0.13-0.20240608132135-c730e00bda21/go.mod h1:M98G706MBft2JXf3iKwtGEakS9tePLReKbG0dK5Fa0s=
 github.com/m4gshm/gollections v0.0.13-0.20240610223218-b3e5bcb61a9b h1:khvhuL0J9lo0SDO41PK35uepu7Z9vTAqqIFjh8Wu6wA=

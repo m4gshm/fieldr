@@ -23,7 +23,7 @@ func NewEnrichConstType() *Command {
 	)
 	type apiMethod string
 	const (
-		nameMeth      apiMethod = "name"
+		nameMeth      apiMethod = "getter"
 		allFunc       apiMethod = "all"
 		fromNameFunc  apiMethod = "from-name"
 		fromValueFunc apiMethod = "from-value"

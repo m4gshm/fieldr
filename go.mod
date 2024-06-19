@@ -6,7 +6,7 @@ toolchain go1.22.1
 
 require (
 	github.com/expr-lang/expr v1.16.9
-	github.com/m4gshm/flag v0.0.0-20240531074408-c2ba7c00e77f
+	github.com/m4gshm/flag v0.0.0-20240619213502-937bc2cc0840
 	github.com/m4gshm/gollections v0.0.13
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.9.0
