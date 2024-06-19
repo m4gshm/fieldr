@@ -1,16 +1,24 @@
 .PHONY: all
-all: build test readme
+all: build test test-examples readme
 
 .PHONY: test
 test:
 	$(info #Running tests...)
 	go clean -testcache
-	GOEXPERIMENT=rangefunc go test
+	go test ./...
+
+.PHONY: test-examples
+test-examples:
+	$(info #Running internal tests...)
+	cd ./internal/examples
+	go generate -v ./...
+	go clean -testcache
+	go test ./...
 
 .PHONY: build
 build:
 	$(info #Building...)
-	GOEXPERIMENT=rangefunc go install
+	go install
 
 .PHONY: lint
 lint:

@@ -17,7 +17,6 @@ type (
 	TagName   = string
 	TagValue  = string
 	FieldName = string
-	Package   struct{ Name, Path string }
 	FieldType struct {
 		Embedded       bool
 		RefCount       int
@@ -29,9 +28,9 @@ type (
 	//Model struct type model.
 	Model struct {
 		Typ            *types.Named
-		TypeName       string
+		typeName       string
 		RefCount       int
-		Package        Package
+		pkg            *types.Package
 		OutPkgPath     string
 		FieldsTagValue map[FieldName]map[TagName]TagValue
 		TagsFieldValue map[TagName]map[FieldName]TagValue
@@ -40,13 +39,21 @@ type (
 	}
 )
 
+func (m *Model) Package() *types.Package {
+	return m.pkg
+}
+
+func (m *Model) TypeName() string {
+	return m.typeName
+}
+
 // New - Model's default constructor.
-func New(outPkgPath string, structType *types.Named, typePkg Package) (*Model, error) {
-	structModel, err := newBuilder(outPkgPath, handledStructs{}).newModel(typePkg, structType)
+func New(outPkgPath string, structType *types.Named) (*Model, error) {
+	structModel, err := newBuilder(outPkgPath, handledStructs{}).newModel(structType)
 	if err != nil {
 		return nil, fmt.Errorf("new model of %+v: %w", structType, err)
 	} else if structModel == nil {
-		return nil, fmt.Errorf("nil model for type %+v, package %+v", structType, typePkg)
+		return nil, fmt.Errorf("nil model for type %+v", structType)
 	}
 	return structModel, nil
 }

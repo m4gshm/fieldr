@@ -24,7 +24,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/m4gshm/fieldr/logger"
-	"github.com/m4gshm/fieldr/struc"
+	"github.com/m4gshm/fieldr/model/struc"
 )
 
 type stringer struct {
@@ -89,7 +89,7 @@ func (g *Generator) GenerateFieldConstant(
 
 	logger.Debugf("GenerateFieldConstant wrapType %v, typ %v, nameTmpl %v valueTmpl %v\n", wrapType, typ, nameTmpl, valueTmpl)
 
-	constants, err := makeFieldConstsTempl(g, model, model.TypeName, nameTmpl, valueTmpl, export, snake, usePrivate, flats, excludedFields, include)
+	constants, err := makeFieldConstsTempl(g, model, model.TypeName(), nameTmpl, valueTmpl, export, snake, usePrivate, flats, excludedFields, include)
 	if err != nil {
 		return err
 	} else if err = checkDuplicates(constants, uniqueValues); err != nil {
@@ -133,7 +133,7 @@ func (g *Generator) GenerateFieldConstant(
 		logger.Debugf("valAccessor %s, refAccessor %s", valAccessor, refAccessor)
 
 		if len(refAccessor) != 0 || len(valAccessor) != 0 {
-			pkgName, err := g.GetPackageName(model.Package.Name, model.Package.Path)
+			pkgName, err := g.GetPackageNameOrAlias(model.Package().Name(), model.Package().Path())
 			if err != nil {
 				return err
 			}
@@ -493,7 +493,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 	var (
 		argVar          = "f"
 		recVar          = "s"
-		recType         = GetTypeName(model.TypeName, pkgName)
+		recType         = GetTypeName(model.TypeName(), pkgName)
 		recParamType    = recType + TypeParamsString(model.Typ.TypeParams(), g.OutPkgPath)
 		recParamTypeRef = "*" + recParamType
 		returnTypes     = "any"

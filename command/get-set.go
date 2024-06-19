@@ -4,11 +4,12 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/m4gshm/gollections/op"
+
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/logger"
+	"github.com/m4gshm/fieldr/model/struc"
 	"github.com/m4gshm/fieldr/params"
-	"github.com/m4gshm/fieldr/struc"
-	"github.com/m4gshm/gollections/op"
 )
 
 func NewGettersSetters() *Command {
@@ -42,17 +43,17 @@ func NewGettersSetters() *Command {
 				return fmt.Errorf("usupported accessors '%s'", *accessors)
 			}
 
-			model, err := context.Model()
+			model, err := context.StructModel()
 			if err != nil {
 				return err
 			}
 			g := context.Generator
-			pkgName, err := g.GetPackageName(model.Package.Name, model.Package.Path)
+			pkgName, err := g.GetPackageNameOrAlias(model.Package().Name(), model.Package().Path())
 			if err != nil {
 				return err
 			}
 
-			rec := generator.TypeReceiverVar(model.TypeName)
+			rec := generator.TypeReceiverVar(model.TypeName())
 			fmn, fmb, err := generateGettersSetters(g, model, model, pkgName, rec, *getPrefix, *setPrefix, getters, setters, !(*noRefReceiver), !(*noExportMethods), *nolint, nil)
 			if err != nil {
 				return err
@@ -61,7 +62,7 @@ func NewGettersSetters() *Command {
 			for i := range fmn {
 				fieldMethodName := fmn[i]
 				fieldMethodBody := fmb[i]
-				if err := g.AddMethod(model.TypeName, fieldMethodName, fieldMethodBody); err != nil {
+				if err := g.AddMethod(model.TypeName(), fieldMethodName, fieldMethodBody); err != nil {
 					return err
 				}
 			}
@@ -74,7 +75,7 @@ func generateGettersSetters(
 	g *generator.Generator, baseModel, fieldsModel *struc.Model, pkgName, receiverVar, getterPrefix, setterPrefix string,
 	getters, setters, isReceiverReference, exportMethods, nolint bool, parentFieldInfo []generator.FieldInfo,
 ) ([]string, []string, error) {
-	logger.Debugf("generate getters, setters: receiver %s, type %s, getterPrefix %s setterPrefix %s", receiverVar, baseModel.TypeName, getterPrefix, setterPrefix)
+	logger.Debugf("generate getters, setters: receiver %s, type %s, getterPrefix %s setterPrefix %s", receiverVar, baseModel.TypeName(), getterPrefix, setterPrefix)
 	fieldMethodBodies := []string{}
 	fieldMethodNames := []string{}
 	for _, fieldName := range fieldsModel.FieldNames {
@@ -86,8 +87,8 @@ func generateGettersSetters(
 			}
 
 			if m := fieldType.Model; m != nil {
-				if !generator.IsExported(m.TypeName) {
-					logger.Debugf("cannot generate getter, setter for field %s with private type % for package %s", fieldName, m.TypeName, pkgName)
+				if !generator.IsExported(m.TypeName()) {
+					logger.Debugf("cannot generate getter, setter for field %s with private type % for package %s", fieldName, m.TypeName(), pkgName)
 					continue
 				}
 			}

@@ -38,7 +38,7 @@ func Nolint(flagSet *flag.FlagSet) *bool {
 }
 
 func ExportCont(flagSet *flag.FlagSet, content string) *bool {
-	return flagSet.Bool("export", false, "export generated "+content)
+	return flagSet.Bool("export", false, "no export generated "+content)
 }
 
 func Export(flagSet *flag.FlagSet) *bool {

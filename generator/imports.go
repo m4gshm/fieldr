@@ -2,9 +2,11 @@ package generator
 
 import (
 	"path"
-	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/m4gshm/gollections/predicate/is"
+	"github.com/m4gshm/gollections/slice"
 )
 
 func badSymbol(ch rune) bool {
@@ -14,14 +16,6 @@ func badSymbol(ch rune) bool {
 
 func packagePathToName(importPath string) string {
 	base := path.Base(importPath)
-	builder := strings.Builder{}
-	for _, r := range base {
-		if badSymbol(r) {
-			builder.WriteString("_")
-		} else {
-			builder.WriteRune(r)
-		}
-	}
-	pathName := builder.String()
+	pathName := string(slice.Filter([]rune(base), is.Not(badSymbol)))
 	return pathName
 }

@@ -8,8 +8,8 @@ import (
 
 	"github.com/m4gshm/fieldr/coderewriter"
 	"github.com/m4gshm/fieldr/generator"
+	"github.com/m4gshm/fieldr/model/struc"
 	"github.com/m4gshm/fieldr/params"
-	"github.com/m4gshm/fieldr/struc"
 )
 
 func NewAsMapMethod() *Command {
@@ -40,12 +40,12 @@ func NewAsMapMethod() *Command {
 		flats = params.MultiVal(flagSet, "flat", []string{}, "apply generator to fields of nested structs")
 	)
 
-	return New(cmdName, "generates method or functon that converts the struct type to a map", flagSet, func(context *Context) error {
+	return New(cmdName, "generates a method or functon that converts the struct type to a map", flagSet, func(context *Context) error {
 		g := context.Generator
-		if model, err := context.Model(); err != nil {
+		if model, err := context.StructModel(); err != nil {
 			return err
 		} else if kType, err := get.IfErr(*keyType == generator.Autoname, func() (string, error) {
-			kType := generator.GetFieldType(model.TypeName, *export, *snake)
+			kType := generator.GetFieldType(model.TypeName(), *export, *snake)
 			return kType, g.AddType(kType, generator.BaseConstType)
 		}).If(len(*keyType) == 0, generator.BaseConstType).Else(*keyType); err != nil {
 			return err

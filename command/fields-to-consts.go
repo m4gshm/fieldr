@@ -9,9 +9,9 @@ import (
 	"github.com/m4gshm/fieldr/params"
 )
 
-func NewEnumConst() *Command {
+func NewFieldsToConsts() *Command {
 	const (
-		name     = "enum-const"
+		name     = "fields-to-consts"
 		flagVal  = "val"
 		flagName = "name"
 	)
@@ -35,11 +35,11 @@ func NewEnumConst() *Command {
 		uniqueValues       = flagSet.Bool("check-unique-val", false, "checks if generated constant values are unique")
 	)
 	c := New(
-		name, "generate constants based on expressions applied to struct fields",
+		name, "generates constants based on expressions applied to struct fields",
 		flagSet,
 		func(context *Context) error {
 			g := context.Generator
-			m, err := context.Model()
+			m, err := context.StructModel()
 			if err != nil {
 				return err
 			}

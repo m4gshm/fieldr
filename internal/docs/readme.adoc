@@ -2,14 +2,15 @@
 
 == Fieldr
 
-Generator of various enumerated constants, types, functions based on structure fields and their tags.
+Generator of various enumerated constants, types, functions based on a type properties like name, structure fields, tags or base type nature.
 
 === Supported commands
 
-* enum-const - generate constants based on template applied to struct fields.
-* get-set - generates getters, setters for a structure type.
-* builder - generates builder API of a structure type.
-* as-map - generates method or functon that converts the struct type to a map.
+* link:#fields-to-consts-example[fields-to-consts] - generate constants based on template applied to struct fields.
+* link:#get-set-usage-example[get-set] - generates getters, setters for a structure type.
+* link:#builder-usage-example[builder] - generates builder API of a structure type.
+* link:#as-map-usage-example[as-map] - generates a method or functon that converts the struct type to a map.
+* link:#enrich-const-type-usage-example[enrich-const-type] - extends a constants type by 'get name' method, 'enum all values' function and 'get a constant by a value of the underlying type' function.
 
 === Installation
 
@@ -23,7 +24,7 @@ or
 go install github.com/m4gshm/fieldr@HEAD
 ----
 
-=== Enum constant example
+=== fields-to-consts example
 source `entity.go`:
 
 [source,go]
@@ -49,7 +50,7 @@ To get extended help of the command, use the following:
 
 [source,console]
 ----
-fieldr enum-const help
+fieldr fields-to-consts help
 ----
 
 ==== Example of generating ORM elements: 
@@ -77,7 +78,7 @@ include::../examples/usage/enum_const/enum_const_db/entity_fieldr.go[]
 - -include _"tag.pk != nil"_ - uses only 'pk' tag having a value.
 
 
-=== Get-set usage example
+=== get-set usage example
 
 source `entity.go`
 
@@ -90,14 +91,14 @@ include::../examples/usage/get_set/entity.go[]
 ----
 go generate .
 ----
-generated `entity_fieldr.go`
+generates `entity_fieldr.go`
 
 [source,go]
 ----
 include::../examples/usage/get_set/entity_fieldr.go[]
 ----
 
-=== Builder usage example
+=== builder usage example
 
 source `entity.go`
 
@@ -110,7 +111,7 @@ include::../examples/usage/builder/entity.go[]
 ----
 go generate .
 ----
-generated `entity_fieldr.go`
+generates `entity_fieldr.go`
 
 [source,go]
 ----
@@ -118,7 +119,7 @@ include::../examples/usage/builder/entity_fieldr.go[]
 ----
 
 
-=== As-map usage example
+=== as-map usage example
 
 source `struct.go`
 
@@ -131,7 +132,7 @@ include::../examples/asmap/struct.go[]
 ----
 go generate .
 ----
-will be generate two files `struct_as_map.go`, `address_as_map.go`
+generates two files `struct_as_map.go`, `address_as_map.go`
 
 [source,go]
 ----
@@ -142,9 +143,33 @@ include::../examples/asmap/struct_as_map.go[]
 include::../examples/asmap/address_as_map.go[]
 ----
 
+=== enrich-const-type usage example
+source `enum.go`
+
+[source,go]
+----
+include::../examples/usage/enrich_enum/enum.go[]
+----
+
+[source,console]
+----
+go generate .
+----
+generates `enum_fieldr.go`
+
+[source,go]
+----
+include::../examples/usage/enrich_enum/enum_fieldr.go[]
+----
+
+and `stringenum_fieldr.go`
+
+[source,go]
+----
+include::../examples/usage/enrich_enum/stringenum_fieldr.go[]
+----
 
 
-
-See more examples link:./examples/[here]
+See more examples link:./internal/examples/[here]
 
 

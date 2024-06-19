@@ -1,7 +1,7 @@
 package sql
 
 //go:generate fieldr -type Entity
-//go:fieldr enum-const -name "join('col', field.name)" -val "tag.db" -type col -list . -val-access . -ref-access . -flat NoDBFieldsEntity -flat Versioned
+//go:fieldr fields-to-consts -name "join('col', field.name)" -val "tag.db" -type col -list . -val-access . -ref-access . -flat NoDBFieldsEntity -flat Versioned
 
 import (
 	"database/sql"

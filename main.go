@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/m4gshm/expressions/error_"
+	"github.com/m4gshm/gollections/error_"
 	breakloop "github.com/m4gshm/gollections/break/loop"
 	"github.com/m4gshm/gollections/collection"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
@@ -32,8 +32,8 @@ import (
 	"github.com/m4gshm/fieldr/command"
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/logger"
+	"github.com/m4gshm/fieldr/model/util"
 	"github.com/m4gshm/fieldr/params"
-	"github.com/m4gshm/fieldr/struc"
 	fuse "github.com/m4gshm/fieldr/use"
 )
 
@@ -41,7 +41,7 @@ func usage(commandLine *flag.FlagSet) func() {
 	return func() {
 		out := commandLine.Output()
 		_, _ = fmt.Fprintf(out, params.Name+" is a tool for generating constants, variables, functions and methods"+
-			" based on a structure model: name, fields, tags\n")
+			" based on a type properties like name, structure fields, tags or base type nature.\n")
 		_, _ = fmt.Fprintf(out, "Usage of "+params.Name+":\n")
 		_, _ = fmt.Fprintf(out, "\t"+params.Name+" [flags] command1 [command-flags] command2 [command-flags]... command [command-flags]\n")
 		_, _ = fmt.Fprintf(out, "Use \"command --help\" to get help of this one\n")
@@ -113,7 +113,7 @@ func run() error {
 
 	typeConfigs := map_.Empty[params.TypeConfig, []*command.Command]()
 
-	for file, err := range getFilesCommentArgs(fileSet, getAstFiles(pkgs)).All {
+	for next, file, ok, err := getFilesCommentArgs(fileSet, getAstFiles(pkgs)).Crank(); ok; file, ok, err = next() {
 		if err != nil {
 			return err
 		}
@@ -200,14 +200,14 @@ func run() error {
 		pkgsFiles := getAstFiles(pkgs)
 		logger.Debugf("source files amount %d", pkgsFiles.Len())
 
-		for file := range pkgsFiles.All {
+		pkgsFiles.ForEach(func(file *ast.File) {
 			if info := fileSet.File(file.Pos()); info != nil {
 				logger.Debugf("found source file %s", info.Name())
 			}
-		}
+		})
 	}
 
-	for typeConfig, commands := range typeConfigs.All {
+	for iter, typeConfig, commands, ok := typeConfigs.First(); ok; typeConfig, commands, ok = iter.Next() {
 		logger.Debugf("using type config %+v\n", typeConfig)
 
 		typeName := typeConfig.Type
@@ -217,7 +217,7 @@ func run() error {
 			return fuse.Err("no type arg")
 		}
 
-		typ, typPkg, typFile, err := struc.FindTypePackageFile(typeName, fileSet, pkgs)
+		typ, typPkg, typFile, err := util.FindTypePackageFile(typeName, fileSet, pkgs)
 		if err != nil {
 			return fmt.Errorf("find type %s: %w", typeName, err)
 		} else if typ == nil {
@@ -293,7 +293,10 @@ func run() error {
 			pkgPath = outPkg.PkgPath
 		}
 		g := generator.New(params.Name, typeConfig.OutBuildTags, outFile, outFileInfo, pkgPath, pkgTypes)
-		ctx := &command.Context{Generator: g, Typ: typ, Pkg: struc.Package{Name: typPkg.Name, Path: typPkg.PkgPath}}
+		o := typ.Obj()
+		pp := o.Pkg()
+		_ = pp
+		ctx := &command.Context{Generator: g, Typ: typ}
 		for _, c := range commands {
 			logger.Debugf("run command %s", c.Name())
 			if err := c.Run(ctx); err != nil {
@@ -327,7 +330,7 @@ func getAstFiles(pkgs *ordered.Set[*packages.Package]) *ordered.Set[*ast.File] {
 func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], outputName, moduleDir string) (*packages.Package, *ast.File, *token.File, error) {
 	logger.Debugf("findPkgFile: outputName %s", outputName)
 
-	for pkg, file := range loop.ExtraVals(pkgs.Loop(), getPkgFiles).All {
+	for next, pkg, file, ok := loop.ExtraVals(pkgs.Loop(), getPkgFiles).Crank(); ok; pkg, file, ok = next() {
 		if info := fileSet.File(file.Pos()); info != nil {
 			srcFileName := info.Name()
 			if srcFileName == outputName {
@@ -346,7 +349,7 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 	}
 	logger.Debugf("findPkgFile: find package by exist src files")
 
-	for pkg, file := range loop.ExtraVals(pkgs.Loop(), getPkgFiles).All {
+	for next, pkg, file, ok := loop.ExtraVals(pkgs.Loop(), getPkgFiles).Crank(); ok; pkg, file, ok = next() {
 		if info := fileSet.File(file.Pos()); info != nil {
 			if fileDir, err := getDir(info.Name()); err != nil {
 				return nil, nil, nil, err

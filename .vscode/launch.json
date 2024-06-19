@@ -60,7 +60,7 @@
                 "Entity",
                 "-out",
                 "entity_fields.go",
-                "enum-const",
+                "fields-to-consts",
                 "-name",
                 "join('col', field.name)",
                 "-val",
@@ -91,7 +91,7 @@
                 "-out",
                 "entity_fields.go",
                 "-debug",
-                "enum-const",
+                "fields-to-consts",
                 "-name",
                 "{{(join struct.name \"Col\" field.name) | snake | toUpper}}",
                 "-val",
@@ -203,7 +203,7 @@
             ]
         },
         {
-            "name": "Debug usage example (enum-const, bulder)",
+            "name": "Debug usage example (fields-to-consts, bulder)",
             "type": "go",
             "request": "launch",
             "mode": "debug",
@@ -212,7 +212,7 @@
             "args": [
                 "-type",
                 "Entity",
-                "enum-const",
+                "fields-to-consts",
                 "-val",
                 ".json",
                 "-list",
@@ -224,7 +224,7 @@
             ]
         },
         {
-            "name": "Debug usage example (enum-const)",
+            "name": "Debug usage example (fields-to-consts)",
             "type": "go",
             "request": "launch",
             "mode": "debug",
@@ -233,7 +233,7 @@
             "args": [
                 "-type",
                 "Entity",
-                "enum-const",
+                "fields-to-consts",
                 "-val",
                 "tag.json",
                 "-list",
@@ -241,7 +241,7 @@
             ]
         },
         {
-            "name": "Debug usage example (enum-const db)",
+            "name": "Debug usage example (fields-to-consts db)",
             "type": "go",
             "request": "launch",
             "mode": "debug",
@@ -250,9 +250,22 @@
             "args": [
                 "-type",
                 "Entity",
-                "enum-const"
+                "fields-to-consts"
             ]
         },
+        {
+            "name": "Debug usage example (enrich-const-type)",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "internal/examples/usage/enrich_enum/",
+            "args": [
+                "-type",
+                "Enum",
+                "enrich-const-type"
+            ]
+        },        
         {
             "name": "Launch Package",
             "type": "go",

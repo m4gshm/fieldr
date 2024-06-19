@@ -1,4 +1,4 @@
-package struc
+package util
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"go/token"
 	"go/types"
 
-	"github.com/m4gshm/gollections/c"
+	"github.com/m4gshm/gollections/collection"
 	"github.com/m4gshm/gollections/map_"
 	"github.com/m4gshm/gollections/op"
 	"golang.org/x/tools/go/packages"
@@ -14,14 +14,14 @@ import (
 	"github.com/m4gshm/fieldr/logger"
 )
 
-func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.All[*packages.Package]) (*types.Named, *packages.Package, *ast.File, error) {
-	for pkg := range pkgs.All {
+func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs collection.Collection[*packages.Package]) (*types.Named, *packages.Package, *ast.File, error) {
+	for next, pkg, ok := pkgs.Loop().Crank(); ok; pkg, ok = next() {
 		pkgTypes := pkg.Types
 		if lookup := pkgTypes.Scope().Lookup(typeName); lookup == nil {
 			logger.Debugf("no type '%s' in package '%s'", typeName, pkgTypes.Name())
 			continue
-		} else if structType, _ := GetStructTypeNamed(lookup.Type()); structType == nil {
-			return nil, nil, nil, fmt.Errorf("type '%s' is not struct", typeName)
+		} else if typeNamed, _ := GetTypeNamed(lookup.Type()); typeNamed == nil {
+			return nil, nil, nil, fmt.Errorf("cannot detect type '%s'", typeName)
 		} else {
 			var resultFile *ast.File
 			logger.Debugf("look package '%s', syntax file count %d", pkg.Name, len(pkg.Syntax))
@@ -41,7 +41,7 @@ func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.All[*pa
 					}
 				}
 			}
-			return structType, pkg, resultFile, nil
+			return typeNamed, pkg, resultFile, nil
 		}
 	}
 	return nil, nil, nil, nil
@@ -64,6 +64,7 @@ func GetStructTypeNamed(typ types.Type) (*types.Named, int) {
 		und := ftt.Underlying()
 		if _, ok := und.(*types.Struct); ok {
 			return ftt, p
+
 		} else if sund, sp := GetStructTypeNamed(und); sund != nil {
 			return ftt, sp + p
 		}
@@ -71,27 +72,30 @@ func GetStructTypeNamed(typ types.Type) (*types.Named, int) {
 	return nil, 0
 }
 
-func GetStructType(t types.Type) (*types.Struct, int) {
+func GetTypeStruct(t types.Type) (*types.Struct, int) {
+	return getType[*types.Struct](t, 1000)
+}
+
+func GetTypeBasic(t types.Type) (*types.Basic, int) {
+	return getType[*types.Basic](t, 1000)
+}
+
+func getType[T types.Type](t types.Type, depth int) (T, int) {
+	if depth < 0 {
+		panic(fmt.Sprintf("getType overflow %v", t))
+	}
+	var zero T
 	switch tt := t.(type) {
-	case *types.Struct:
+	case T:
 		return tt, 0
 	case *types.Pointer:
-		s, pc := GetStructType(tt.Elem())
+		s, pc := getType[T](tt.Elem(), depth-1)
 		return s, pc + 1
-	case *types.Named:
-		underlying := tt.Underlying()
-		if underlying == t {
-			return nil, 0
-		}
-		return GetStructType(underlying)
 	case types.Type:
 		underlying := tt.Underlying()
-		if underlying == t {
-			return nil, 0
-		}
-		return GetStructType(underlying)
+		return getType[T](underlying, depth-1)
 	default:
-		return nil, 0
+		return zero, 0
 	}
 }
 
