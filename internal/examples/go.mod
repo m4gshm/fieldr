@@ -8,7 +8,7 @@ require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/jackc/pgx/v4 v4.17.2
 	github.com/lib/pq v1.10.9
-	github.com/m4gshm/gollections v0.0.13
+	github.com/m4gshm/gollections v0.0.14
 	github.com/pressly/goose/v3 v3.20.0
 	github.com/rs/zerolog v1.28.0
 	github.com/simukti/sqldb-logger v0.0.0-20220521163925-faf2f2be0eb6

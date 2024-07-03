@@ -599,7 +599,7 @@ func (g *Generator) getImportsExpr() (string, error) {
 func (g *Generator) getImports() *ast.GenDecl {
 	return &ast.GenDecl{
 		Tok:   token.IMPORT,
-		Specs: map_.ToSlice(g.imports, func(pack string, imp packageImport) ast.Spec { return newImport(imp.alias, pack) }),
+		Specs: map_.Slice(g.imports, func(pack string, imp packageImport) ast.Spec { return newImport(imp.alias, pack) }),
 	}
 }
 

@@ -9,7 +9,6 @@ import (
 	"github.com/m4gshm/gollections/expr/get"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/slice"
-	"github.com/m4gshm/gollections/slice/convert"
 )
 
 func New(name, description string, flagSet *flag.FlagSet, op func(context *Context) error) *Command {
@@ -61,7 +60,7 @@ func Get(name string) *Command {
 }
 
 func Supported() []string {
-	return convert.AndConvert(commands, op.Get[*Command], (*Command).Name)
+	return slice.Convert(commands, getCommandFuncName)
 }
 
 func PrintUsage() {
@@ -81,4 +80,6 @@ var commands = []func() *Command{
 	NewEnrichConstType,
 }
 
-var index = slice.ToMap(commands, func(c func() *Command) string { return c().name }, as.Is[func() *Command])
+var index = slice.Map(commands, getCommandFuncName, as.Is)
+
+func getCommandFuncName(c func() *Command) string { return c().Name() }

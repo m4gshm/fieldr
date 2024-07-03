@@ -40,7 +40,7 @@ func (b *structModelBuilder) populateTags(fieldName FieldName, tagName TagName, 
 }
 
 func (b *structModelBuilder) populateFields(fldName FieldName, fieldTagNames []TagName, tagValues map[TagName]TagValue) {
-	fieldTagValues := slice.ToMap(fieldTagNames, as.Is[TagName], map_.Getter(tagValues))
+	fieldTagValues := slice.Map(fieldTagNames, as.Is[TagName], map_.Getter(tagValues))
 	if len(fieldTagValues) > 0 {
 		b.model.FieldsTagValue[fldName] = fieldTagValues
 	}
