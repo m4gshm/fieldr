@@ -9,6 +9,7 @@ import (
 	"go/types"
 	"io/fs"
 	"io/ioutil"
+	"iter"
 	"log"
 	"os"
 	"path"
@@ -16,12 +17,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/m4gshm/gollections/error_"
 	breakloop "github.com/m4gshm/gollections/break/loop"
 	"github.com/m4gshm/gollections/collection"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
 	"github.com/m4gshm/gollections/collection/mutable/ordered/map_"
 	"github.com/m4gshm/gollections/collection/mutable/ordered/set"
+	"github.com/m4gshm/gollections/error_"
 	"github.com/m4gshm/gollections/expr/get"
 	"github.com/m4gshm/gollections/expr/use"
 	"github.com/m4gshm/gollections/loop"
@@ -113,7 +114,7 @@ func run() error {
 
 	typeConfigs := map_.Empty[params.TypeConfig, []*command.Command]()
 
-	for next, file, ok, err := getFilesCommentArgs(fileSet, getAstFiles(pkgs)).Crank(); ok; file, ok, err = next() {
+	for file, err := range getFilesCommentArgs(fileSet, getAstFiles(pkgs)) {
 		if err != nil {
 			return err
 		}
@@ -200,14 +201,14 @@ func run() error {
 		pkgsFiles := getAstFiles(pkgs)
 		logger.Debugf("source files amount %d", pkgsFiles.Len())
 
-		pkgsFiles.ForEach(func(file *ast.File) {
+		for file := range pkgsFiles.All {
 			if info := fileSet.File(file.Pos()); info != nil {
 				logger.Debugf("found source file %s", info.Name())
 			}
-		})
+		}
 	}
 
-	for iter, typeConfig, commands, ok := typeConfigs.First(); ok; typeConfig, commands, ok = iter.Next() {
+	for typeConfig, commands := range typeConfigs.All {
 		logger.Debugf("using type config %+v\n", typeConfig)
 
 		typeName := typeConfig.Type
@@ -330,7 +331,7 @@ func getAstFiles(pkgs *ordered.Set[*packages.Package]) *ordered.Set[*ast.File] {
 func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], outputName, moduleDir string) (*packages.Package, *ast.File, *token.File, error) {
 	logger.Debugf("findPkgFile: outputName %s", outputName)
 
-	for next, pkg, file, ok := loop.ExtraVals(pkgs.Loop(), getPkgFiles).Crank(); ok; pkg, file, ok = next() {
+	for pkg, file := range loop.ExtraVals(pkgs.Loop(), getPkgFiles).All {
 		if info := fileSet.File(file.Pos()); info != nil {
 			srcFileName := info.Name()
 			if srcFileName == outputName {
@@ -349,7 +350,7 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 	}
 	logger.Debugf("findPkgFile: find package by exist src files")
 
-	for next, pkg, file, ok := loop.ExtraVals(pkgs.Loop(), getPkgFiles).Crank(); ok; pkg, file, ok = next() {
+	for pkg, file := range loop.ExtraVals(pkgs.Loop(), getPkgFiles).All {
 		if info := fileSet.File(file.Pos()); info != nil {
 			if fileDir, err := getDir(info.Name()); err != nil {
 				return nil, nil, nil, err
@@ -411,7 +412,7 @@ type fileCommentArgs struct {
 
 func (f fileCommentArgs) CommentArgs() []commentArgs { return f.commentArgs }
 
-func getFilesCommentArgs(fileSet *token.FileSet, files collection.Iterable[*ast.File]) breakloop.Loop[fileCommentArgs] {
+func getFilesCommentArgs(fileSet *token.FileSet, files collection.Iterable[*ast.File]) iter.Seq2[fileCommentArgs, error] {
 	return breakloop.NoNilPtrVal(collection.Conv(files, func(file *ast.File) (*fileCommentArgs, error) {
 		ft := fileSet.File(file.Pos())
 		if args, err := getCommentArgs(file, ft); err != nil {
@@ -420,7 +421,7 @@ func getFilesCommentArgs(fileSet *token.FileSet, files collection.Iterable[*ast.
 			return &fileCommentArgs{astFile: file, tokenFile: ft, commentArgs: args}, nil
 		}
 		return nil, nil
-	}))
+	})).All
 }
 
 type commentArgs struct {

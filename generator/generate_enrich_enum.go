@@ -64,7 +64,7 @@ func enumFromValueSwitchExpr(constValNamesMap ordered.Map[goconstant.Value, []st
 	return expr + "\nreturn"
 }
 
-func (g *Generator) GenerateEnumFromName(typ *types.Named, constNames c.Collection[[]string],
+func (g *Generator) GenerateEnumFromName(typ *types.Named, constNames c.Range[[]string],
 	name string, export bool, nolint bool) (string, string, error) {
 
 	obj := typ.Obj()
@@ -88,16 +88,16 @@ func (g *Generator) GenerateEnumFromName(typ *types.Named, constNames c.Collecti
 	return funcName, body, nil
 }
 
-func enumFromNameSwitchExpr[C c.Collection[[]string]](consts C, receiverVar, resultVar string) string {
+func enumFromNameSwitchExpr[C c.Range[[]string]](consts C, receiverVar, resultVar string) string {
 	expr := "ok = true\n"
 	expr += "switch " + receiverVar + " {\n"
-	consts.ForEach(func(names []string) {
+	for names := range consts.All {
 		expr += "case "
 		for i, name := range names {
 			expr += op.IfElse(i > 0, ",", "") + "\"" + name + "\""
 		}
 		expr += ":\n" + "\t" + resultVar + "=" + names[0] + "\n"
-	})
+	}
 	expr += "default:\n\tok=false\n}"
 	return expr + "\nreturn"
 }
