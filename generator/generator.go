@@ -572,13 +572,13 @@ func getSortedChunks(chunkVals map[int]map[int]string) []int {
 func (g *Generator) writeHead(packageName string) error {
 	g.writeBody("// %s'; DO NOT EDIT.\n\n", generatedMarker(g.name))
 	if tags := strings.Trim(g.outBuildTags, " "); len(tags) > 0 {
-		g.writeBody("// +build " + tags + "\n")
+		g.writeBody("// +build %s\n", tags)
 	}
 	g.writeBody("package %s\n", packageName)
 	if imps, err := g.getImportsExpr(); err != nil {
 		return err
 	} else {
-		g.writeBody(imps)
+		g.writeBody("%s", imps)
 		g.writeBody("\n")
 	}
 	return nil
@@ -667,7 +667,7 @@ func (g *Generator) writeFunctions() error {
 			if b, err := f.String(); err != nil {
 				return err
 			} else {
-				g.writeBody(b)
+				g.writeBody("%s", b)
 			}
 		}
 		g.writeBody("\n")
@@ -682,7 +682,7 @@ func (g *Generator) writeTypes() error {
 func (g *Generator) writeStructs() error {
 	for _, name := range g.structNames {
 		if s, ok := g.structBodies[name]; ok {
-			g.writeBody("type " + s)
+			g.writeBody("type %s", s)
 		}
 		g.writeBody("\n")
 	}

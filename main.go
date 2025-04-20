@@ -17,16 +17,19 @@ import (
 	"strconv"
 	"strings"
 
-	breakloop "github.com/m4gshm/gollections/break/loop"
 	"github.com/m4gshm/gollections/collection"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
 	"github.com/m4gshm/gollections/collection/mutable/ordered/map_"
 	"github.com/m4gshm/gollections/collection/mutable/ordered/set"
+	"github.com/m4gshm/gollections/convert"
+	"github.com/m4gshm/gollections/convert/as"
 	"github.com/m4gshm/gollections/error_"
 	"github.com/m4gshm/gollections/expr/get"
 	"github.com/m4gshm/gollections/expr/use"
-	"github.com/m4gshm/gollections/loop"
 	"github.com/m4gshm/gollections/op"
+	"github.com/m4gshm/gollections/seq"
+	over "github.com/m4gshm/gollections/seq"
+	"github.com/m4gshm/gollections/seqe"
 	"github.com/m4gshm/gollections/slice"
 	"golang.org/x/tools/go/packages"
 
@@ -58,7 +61,7 @@ func main() {
 	if err := run(); err != nil {
 		var uErr *fuse.Error
 		if errors.As(err, &uErr) {
-			fmt.Fprintf(os.Stderr, "err: "+uErr.Error()+"\n")
+			fmt.Fprintf(os.Stderr, "err: %s\n", uErr.Error())
 			flag.CommandLine.Usage()
 		} else {
 			log.Fatal(err.Error())
@@ -331,7 +334,7 @@ func getAstFiles(pkgs *ordered.Set[*packages.Package]) *ordered.Set[*ast.File] {
 func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], outputName, moduleDir string) (*packages.Package, *ast.File, *token.File, error) {
 	logger.Debugf("findPkgFile: outputName %s", outputName)
 
-	for pkg, file := range loop.ExtraVals(pkgs.Loop(), getPkgFiles).All {
+	for pkg, file := range over.KeyValues(pkgs.All, as.Is, getPkgFiles) {
 		if info := fileSet.File(file.Pos()); info != nil {
 			srcFileName := info.Name()
 			if srcFileName == outputName {
@@ -350,7 +353,7 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 	}
 	logger.Debugf("findPkgFile: find package by exist src files")
 
-	for pkg, file := range loop.ExtraVals(pkgs.Loop(), getPkgFiles).All {
+	for pkg, file := range over.KeyValues(pkgs.All, as.Is, getPkgFiles) {
 		if info := fileSet.File(file.Pos()); info != nil {
 			if fileDir, err := getDir(info.Name()); err != nil {
 				return nil, nil, nil, err
@@ -412,8 +415,8 @@ type fileCommentArgs struct {
 
 func (f fileCommentArgs) CommentArgs() []commentArgs { return f.commentArgs }
 
-func getFilesCommentArgs(fileSet *token.FileSet, files collection.Iterable[*ast.File]) iter.Seq2[fileCommentArgs, error] {
-	return breakloop.NoNilPtrVal(collection.Conv(files, func(file *ast.File) (*fileCommentArgs, error) {
+func getFilesCommentArgs(fileSet *token.FileSet, files collection.Collection[*ast.File]) iter.Seq2[fileCommentArgs, error] {
+	return seqe.ConvertOK(seq.Conv(files.All, func(file *ast.File) (*fileCommentArgs, error) {
 		ft := fileSet.File(file.Pos())
 		if args, err := getCommentArgs(file, ft); err != nil {
 			return nil, err
@@ -421,7 +424,7 @@ func getFilesCommentArgs(fileSet *token.FileSet, files collection.Iterable[*ast.
 			return &fileCommentArgs{astFile: file, tokenFile: ft, commentArgs: args}, nil
 		}
 		return nil, nil
-	})).All
+	}), convert.NoNilPtrVal)
 }
 
 type commentArgs struct {
@@ -430,7 +433,7 @@ type commentArgs struct {
 }
 
 func getCommentArgs(file *ast.File, fInfo *token.File) ([]commentArgs, error) {
-	return loop.Conv(loop.FlatS(file.Comments, func(cg *ast.CommentGroup) []*ast.Comment { return cg.List }),
+	return seqe.Slice(seq.Conv(seq.Flat(seq.Of(file.Comments...), func(cg *ast.CommentGroup) []*ast.Comment { return cg.List }),
 		func(comment *ast.Comment) (a commentArgs, err error) {
 			args, err := getCommentCmdArgs(comment.Text)
 			if err == nil && len(args) > 0 {
@@ -438,7 +441,7 @@ func getCommentArgs(file *ast.File, fInfo *token.File) ([]commentArgs, error) {
 			}
 			return commentArgs{comment: comment, args: args}, err
 		},
-	).Slice()
+	))
 }
 
 var commentCmdPrefix = "//" + params.CommentConfigPrefix
@@ -507,9 +510,9 @@ func splitArgs(rawArgs string) ([]string, error) {
 }
 
 func loadFilesPackages(fileSet *token.FileSet, inputs []string, buildTags []string) (*ordered.Set[*packages.Package], error) {
-	return loop.ConvS(inputs, func(srcFile string) (*ordered.Set[*packages.Package], error) {
+	return seqe.Reducee(seq.Conv(seq.Of(inputs...), func(srcFile string) (*ordered.Set[*packages.Package], error) {
 		return loadFilePackage(srcFile, fileSet, buildTags...)
-	}).Reducee(func(l, r *ordered.Set[*packages.Package]) (*ordered.Set[*packages.Package], error) {
+	}), func(l, r *ordered.Set[*packages.Package]) (*ordered.Set[*packages.Package], error) {
 		_ = l.AddAllNew(r)
 		return l, nil
 	})
