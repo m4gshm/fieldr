@@ -7,8 +7,8 @@ import (
 	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/collection"
 	"github.com/m4gshm/gollections/collection/immutable/ordered"
-	"github.com/m4gshm/gollections/loop"
 	"github.com/m4gshm/gollections/op"
+	"github.com/m4gshm/gollections/seq"
 	"github.com/m4gshm/gollections/slice"
 )
 
@@ -117,7 +117,7 @@ func (g *Generator) GenerateEnumName(typ *types.Named, constValNamesMap ordered.
 	typParams := typ.TypeParams()
 
 	var (
-		returnSlice     = loop.Reduce(collection.Convert(constValNamesMap.Values(), slice.Len), op.Max) > 1
+		returnSlice     = seq.Reduce(seq.Convert(constValNamesMap.Values().All, slice.Len), op.Max) > 1
 		returnType      = op.IfElse(returnSlice, "[]string", "string")
 		receiverType    = GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
 		receiverVar     = TypeReceiverVar(typeName)

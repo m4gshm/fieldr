@@ -1,10 +1,10 @@
 package generator
 
 import (
-	"github.com/m4gshm/gollections/loop"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/op/delay/replace"
 	"github.com/m4gshm/gollections/op/delay/string_/wrap"
+	"github.com/m4gshm/gollections/seq"
 	"github.com/m4gshm/gollections/slice/split"
 
 	"github.com/m4gshm/fieldr/model/struc"
@@ -42,7 +42,7 @@ func (g *Generator) GenerateAsMapFunc(
 }
 
 func generateMapInits(mapVar, recVar string, rewriter *CodeRewriter, constants []FieldConst) string {
-	return loop.ConvertS(constants, func(constant FieldConst) string {
+	return seq.Reduce(seq.Convert(seq.Of(constants...), func(constant FieldConst) string {
 		var (
 			_, conditionPath, conditions         = FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
 			varsConditionStart, varsConditionEnd = split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum, op.Sum)
@@ -50,5 +50,5 @@ func generateMapInits(mapVar, recVar string, rewriter *CodeRewriter, constants [
 			revr, _                              = rewriter.Transform(field.Name, field.Type, conditionPath)
 		)
 		return varsConditionStart + mapVar + "[" + constant.name + "]= " + revr + "\n" + varsConditionEnd
-	}).Reduce(op.Sum)
+	}), op.Sum)
 }
