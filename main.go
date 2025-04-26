@@ -17,7 +17,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/m4gshm/gollections/collection"
+	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
 	"github.com/m4gshm/gollections/collection/mutable/ordered/map_"
 	"github.com/m4gshm/gollections/collection/mutable/ordered/set"
@@ -28,7 +28,6 @@ import (
 	"github.com/m4gshm/gollections/expr/use"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/seq"
-	over "github.com/m4gshm/gollections/seq"
 	"github.com/m4gshm/gollections/seqe"
 	"github.com/m4gshm/gollections/slice"
 	"golang.org/x/tools/go/packages"
@@ -188,7 +187,7 @@ func run() error {
 		if patternPkgs, err := extractPackages(fileSet, *buildTags, pkgPtrn); err != nil {
 			return err
 		} else {
-			pkgs.AddAllNew(patternPkgs)
+			pkgs.AddAllNew(patternPkgs.All)
 		}
 	}
 
@@ -197,7 +196,7 @@ func run() error {
 	if inputPkgs, err := loadFilesPackages(fileSet, *inputs, *buildTags); err != nil {
 		return err
 	} else {
-		pkgs.AddAllNew(inputPkgs)
+		pkgs.AddAllNew(inputPkgs.All)
 	}
 
 	if logger.IsDebug() {
@@ -327,14 +326,14 @@ func run() error {
 
 func getPkgFiles(p *packages.Package) []*ast.File { return p.Syntax }
 
-func getAstFiles(pkgs *ordered.Set[*packages.Package]) *ordered.Set[*ast.File] {
-	return set.From(collection.Flat(pkgs, getPkgFiles))
+func getAstFiles(pkgs c.Range[*packages.Package]) *ordered.Set[*ast.File] {
+	return set.FromSeq(seq.Flat(pkgs.All, getPkgFiles))
 }
 
-func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], outputName, moduleDir string) (*packages.Package, *ast.File, *token.File, error) {
+func findPkgFile(fileSet *token.FileSet, pkgs c.Range[*packages.Package], outputName, moduleDir string) (*packages.Package, *ast.File, *token.File, error) {
 	logger.Debugf("findPkgFile: outputName %s", outputName)
 
-	for pkg, file := range over.KeyValues(pkgs.All, as.Is, getPkgFiles) {
+	for pkg, file := range seq.KeyValues(pkgs.All, as.Is, getPkgFiles) {
 		if info := fileSet.File(file.Pos()); info != nil {
 			srcFileName := info.Name()
 			if srcFileName == outputName {
@@ -353,7 +352,7 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 	}
 	logger.Debugf("findPkgFile: find package by exist src files")
 
-	for pkg, file := range over.KeyValues(pkgs.All, as.Is, getPkgFiles) {
+	for pkg, file := range seq.KeyValues(pkgs.All, as.Is, getPkgFiles) {
 		if info := fileSet.File(file.Pos()); info != nil {
 			if fileDir, err := getDir(info.Name()); err != nil {
 				return nil, nil, nil, err
@@ -368,7 +367,7 @@ func findPkgFile(fileSet *token.FileSet, pkgs *ordered.Set[*packages.Package], o
 
 	pkgName := filepath.Base(dir)
 	logger.Debugf("findPkgFile: select package by name: %s, path %s", pkgName, dir)
-	firstPkg, ok := collection.First(pkgs, func(p *packages.Package) bool {
+	firstPkg, ok := seq.First(pkgs.All, func(p *packages.Package) bool {
 		if fullPath := filepath.Join(p.Module.Dir, path.Base(p.PkgPath)); fullPath == dir {
 			logger.Debugf("findPkgFile: found package by name %s, %v", pkgName, fullPath)
 			return true
@@ -415,7 +414,7 @@ type fileCommentArgs struct {
 
 func (f fileCommentArgs) CommentArgs() []commentArgs { return f.commentArgs }
 
-func getFilesCommentArgs(fileSet *token.FileSet, files collection.Collection[*ast.File]) iter.Seq2[fileCommentArgs, error] {
+func getFilesCommentArgs(fileSet *token.FileSet, files c.Collection[*ast.File]) iter.Seq2[fileCommentArgs, error] {
 	return seqe.ConvertOK(seq.Conv(files.All, func(file *ast.File) (*fileCommentArgs, error) {
 		ft := fileSet.File(file.Pos())
 		if args, err := getCommentArgs(file, ft); err != nil {
@@ -513,7 +512,7 @@ func loadFilesPackages(fileSet *token.FileSet, inputs []string, buildTags []stri
 	return seqe.Reducee(seq.Conv(seq.Of(inputs...), func(srcFile string) (*ordered.Set[*packages.Package], error) {
 		return loadFilePackage(srcFile, fileSet, buildTags...)
 	}), func(l, r *ordered.Set[*packages.Package]) (*ordered.Set[*packages.Package], error) {
-		_ = l.AddAllNew(r)
+		_ = l.AddAllNew(r.All)
 		return l, nil
 	})
 }
@@ -548,7 +547,7 @@ func extractPackages(fileSet *token.FileSet, buildTags []string, fileName string
 		Mode:       packageMode,
 		BuildFlags: buildTagsArg(buildTags),
 		Tests:      true,
-		Logf:       func(format string, args ...interface{}) { logger.Debugf("packagesLoad: "+format, args...) },
+		Logf:       func(format string, args ...any) { logger.Debugf("packagesLoad: "+format, args...) },
 	}, "."); err != nil {
 		return nil, err
 	} else {

@@ -5,10 +5,9 @@ import (
 	"go/types"
 
 	"github.com/m4gshm/gollections/c"
-	"github.com/m4gshm/gollections/collection"
-	"github.com/m4gshm/gollections/collection/immutable/ordered"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/seq"
+	"github.com/m4gshm/gollections/seq2"
 	"github.com/m4gshm/gollections/slice"
 )
 
@@ -16,7 +15,7 @@ const DefaultMethodSuffixByName = "ByName"
 const DefaultMethodSuffixByValue = "ByValue"
 const DefaultMethodSuffixAll = "All"
 
-func (g *Generator) GenerateEnumFromValue(typ *types.Named, constValNamesMap ordered.Map[goconstant.Value, []string],
+func (g *Generator) GenerateEnumFromValue(typ *types.Named, constValNamesMap c.KVRange[goconstant.Value, []string],
 	name string, export bool, nolint bool) (string, string, error) {
 
 	obj := typ.Obj()
@@ -53,13 +52,13 @@ func (g *Generator) GenerateEnumFromValue(typ *types.Named, constValNamesMap ord
 	return funcName, body, nil
 }
 
-func enumFromValueSwitchExpr(constValNamesMap ordered.Map[goconstant.Value, []string], receiverVar, resultVar string) string {
+func enumFromValueSwitchExpr(constValNamesMap c.KVRange[goconstant.Value, []string], receiverVar, resultVar string) string {
 	expr := "ok = true\n"
 	expr += "switch " + receiverVar + " {\n"
-	constValNamesMap.TrackEach(func(val goconstant.Value, names []string) {
+	for val, names := range constValNamesMap.All {
 		expr += "case " + val.ExactString()
 		expr += ":\n" + "\t" + resultVar + "=" + names[0] + "\n"
-	})
+	}
 	expr += "default:\n\tok=false\n}"
 	return expr + "\nreturn"
 }
@@ -102,7 +101,7 @@ func enumFromNameSwitchExpr[C c.Range[[]string]](consts C, receiverVar, resultVa
 	return expr + "\nreturn"
 }
 
-func (g *Generator) GenerateEnumName(typ *types.Named, constValNamesMap ordered.Map[goconstant.Value, []string],
+func (g *Generator) GenerateEnumName(typ *types.Named, constValNamesMap c.KVRange[goconstant.Value, []string],
 	name string, export bool, nolint bool) (string, string, error) {
 
 	obj := typ.Obj()
@@ -117,7 +116,7 @@ func (g *Generator) GenerateEnumName(typ *types.Named, constValNamesMap ordered.
 	typParams := typ.TypeParams()
 
 	var (
-		returnSlice     = seq.Reduce(seq.Convert(constValNamesMap.Values().All, slice.Len), op.Max) > 1
+		returnSlice     = seq.Reduce(seq.Convert(seq2.Values(constValNamesMap.All), slice.Len), op.Max) > 1
 		returnType      = op.IfElse(returnSlice, "[]string", "string")
 		receiverType    = GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
 		receiverVar     = TypeReceiverVar(typeName)
@@ -128,9 +127,9 @@ func (g *Generator) GenerateEnumName(typ *types.Named, constValNamesMap ordered.
 	return MethodName(typeName, funcName), body, nil
 }
 
-func constsSwitchExpr[C collection.Map[goconstant.Value, []string]](consts C, receiverVar string, onlyFirst bool) string {
+func constsSwitchExpr[C c.KVRange[goconstant.Value, []string]](consts C, receiverVar string, onlyFirst bool) string {
 	expr := "switch " + receiverVar + " {\n"
-	consts.TrackEach(func(val goconstant.Value, names []string) {
+	for _, names := range consts.All {
 		expr += "case " + names[0] + ":\n" + "\treturn"
 		if onlyFirst {
 			expr += "\"" + names[0] + "\""
@@ -142,11 +141,11 @@ func constsSwitchExpr[C collection.Map[goconstant.Value, []string]](consts C, re
 			expr += "}"
 		}
 		expr += "\n"
-	})
+	}
 	return expr + "default:\n\treturn " + op.IfElse(onlyFirst, "\"\"", "nil") + "\n}"
 }
 
-func (g *Generator) GenerateEnumValues(typ *types.Named, constValNamesMap collection.Map[goconstant.Value, []string],
+func (g *Generator) GenerateEnumValues(typ *types.Named, constValNamesMap c.KVRange[goconstant.Value, []string],
 	name string, export bool, nolint bool) (string, string, error) {
 
 	obj := typ.Obj()
@@ -168,9 +167,9 @@ func (g *Generator) GenerateEnumValues(typ *types.Named, constValNamesMap collec
 	return funcName, body, nil
 }
 
-func arrayExpr[C c.TrackEach[K, []string], K any](values C, returnType string) string {
+func arrayExpr[C c.KVRange[K, []string], K any](values C, returnType string) string {
 	expr := returnType + "{\n"
-	values.TrackEach(func(_ K, vals []string) {
+	for _, vals := range values.All {
 		for i, val := range vals {
 			if i == 0 {
 				expr += val + ","
@@ -181,7 +180,6 @@ func arrayExpr[C c.TrackEach[K, []string], K any](values C, returnType string) s
 			}
 		}
 		expr += "\n"
-	})
-
+	}
 	return "return " + expr + "}"
 }
