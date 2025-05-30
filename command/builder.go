@@ -8,12 +8,11 @@ import (
 
 	"github.com/m4gshm/gollections/expr/get"
 	"github.com/m4gshm/gollections/expr/use"
-	"github.com/m4gshm/gollections/loop"
-	"github.com/m4gshm/gollections/loop/convert"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/op/delay/replace"
 	"github.com/m4gshm/gollections/op/delay/string_/wrap"
 	"github.com/m4gshm/gollections/op/delay/sum"
+	"github.com/m4gshm/gollections/seq"
 	"github.com/m4gshm/gollections/slice/split"
 
 	"github.com/m4gshm/fieldr/generator"
@@ -74,7 +73,7 @@ func NewBuilderStruct() *Command {
 
 			tparams := typ.TypeParams()
 
-			btyp.SetTypeParams(loop.Slice(convert.FromIndexed(tparams.Len(), tparams.At, func(tp *types.TypeParam) *types.TypeParam {
+			btyp.SetTypeParams(seq.Slice(seq.Convert(seq.OfIndexed(tparams.Len(), tparams.At), func(tp *types.TypeParam) *types.TypeParam {
 				return types.NewTypeParam(tp.Obj(), tp.Constraint())
 			})))
 

@@ -6,7 +6,7 @@ import (
 	"go/token"
 	"go/types"
 
-	"github.com/m4gshm/gollections/collection"
+	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/map_"
 	"github.com/m4gshm/gollections/op"
 	"golang.org/x/tools/go/packages"
@@ -14,8 +14,8 @@ import (
 	"github.com/m4gshm/fieldr/logger"
 )
 
-func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs collection.Collection[*packages.Package]) (*types.Named, *packages.Package, *ast.File, error) {
-	for next, pkg, ok := pkgs.Loop().Crank(); ok; pkg, ok = next() {
+func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.Range[*packages.Package]) (*types.Named, *packages.Package, *ast.File, error) {
+	for pkg := range pkgs.All {
 		pkgTypes := pkg.Types
 		if lookup := pkgTypes.Scope().Lookup(typeName); lookup == nil {
 			logger.Debugf("no type '%s' in package '%s'", typeName, pkgTypes.Name())

@@ -6,12 +6,11 @@ import (
 
 	"github.com/m4gshm/gollections/expr/get"
 	"github.com/m4gshm/gollections/expr/use"
-	"github.com/m4gshm/gollections/loop"
-	"github.com/m4gshm/gollections/loop/convert"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/op/delay/string_/join"
 	"github.com/m4gshm/gollections/op/delay/sum"
 	"github.com/m4gshm/gollections/op/string_"
+	"github.com/m4gshm/gollections/seq"
 
 	"github.com/m4gshm/fieldr/model/util"
 )
@@ -35,7 +34,7 @@ func MethodBody(name string, isFunc bool, methodReceiverVar, methodReceiverType,
 }
 
 func TypeParamsString(tparams *types.TypeParamList, basePkgPath string) string {
-	return string_.WrapNonEmpty("[", loop.Reduce(convert.FromIndexed(tparams.Len(), tparams.At, func(elem *types.TypeParam) string {
+	return string_.WrapNonEmpty("[", seq.Reduce(seq.Convert(seq.OfIndexed(tparams.Len(), tparams.At), func(elem *types.TypeParam) string {
 		return use.If(elem == nil, "/*error: nil type parameter*/").ElseGet(
 			func() string { return util.TypeString(elem, basePkgPath) })
 	}), join.NonEmpty(", ")), "]")
@@ -46,7 +45,7 @@ func TypeParamsDeclarationString(list *types.TypeParamList, basePkgPath string) 
 		prevElem types.Type
 		noFirst  = false
 	)
-	return string_.WrapNonEmpty("[", loop.Reduce(convert.FromIndexed(list.Len(), list.At, func(elem *types.TypeParam) string {
+	return string_.WrapNonEmpty("[", seq.Reduce(seq.Convert(seq.OfIndexed(list.Len(), list.At), func(elem *types.TypeParam) string {
 		s := use.If(elem == nil, "/*error: nil type parameter*/").ElseGet(func() string {
 			constraint := elem.Constraint()
 			s := use.If(!noFirst, "").IfGet(constraint != prevElem, sum.Of(" ", util.TypeString(prevElem, basePkgPath), ",")).Else(",")
