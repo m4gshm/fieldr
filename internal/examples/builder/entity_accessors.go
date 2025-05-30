@@ -81,12 +81,12 @@ func (e *Entity[ID, S]) GetName() StringBasedType[S] {
 	return no
 }
 
-func (e *Entity[ID, S]) GetSurname() string {
+func (e *Entity[ID, S]) GetSurname() StringBasedAlias {
 	if e != nil {
 		return e.Surname
 	}
 
-	var no string
+	var no StringBasedAlias
 	return no
 }
 

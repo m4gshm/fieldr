@@ -127,16 +127,16 @@ func (e *Entity[ID]) SetName(name StringBasedType[string]) {
 	}
 }
 
-func (e *Entity[ID]) GetSurname() string {
+func (e *Entity[ID]) GetSurname() StringBasedAlias {
 	if e != nil {
 		return e.surname
 	}
 
-	var no string
+	var no StringBasedAlias
 	return no
 }
 
-func (e *Entity[ID]) SetSurname(surname string) {
+func (e *Entity[ID]) SetSurname(surname StringBasedAlias) {
 	if e != nil {
 		e.surname = surname
 	}

@@ -25,7 +25,7 @@ type Entity2 struct {
 
 //go:fieldr -type Entity -out entity_fields.go
 //go:fieldr fields-to-consts -name "join('col', field.name)" -val "tag.db" -type Col -list . -val-access . -ref-access . -field-name-access . -flat Versioned
-//go:fieldr fields-to-consts -name "join('pk', field.name)" -val "tag.db" -include "string(tag.pk) == 'true'" -type Col -list pk
+//go:fieldr fields-to-consts -name "join('pk', field.name)" -val "tag.db" -include "tag.pk == 'true'" -type Col -list pk
 
 //go:fieldr -out entity_fields_alternative.go
 //go:fieldr fields-to-consts -name "join('AlterCol', field.name)" -val "tag.db" -type Col -not-declare-type -list ACols -val-access Aval -ref-access Aref -exclude Versioned

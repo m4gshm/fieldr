@@ -16,7 +16,7 @@ type EntityBuilder[ID any, S string] struct {
 	Version      int
 	NoDB         *NoDBFieldsEntity
 	Name         StringBasedType[S]
-	Surname      string
+	Surname      StringBasedAlias
 	Values       []int32
 	Ts           []*time.Time
 	Versioned    sql_base.VersionedEntity
@@ -112,7 +112,7 @@ func (b *EntityBuilder[ID, S]) SetName(name StringBasedType[S]) *EntityBuilder[I
 	return b
 }
 
-func (b *EntityBuilder[ID, S]) SetSurname(surname string) *EntityBuilder[ID, S] {
+func (b *EntityBuilder[ID, S]) SetSurname(surname StringBasedAlias) *EntityBuilder[ID, S] {
 	if b != nil {
 		b.Surname = surname
 	}

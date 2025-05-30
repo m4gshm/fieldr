@@ -8,6 +8,7 @@ import (
 	"unicode"
 
 	"github.com/expr-lang/expr"
+	"github.com/expr-lang/expr/patcher/value"
 	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/collection/immutable"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
@@ -49,7 +50,12 @@ func (c *stringer) isEmpty() bool {
 	return len(c.String()) == 0
 }
 
+func (c *stringer) AsString() string {
+	return c.String()
+}
+
 var _ fmt.Stringer = (*stringer)(nil)
+var _ value.StringValuer = (*stringer)(nil)
 
 func (g *Generator) GenerateFieldConstants(model *struc.Model, typ string, export, snake, allFields bool, flats c.Checkable[string]) ([]FieldConst, error) {
 	constants, err := makeFieldConsts(g, model, export, snake, allFields, flats)
@@ -252,7 +258,7 @@ func makeFieldConstsTempl(
 
 				inExecute = true
 				defer func() { inExecute = false }()
-				program, err := expr.Compile(tmplVal, expr.Env(env))
+				program, err := expr.Compile(tmplVal, expr.Env(env), value.ValueGetter)
 				if err != nil {
 					return "", fmt.Errorf("compile: of '%s', expression %s: %w", name, tmplVal, err)
 				}

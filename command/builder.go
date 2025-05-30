@@ -25,7 +25,6 @@ import (
 func NewBuilderStruct() *Command {
 	const (
 		cmdName               = "builder"
-		genContent            = "struct"
 		defMethPref           = "Set"
 		default_constructor   = "Build"
 		default_deconstructor = "ToBuilder"
