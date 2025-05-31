@@ -9,7 +9,6 @@ const (
 	colVersion column = "version"
 	colName    column = "name"
 	pkID       column = "id"
-	pkName     column = "name"
 )
 
 func columns() []column {
@@ -34,5 +33,5 @@ func (s *Entity) ref(f column) any {
 }
 
 func pk() []column {
-	return []column{pkID, pkName}
+	return []column{pkID}
 }
