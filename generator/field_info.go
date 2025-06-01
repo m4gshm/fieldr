@@ -1,7 +1,6 @@
 package generator
 
 import (
-	"go/types"
 	"strings"
 	"unicode"
 
@@ -26,67 +25,56 @@ func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference, r
 		conditions = append(conditions, receiverCondition)
 		receiverVar = newReceiver
 	}
-
-	i := GetFieldConditionalPartsAccessInfo(receiverVar, true, fieldParts)
-
-	// for _, cp := range i.ConditionParts {
-	// 	cp.ShortVar
-	// }
-
-	conditions = append(conditions, i.Conditions...)
-	return i.FieldPath, i.ShortVar, conditions
+	accessInfo := GetFieldConditionalPartsAccessInfo(receiverVar, fieldParts)
+	for _, cp := range accessInfo.AccessPathParts {
+		conditions = append(conditions, cp.ShortVar+":="+cp.FieldPath+";"+cp.ShortVar+"!=nil")
+	}
+	return accessInfo.FieldPath, accessInfo.ShortVar, conditions
 }
 
 type FieldConditionalPartsAccessInfo struct {
-	FieldPath      string
-	ShortVar       string
-	ConditionParts []ConditionPart
-	Conditions     []string
+	FieldPath       string
+	ShortVar        string
+	AccessPathParts []AccessPathPart
 }
 
-type ConditionPart struct {
+type AccessPathPart struct {
 	FieldPath string
 	ShortVar  string
 	Type      *struc.FieldType
 }
 
-func GetFieldConditionalPartsAccessInfo(receiverVar string, checkNotNil bool, fieldParts []FieldInfo) FieldConditionalPartsAccessInfo {
-	conditionParts := []ConditionPart{}
-	conditions := []string{}
-	shortPath := receiverVar
-	fullPath := receiverVar
+func GetFieldConditionalPartsAccessInfo(receiverVar string, fieldParts []FieldInfo) FieldConditionalPartsAccessInfo {
+	conditionParts := []AccessPathPart{}
+	shortVar := receiverVar
+	fieldPath := receiverVar
 	uniqueVars := NewUniqueShortVarGenerator(receiverVar)
-	condition := op.IfElse(checkNotNil, "!=nil", "==nil")
 	for _, part := range fieldParts {
-		fullPath += op.IfElse(len(fullPath) > 0, ".", "") + part.Name
-		partShortPath := get.If(len(shortPath) > 0, sum.Of(shortPath, ".", part.Name)).Else("")
+		fieldPath += op.IfElse(len(fieldPath) > 0, ".", "") + part.Name
+		partShortPath := get.If(len(shortVar) > 0, sum.Of(shortVar, ".", part.Name)).Else("")
 		partType := part.Type
 		if partType.RefDeep == 0 {
-			shortPath = partShortPath
+			shortVar = partShortPath
 		} else {
 			parthShortVar := uniqueVars.Get(PathToShortVarName(part.Name))
-			conditionParts = append(conditionParts, ConditionPart{ShortVar: parthShortVar, FieldPath: partShortPath, Type: &partType})
-			conditions = append(conditions, parthShortVar+":="+partShortPath+";"+parthShortVar+condition)
+			conditionParts = append(conditionParts, AccessPathPart{ShortVar: parthShortVar, FieldPath: partShortPath, Type: &partType})
 			for ri := 1; ri < partType.RefDeep; ri++ {
 				parthShortVarRef := "*" + parthShortVar
 				newReceiver := uniqueVars.Get(PathToShortVarName(parthShortVarRef))
 
-				pt := partType.Type.(*types.Pointer)
-				ut := pt.Underlying()
+				ut := partType.Type.Underlying()
 				ctyp := struc.NewFieldType(partType.Embedded, partType.RefDeep-1, partType.Name, ut, partType.Model)
 
-				conditionParts = append(conditionParts, ConditionPart{ShortVar: newReceiver, FieldPath: parthShortVarRef, Type: &ctyp})
-				conditions = append(conditions, newReceiver+":="+parthShortVarRef+";"+newReceiver+condition)
+				conditionParts = append(conditionParts, AccessPathPart{ShortVar: newReceiver, FieldPath: parthShortVarRef, Type: &ctyp})
 				parthShortVar = newReceiver
 			}
-			shortPath = parthShortVar
+			shortVar = parthShortVar
 		}
 	}
 	return FieldConditionalPartsAccessInfo{
-		FieldPath:      fullPath,
-		ShortVar:       shortPath,
-		Conditions:     conditions,
-		ConditionParts: conditionParts,
+		FieldPath:       fieldPath,
+		ShortVar:        shortVar,
+		AccessPathParts: conditionParts,
 	}
 }
 

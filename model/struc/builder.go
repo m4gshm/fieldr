@@ -67,11 +67,11 @@ func (b *structModelBuilder) populateByStruct(typ *types.Struct) error {
 		}
 		fieldType := fieldVar.Type()
 		fieldTypeName := util.TypeString(fieldType, b.outPkgPath)
-		ref := 0
+		refDeep := 0
 		var fieldModel *Model
 		if structType, p := util.GetStructTypeNamed(fieldType); structType != nil {
 			typeName := structType.Obj().Name()
-			ref = p
+			refDeep = p
 			fieldTypeName = typeName
 			if b.deep {
 				if fmodel, ok := b.loopControl[structType]; ok {
@@ -84,15 +84,15 @@ func (b *structModelBuilder) populateByStruct(typ *types.Struct) error {
 				}
 			}
 		}
-		b.model.FieldsType[fldName] = NewFieldType(fieldVar.Embedded(), ref, fieldTypeName, fieldType, fieldModel)
+		b.model.FieldsType[fldName] = NewFieldType(fieldVar.Embedded(), refDeep, fieldTypeName, fieldType, fieldModel)
 	}
 	return nil
 }
 
-func NewFieldType(embedded bool, refCount int, name string, fieldType types.Type, fieldModel *Model) FieldType {
+func NewFieldType(embedded bool, refDeep int, name string, fieldType types.Type, fieldModel *Model) FieldType {
 	return FieldType{
 		Embedded: embedded,
-		RefDeep:  refCount,
+		RefDeep:  refDeep,
 		Name:     name,
 		Type:     fieldType,
 		Model:    fieldModel,

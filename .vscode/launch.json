@@ -156,7 +156,7 @@
             ]
         },
         {
-            "name": "Debug with example",
+            "name": "Debug opt constructor example",
             "type": "go",
             "request": "launch",
             "mode": "debug",

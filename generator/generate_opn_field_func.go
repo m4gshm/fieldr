@@ -14,11 +14,11 @@ func GenerateOptionFieldFunc(model *struc.Model, pkgName, receiverVar, methodNam
 	typeName := op.IfElse(isReceiverReference, "*", "") + buildedType
 	typeParams := TypeParamsString(model.Typ.TypeParams(), outPkgPath)
 	typeParamsDecl := TypeParamsDeclarationString(model.Typ.TypeParams(), outPkgPath)
-	accessInfo := GetFieldConditionalPartsAccessInfo(receiverVar, false, fieldParts)
+	accessInfo := GetFieldConditionalPartsAccessInfo(receiverVar, fieldParts)
 	variableName := accessInfo.ShortVar
 
 	funcBody := ""
-	for _, fc := range accessInfo.ConditionParts {
+	for _, fc := range accessInfo.AccessPathParts {
 		shortVar := fc.ShortVar
 		newExpr := generateNewObjectExpr(shortVar, fc.Type.RefDeep, fc.Type.FullName(outPkgPath))
 		newIfNilExpr := shortVar + " := " + fc.FieldPath + "\nif " + shortVar + " == nil " + "{\n" + newExpr + "\n" + fc.FieldPath + " = " + shortVar + "}\n"
@@ -36,7 +36,7 @@ func GenerateOptionFieldFunc(model *struc.Model, pkgName, receiverVar, methodNam
 
 func generateNewObjectExpr(receiverVariable string, refDeep int, valTypeSign string) string {
 	if refDeep > 0 {
-		valTypeSign = valTypeSign[3:]
+		valTypeSign = valTypeSign[refDeep:]
 	}
 	var newExpr string
 	deepRefCount := refDeep - 1

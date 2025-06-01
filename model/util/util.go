@@ -60,13 +60,13 @@ func GetTypeNamed(typ types.Type) (*types.Named, int) {
 }
 
 func GetStructTypeNamed(typ types.Type) (*types.Named, int) {
-	if ftt, p := GetTypeNamed(typ); ftt != nil {
+	if ftt, deep := GetTypeNamed(typ); ftt != nil {
 		und := ftt.Underlying()
 		if _, ok := und.(*types.Struct); ok {
-			return ftt, p
+			return ftt, deep
 
 		} else if sund, sp := GetStructTypeNamed(und); sund != nil {
-			return ftt, sp + p
+			return ftt, sp + deep
 		}
 	}
 	return nil, 0

@@ -7,7 +7,7 @@ import (
 )
 
 func Test_NexExpr(t *testing.T) {
-	res := generateNewObjectExpr("s", "**SomeType[ID]")
+	res := generateNewObjectExpr("s", 2, "**SomeType[ID]")
 	assert.Equal(t,
 		`s1 := new(SomeType[ID])
 s0 := &s1
