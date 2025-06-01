@@ -10,24 +10,11 @@
             "request": "launch",
             "mode": "debug",
             "program": "main.go",
-            "cwd": "examples/sql",
+            "cwd": "internal/examples/sql",
             "args": [
+                "-debug",
                 "-type",
-                "Entity",
-                "-in",
-                "../sql_util/postgres.go",
-                "-out",
-                "entity_sql.go",
-                "-GetFieldValuesByTag",
-                "db",
-                "-const",
-                "_upsert",
-                "-const",
-                "_selectByID",
-                "-const",
-                "_deleteByID",
-                "-const",
-                "_pk"
+                "Entity"
             ]
         },
         {
@@ -169,12 +156,26 @@
             ]
         },
         {
+            "name": "Debug with example",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "internal/examples/with",
+            "args": [
+                "-debug",
+                "-type",
+                "Entity",
+                "with"
+            ]
+        },
+        {
             "name": "Debug builder example",
             "type": "go",
             "request": "launch",
             "mode": "debug",
             "program": "main.go",
-            "cwd": "examples/builder",
+            "cwd": "internal/examples/builder",
             "args": [
                 "-debug",
                 "-type",

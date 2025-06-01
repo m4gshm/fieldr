@@ -84,13 +84,19 @@ func (b *structModelBuilder) populateByStruct(typ *types.Struct) error {
 				}
 			}
 		}
-		b.model.FieldsType[fldName] = FieldType{
-			Embedded: fieldVar.Embedded(), RefCount: ref, Name: fieldTypeName,
-			FullName: util.TypeString(fieldType, b.outPkgPath),
-			Type:     fieldType, Model: fieldModel,
-		}
+		b.model.FieldsType[fldName] = NewFieldType(fieldVar.Embedded(), ref, fieldTypeName, fieldType, fieldModel)
 	}
 	return nil
+}
+
+func NewFieldType(embedded bool, refCount int, name string, fieldType types.Type, fieldModel *Model) FieldType {
+	return FieldType{
+		Embedded: embedded,
+		RefDeep:  refCount,
+		Name:     name,
+		Type:     fieldType,
+		Model:    fieldModel,
+	}
 }
 
 func (b *structModelBuilder) newModel(typ *types.Named) (*Model, error) {

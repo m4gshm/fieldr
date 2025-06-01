@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"go/types"
 	"strings"
 	"unicode"
 
@@ -19,34 +20,74 @@ type FieldInfo struct {
 
 func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference, redeclareReceiver bool, fieldParts []FieldInfo) (string, string, []string) {
 	conditions := []string{}
-	shortConditionPath := ""
 	if isReceiverReference {
-		newReceiver := PathToShortVarName(receiverVar)
-		conditions = slice.Of(get.If(redeclareReceiver, sum.Of(newReceiver, ":=", receiverVar, ";", newReceiver, "!=nil")).ElseGet(sum.Of(newReceiver, "!=nil")))
-		shortConditionPath = newReceiver
+		newReceiver := receiverVar
+		receiverCondition := get.If(redeclareReceiver, sum.Of(newReceiver, ":=", receiverVar, ";", newReceiver, "!=nil")).ElseGet(sum.Of(newReceiver, "!=nil"))
+		conditions = append(conditions, receiverCondition)
+		receiverVar = newReceiver
 	}
-	fieldPath := ""
+
+	i := GetFieldConditionalPartsAccessInfo(receiverVar, true, fieldParts)
+
+	// for _, cp := range i.ConditionParts {
+	// 	cp.ShortVar
+	// }
+
+	conditions = append(conditions, i.Conditions...)
+	return i.FieldPath, i.ShortVar, conditions
+}
+
+type FieldConditionalPartsAccessInfo struct {
+	FieldPath      string
+	ShortVar       string
+	ConditionParts []ConditionPart
+	Conditions     []string
+}
+
+type ConditionPart struct {
+	FieldPath string
+	ShortVar  string
+	Type      *struc.FieldType
+}
+
+func GetFieldConditionalPartsAccessInfo(receiverVar string, checkNotNil bool, fieldParts []FieldInfo) FieldConditionalPartsAccessInfo {
+	conditionParts := []ConditionPart{}
+	conditions := []string{}
+	shortPath := receiverVar
+	fullPath := receiverVar
+	uniqueVars := NewUniqueShortVarGenerator(receiverVar)
+	condition := op.IfElse(checkNotNil, "!=nil", "==nil")
 	for _, part := range fieldParts {
-		fieldPath += op.IfElse(len(fieldPath) > 0, ".", "") + part.Name
+		fullPath += op.IfElse(len(fullPath) > 0, ".", "") + part.Name
+		partShortPath := get.If(len(shortPath) > 0, sum.Of(shortPath, ".", part.Name)).Else("")
+		partType := part.Type
+		if partType.RefDeep == 0 {
+			shortPath = partShortPath
+		} else {
+			parthShortVar := uniqueVars.Get(PathToShortVarName(part.Name))
+			conditionParts = append(conditionParts, ConditionPart{ShortVar: parthShortVar, FieldPath: partShortPath, Type: &partType})
+			conditions = append(conditions, parthShortVar+":="+partShortPath+";"+parthShortVar+condition)
+			for ri := 1; ri < partType.RefDeep; ri++ {
+				parthShortVarRef := "*" + parthShortVar
+				newReceiver := uniqueVars.Get(PathToShortVarName(parthShortVarRef))
 
-		shortConditionPath = get.If(len(shortConditionPath) > 0, sum.Of(shortConditionPath, ".", part.Name)).ElseGet(func() string {
-			return receiverVar + get.If(len(fieldPath) > 0, sum.Of(".", fieldPath)).Else("")
-		})
+				pt := partType.Type.(*types.Pointer)
+				ut := pt.Underlying()
+				ctyp := struc.NewFieldType(partType.Embedded, partType.RefDeep-1, partType.Name, ut, partType.Model)
 
-		if part.Type.RefCount > 0 {
-			newReceiver := PathToShortVarName(part.Name)
-			conditions = append(conditions, newReceiver+":="+shortConditionPath+";"+newReceiver+" != nil")
-			shortConditionPath = newReceiver
-
-			for ri := 1; ri < part.Type.RefCount; ri++ {
-				shortConditionPathRef := "*" + shortConditionPath
-				newReceiver := PathToShortVarName(shortConditionPathRef)
-				conditions = append(conditions, newReceiver+":="+shortConditionPathRef+";"+newReceiver+" != nil")
-				shortConditionPath = newReceiver
+				conditionParts = append(conditionParts, ConditionPart{ShortVar: newReceiver, FieldPath: parthShortVarRef, Type: &ctyp})
+				conditions = append(conditions, newReceiver+":="+parthShortVarRef+";"+newReceiver+condition)
+				parthShortVar = newReceiver
 			}
+			shortPath = parthShortVar
 		}
 	}
-	return fieldPath, shortConditionPath, conditions
+	return FieldConditionalPartsAccessInfo{
+		FieldPath:      fullPath,
+		ShortVar:       shortPath,
+		Conditions:     conditions,
+		ConditionParts: conditionParts,
+	}
 }
 
 func PathToVarName(fieldPath string) string {

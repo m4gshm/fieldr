@@ -200,7 +200,7 @@ func generateBuilderParts(
 				isReceiverReference, noMethods, exportMethods, exportFields, nolint); err != nil {
 				return nil, err
 			} else {
-				init := get.If(fieldType.RefCount > 0, sum.Of("&", fullFieldType)).Else(fullFieldType)
+				init := get.If(fieldType.RefDeep > 0, sum.Of("&", fullFieldType)).Else(fullFieldType)
 				constructorMethodBody += fieldName + ": " + init + "{\n" + embedParts.constructorMethodBody + "\n}"
 				structBody += embedParts.structBody
 				if !noMethods {
@@ -285,7 +285,8 @@ func generateToBuilderMethodConditionedParts(
 	for _, fieldName := range model.FieldNames {
 		fieldType := model.FieldsType[fieldName]
 		if fieldType.Embedded {
-			fieldPath, conditionalPath, subConditions := generator.FiledPathAndAccessCheckCondition(conditionalPath, false, false, []generator.FieldInfo{{Name: fieldType.Name, Type: fieldType}})
+			fieldPath, conditionalPath, subConditions := generator.FiledPathAndAccessCheckCondition(conditionalPath, false, false,
+				[]generator.FieldInfo{{Name: fieldType.Name, Type: fieldType}})
 			fullFielPath := parentPath + get.If(len(fieldPath) > 0, sum.Of(".", fieldPath)).Else("")
 			if m, embedVars, i, err := generateToBuilderMethodConditionedParts(
 				fieldType.Model, fullFielPath, conditionalPath, subConditions, receiver, isReceiverReference, exportFields,
@@ -299,7 +300,7 @@ func generateToBuilderMethodConditionedParts(
 		} else {
 			varName := generator.PathToVarName(parentPath + "." + fieldName)
 
-			variables = append(variables, varName+" "+fieldType.FullName)
+			variables = append(variables, varName+" "+fieldType.FullName(model.OutPkgPath))
 			initVars += varName + "=" + conditionalPath + "." + fieldName + "\n"
 
 			builderField := generator.LegalIdentName(generator.IdentName(fieldName, exportFields))
