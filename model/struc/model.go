@@ -45,6 +45,14 @@ func (f *FieldType) FullName(outPkgPath string) string {
 	return util.TypeString(f.Type, outPkgPath)
 }
 
+func (m *Model) FieldsNameAndType(yield func(FieldName, FieldType) bool) {
+	for _, fn := range m.FieldNames {
+		if !yield(fn, m.FieldsType[fn]) {
+			break
+		}
+	}
+}
+
 func (m *Model) Package() *types.Package {
 	return m.pkg
 }

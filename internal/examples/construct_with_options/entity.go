@@ -1,4 +1,4 @@
-package with
+package construct_with_options
 
 //go:generate fieldr -debug
 

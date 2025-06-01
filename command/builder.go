@@ -243,8 +243,8 @@ func generateToBuilderMethodParts(
 	g *generator.Generator, model *struc.Model, receiver, fieldPrefix string, isReceiverReference, exportFields bool,
 ) (methodBody string, varsPart string, err error) {
 	logger.Debugf("generate toBuilder method: receiver %v", receiver)
-	for _, fieldName := range model.FieldNames {
-		if fieldType := model.FieldsType[fieldName]; fieldType.Embedded {
+	for fieldName, fieldType := range model.FieldsNameAndType {
+		if fieldType.Embedded {
 			if fieldPath, conditionalPath, conditions := generator.FiledPathAndAccessCheckCondition(
 				receiver, false, false, []generator.FieldInfo{{Name: fieldType.Name, Type: fieldType}},
 			); len(conditions) > 0 {
@@ -282,8 +282,7 @@ func generateToBuilderMethodConditionedParts(
 
 	initVars += varsConditionStart
 
-	for _, fieldName := range model.FieldNames {
-		fieldType := model.FieldsType[fieldName]
+	for fieldName, fieldType := range model.FieldsNameAndType {
 		if fieldType.Embedded {
 			fieldPath, conditionalPath, subConditions := generator.FiledPathAndAccessCheckCondition(conditionalPath, false, false,
 				[]generator.FieldInfo{{Name: fieldType.Name, Type: fieldType}})

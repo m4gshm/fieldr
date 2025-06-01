@@ -3,15 +3,11 @@ package generator
 import (
 	"strconv"
 
-	"github.com/m4gshm/gollections/op"
-
 	"github.com/m4gshm/fieldr/model/struc"
 )
 
-func GenerateOptionFieldFunc(model *struc.Model, pkgName, receiverVar, methodName, fieldName, fieldType, outPkgPath string, nolint bool,
-	isReceiverReference bool, fieldParts []FieldInfo) string {
-	buildedType := GetTypeName(model.TypeName(), pkgName)
-	typeName := op.IfElse(isReceiverReference, "*", "") + buildedType
+func GenerateOptionFieldFunc(model *struc.Model, pkgName, receiverVar, methodName, fieldName, fieldType, outPkgPath string, nolint bool, fieldParts []FieldInfo) string {
+	typeName := "*" + GetTypeName(model.TypeName(), pkgName)
 	typeParams := TypeParamsString(model.Typ.TypeParams(), outPkgPath)
 	typeParamsDecl := TypeParamsDeclarationString(model.Typ.TypeParams(), outPkgPath)
 	accessInfo := GetFieldConditionalPartsAccessInfo(receiverVar, fieldParts)
