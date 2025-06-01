@@ -26,7 +26,7 @@ func NewConstructWithOptions() *Command {
 	)
 
 	return New(
-		cmdName, "generates TODO",
+		cmdName, "generates a structure constructor with optional arguments",
 		flagSet,
 		func(context *Context) error {
 			model, err := context.StructModel()
@@ -38,13 +38,12 @@ func NewConstructWithOptions() *Command {
 			if err != nil {
 				return err
 			}
-
 			rec := generator.TypeReceiverVar(model.TypeName())
-			fm, err := generateOptionFuncs(g, model, model, pkgName, rec, *suffix, *useTypePrefix, !(*noExportMethods), *nolint, nil)
+			fieldMethods, err := generateOptionFuncs(g, model, model, pkgName, rec, *suffix, *useTypePrefix, !(*noExportMethods), *nolint, nil)
 			if err != nil {
 				return err
 			}
-			for fieldMethodName, fieldMethodBody := range fm.All {
+			for fieldMethodName, fieldMethodBody := range fieldMethods.All {
 				if err := g.AddMethod(model.TypeName(), fieldMethodName, fieldMethodBody); err != nil {
 					return err
 				}

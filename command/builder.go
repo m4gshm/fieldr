@@ -244,28 +244,26 @@ func generateToBuilderMethodParts(
 ) (methodBody string, varsPart string, err error) {
 	logger.Debugf("generate toBuilder method: receiver %v", receiver)
 	for fieldName, fieldType := range model.FieldsNameAndType {
-		if fieldType.Embedded {
-			if fieldPath, conditionalPath, conditions := generator.FiledPathAndAccessCheckCondition(
-				receiver, false, false, []generator.FieldInfo{{Name: fieldType.Name, Type: fieldType}},
-			); len(conditions) > 0 {
-				if embedMethodBodyPart, vars, initVars, err := generateToBuilderMethodConditionedParts(
-					fieldType.Model, fieldPath, conditionalPath, conditions, receiver, isReceiverReference, exportFields,
-				); err != nil {
-					return "", "", err
-				} else {
-					methodBody += embedMethodBodyPart
-					varsPart += get.If(len(vars) > 0, sum.Of("var (\n", strings.Join(vars, "\n"), "\n)\n")).Else("") + initVars
-				}
-			} else if methodBodyPart, _, err := generateToBuilderMethodParts(
-				g, fieldType.Model, receiver, fieldType.Name, isReceiverReference, exportFields,
+		if !fieldType.Embedded {
+			builderField := generator.LegalIdentName(generator.IdentName(fieldName, exportFields))
+			methodBody += builderField + ": " + receiver + "." + get.If(len(fieldPrefix) > 0, sum.Of(fieldPrefix, ".")).Else("") + fieldName + ",\n"
+		} else if fieldPath, conditionalPath, conditions := generator.FiledPathAndAccessCheckCondition(
+			receiver, false, false, []generator.FieldInfo{{Name: fieldType.Name, Type: fieldType}},
+		); len(conditions) > 0 {
+			if embedMethodBodyPart, vars, initVars, err := generateToBuilderMethodConditionedParts(
+				fieldType.Model, fieldPath, conditionalPath, conditions, receiver, isReceiverReference, exportFields,
 			); err != nil {
 				return "", "", err
 			} else {
-				methodBody += methodBodyPart
+				methodBody += embedMethodBodyPart
+				varsPart += get.If(len(vars) > 0, sum.Of("var (\n", strings.Join(vars, "\n"), "\n)\n")).Else("") + initVars
 			}
+		} else if methodBodyPart, _, err := generateToBuilderMethodParts(
+			g, fieldType.Model, receiver, fieldType.Name, isReceiverReference, exportFields,
+		); err != nil {
+			return "", "", err
 		} else {
-			builderField := generator.LegalIdentName(generator.IdentName(fieldName, exportFields))
-			methodBody += builderField + ": " + receiver + "." + get.If(len(fieldPrefix) > 0, sum.Of(fieldPrefix, ".")).Else("") + fieldName + ",\n"
+			methodBody += methodBodyPart
 		}
 	}
 	return methodBody, get.If(len(varsPart) > 0, sum.Of(varsPart, "\n")).Else(""), nil
