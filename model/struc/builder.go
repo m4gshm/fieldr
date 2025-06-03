@@ -99,13 +99,13 @@ func NewFieldType(embedded bool, refDeep int, name string, fieldType types.Type,
 	}
 }
 
-func (b *structModelBuilder) newModel(typ *types.Named) (*Model, error) {
+func (b *structModelBuilder) newModel(typ util.TypeNamedOrAlias) (*Model, error) {
 	obj := typ.Obj()
 	typName := obj.Name()
 	if _, ok := b.loopControl[typ]; ok {
 		return nil, fmt.Errorf("already handled type %v", typName)
 	}
-	typStruct, rc := util.GetTypeStruct(typ)
+	typStruct, refDeep := util.GetTypeStruct(typ)
 	if typStruct == nil {
 		return nil, fmt.Errorf("'%s' is not a struct type", typName)
 	}
@@ -119,7 +119,7 @@ func (b *structModelBuilder) newModel(typ *types.Named) (*Model, error) {
 		TagsFieldValue: map[TagName]map[FieldName]TagValue{},
 		FieldNames:     []FieldName{},
 		FieldsType:     map[FieldName]FieldType{},
-		RefCount:       rc,
+		RefDeep:        refDeep,
 	}
 	b.loopControl[typ] = model
 	b.model = model

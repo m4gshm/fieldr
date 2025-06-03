@@ -2,7 +2,7 @@ package construct_with_options
 
 //go:generate fieldr -debug
 
-//go:fieldr -type Entity with
+//go:fieldr -type Entity construct-with-options
 
 import (
 	"bytes"
@@ -58,14 +58,4 @@ type Entity[ID any] struct {
 
 type EmbeddedEntity struct {
 	Metadata string
-}
-
-type Opt[ID any] func(e *Entity[ID])
-
-func NewEntity[ID any](opts ...Opt[ID]) Entity[ID] {
-	e := Entity[ID]{}
-	for _, o := range opts {
-		o(&e)
-	}
-	return e
 }

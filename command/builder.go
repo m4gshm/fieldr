@@ -30,7 +30,7 @@ func NewBuilderStruct() *Command {
 		default_deconstructor = "ToBuilder"
 	)
 
-	exportVals := []string{"all", "fields", "methods"}
+	exportVals := []string{"all", "fields", "methods", "constructor"}
 
 	var (
 		flagSet              = flag.NewFlagSet(cmdName, flag.ExitOnError)
@@ -42,7 +42,7 @@ func NewBuilderStruct() *Command {
 		buildValue           = flagSet.Bool("build-value", false, "returns value of the builded type in the build (constructor) method (default is pointer)")
 		light                = flagSet.Bool("light", false, "don't generate builder constructor and setters, only fields")
 		toBuilderMethodName  = flagSet.String("deconstructor", "", "generate instance to builder convert method, use "+generator.Autoname+" for autoname ("+default_deconstructor+")")
-		exports              = params.MultiValFixed(flagSet, "export", []string{"methods"}, exportVals, "export generated content")
+		exports              = params.MultiValFixed(flagSet, "export", []string{"methods", "constructor"}, exportVals, "export generated content")
 		nolint               = params.Nolint(flagSet)
 	)
 
@@ -76,16 +76,19 @@ func NewBuilderStruct() *Command {
 				return types.NewTypeParam(tp.Obj(), tp.Constraint())
 			})))
 
-			var exportMethods, exportFields bool
+			var exportMethods, exportFields, exportConstructor bool
 			for _, e := range *exports {
 				switch e {
 				case "all":
 					exportMethods = true
 					exportFields = true
+					exportConstructor = true
 				case "methods":
 					exportMethods = true
 				case "fields":
 					exportFields = true
+				case "constructor":
+					exportConstructor = true
 				default:
 					return fmt.Errorf("unexpected value %s", e)
 				}
@@ -93,7 +96,8 @@ func NewBuilderStruct() *Command {
 
 			autogen := len(*buildMethodName) == 0 || *buildMethodName == generator.Autoname
 			constrMethodName := generator.LegalIdentName(generator.IdentName(op.IfElse(autogen, default_constructor, *buildMethodName), exportMethods))
-			typeParams := generator.TypeParamsString(model.Typ.TypeParams(), g.OutPkgPath)
+			typeParams := TypeParamsString(model, g)
+			typeParamsDecl := TypeParamsDeclarationString(model, g)
 
 			receiver := "b"
 			logger.Debugf("constrMethodName %v", constrMethodName)
@@ -115,10 +119,8 @@ func NewBuilderStruct() *Command {
 				return err
 			}
 
-			builderConstructorMethodName := get.If(*newBuilderMethodName == generator.Autoname, sum.Of("New", builderName)).Else(*newBuilderMethodName)
-			typeParamsDecl := generator.TypeParamsDeclarationString(model.Typ.TypeParams(), g.OutPkgPath)
-			builderConstructorMethodBody := "func " + builderConstructorMethodName + typeParamsDecl + "() " + "*" + builderName + typeParams + "{\nreturn " +
-				"&" + builderName + typeParams + "{}\n}\n"
+			builderConstructorMethodName, builderConstructorMethodBody := GenerateConstructor(*newBuilderMethodName, builderName,
+				typeParamsDecl, typeParams, exportConstructor, *nolint, "", nil)
 			instanceConstructorMethodBody := "func (" + receiver + " " + builderType + ") " + constrMethodName + "() " +
 				op.IfElse(*buildValue, "", "*") + buildedType + typeParams +
 				" {" + generator.NoLint(*nolint) + "\n" +
@@ -168,10 +170,42 @@ func NewBuilderStruct() *Command {
 					sum.Of("if ", instanceReceiver, " == nil {\nreturn ", builderInstantiate, " {}\n", "}\n"),
 				).Else("")+pre+"return "+builderInstantiate+" {\n"+b+"\n"+"}\n}\n")
 			}
-
 			return nil
 		},
 	)
+}
+
+func TypeParamsString(model *struc.Model, g *generator.Generator) string {
+	return generator.TypeParamsString(model.Typ.TypeParams(), g.OutPkgPath)
+}
+
+func GenerateConstructor(name, typeName, typeParamsDecl, typeParams string, exportMethods, nolint bool, arguments string, init func(receiver string) string) (string, string) {
+	receiver := "r"
+	constructorName := generator.IdentName(get.If(name == generator.Autoname, sum.Of("New", typeName)).Else(name), exportMethods)
+
+	initPart := ""
+	if init != nil {
+		initPart = init(receiver)
+		if len(initPart) > 0 {
+			initPart += "\n"
+		}
+	}
+
+	body := "func " + constructorName + typeParamsDecl + "(" + arguments + ") " + "*" + typeName + typeParams + " {" + generator.NoLint(nolint) + "\n"
+	createInstance := "&" + typeName + typeParams + "{}\n"
+	if len(initPart) > 0 {
+		body += "r := " + createInstance
+		body += initPart
+		body += "return " + receiver + "\n"
+	} else {
+		body += "return " + createInstance
+	}
+	body += "}\n"
+	return constructorName, body
+}
+
+func TypeParamsDeclarationString(model *struc.Model, g *generator.Generator) string {
+	return generator.TypeParamsDeclarationString(model.Typ.TypeParams(), g.OutPkgPath)
 }
 
 type builderParts struct {

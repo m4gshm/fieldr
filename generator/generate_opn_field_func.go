@@ -1,9 +1,11 @@
 package generator
 
 import (
+	"go/types"
 	"strconv"
 
 	"github.com/m4gshm/fieldr/model/struc"
+	"github.com/m4gshm/fieldr/model/util"
 )
 
 func GenerateOptionFieldFunc(model *struc.Model, pkgName, receiverVar, methodName, fieldName, fieldType, outPkgPath string, nolint bool, fieldParts []FieldInfo) string {
@@ -14,10 +16,11 @@ func GenerateOptionFieldFunc(model *struc.Model, pkgName, receiverVar, methodNam
 	variableName := accessInfo.ShortVar
 
 	funcBody := ""
-	for _, fc := range accessInfo.AccessPathParts {
-		shortVar := fc.ShortVar
-		newExpr := generateNewObjectExpr(shortVar, fc.Type.RefDeep, fc.Type.FullName(outPkgPath))
-		newIfNilExpr := shortVar + " := " + fc.FieldPath + "\nif " + shortVar + " == nil " + "{\n" + newExpr + "\n" + fc.FieldPath + " = " + shortVar + "}\n"
+	for _, accessPathPart := range accessInfo.AccessPathParts {
+		shortVar := accessPathPart.ShortVar
+		typ := accessPathPart.Type.Type
+		newExpr := generateNewObjectExpr(typ, outPkgPath, shortVar)
+		newIfNilExpr := shortVar + " := " + accessPathPart.FieldPath + "\nif " + shortVar + " == nil " + "{\n" + newExpr + "\n" + accessPathPart.FieldPath + " = " + shortVar + "}\n"
 		funcBody += newIfNilExpr
 	}
 
@@ -30,20 +33,17 @@ func GenerateOptionFieldFunc(model *struc.Model, pkgName, receiverVar, methodNam
 	return result
 }
 
-func generateNewObjectExpr(receiverVariable string, refDeep int, valTypeSign string) string {
-	if refDeep > 0 {
-		valTypeSign = valTypeSign[refDeep:]
-	}
-	var newExpr string
+func generateNewObjectExpr(typ types.Type, outPkgPath string, receiverVariable string) string {
+	valType, refDeep := util.GetTypeUnderPointer(typ)
+	valTypeName := util.TypeString(valType, outPkgPath)
 	deepRefCount := refDeep - 1
 	if deepRefCount <= 0 {
-		newExpr = receiverVariable + " = " + "new(" + valTypeSign + ")"
-	} else {
-		newExpr = receiverVariable + strconv.Itoa(deepRefCount) + " := " + "new(" + valTypeSign + ")"
-		for r := deepRefCount - 1; r >= 0; r-- {
-			newExpr += "\n" + receiverVariable + strconv.Itoa(r) + " := &" + receiverVariable + strconv.Itoa(r+1)
-		}
-		newExpr += "\n" + receiverVariable + " = &" + receiverVariable + strconv.Itoa(0)
+		return receiverVariable + " = " + "new(" + valTypeName + ")"
 	}
+	newExpr := receiverVariable + strconv.Itoa(deepRefCount) + " := " + "new(" + valTypeName + ")"
+	for r := deepRefCount - 1; r >= 0; r-- {
+		newExpr += "\n" + receiverVariable + strconv.Itoa(r) + " := &" + receiverVariable + strconv.Itoa(r+1)
+	}
+	newExpr += "\n" + receiverVariable + " = &" + receiverVariable + strconv.Itoa(0)
 	return newExpr
 }

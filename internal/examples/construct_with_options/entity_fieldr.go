@@ -8,6 +8,14 @@ import (
 	"time"
 )
 
+func NewEntity[ID any](opts ...func(*Entity[ID])) *Entity[ID] {
+	r := &Entity[ID]{}
+	for _, opt := range opts {
+		opt(r)
+	}
+	return r
+}
+
 func WithID[ID any](iD ID) func(e *Entity[ID]) {
 	return func(e *Entity[ID]) {
 		e1 := e.E

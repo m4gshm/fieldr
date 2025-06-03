@@ -13,20 +13,20 @@ import (
 
 func NewConstructWithOptions() *Command {
 	const (
-		cmdName = "with"
+		cmdName = "construct-with-options"
 	)
 	var (
-		flagSet = flag.NewFlagSet(cmdName, flag.ExitOnError)
-		suffix  = flagSet.String("opt-suffix", "With", "option function prefix")
-		// constructorName = flagSet.String("constructor", generator.Autoname, "constructor function name, use "+generator.Autoname+" for autoname (New<Type name> as default)")
-		// noConstructor   = flagSet.Bool("no-constructor", false, "generate options only")
+		flagSet         = flag.NewFlagSet(cmdName, flag.ExitOnError)
+		suffix          = flagSet.String("option-suffix", "With", "option function suffix")
+		constructorName = flagSet.String("name", generator.Autoname, "constructor function name, use "+generator.Autoname+" for autoname (New<Type name> as default)")
+		noConstructor   = flagSet.Bool("no-constructor", false, "generate options only")
 		noExportMethods = flagSet.Bool("no-export", false, "no export generated methods")
-		useTypePrefix   = flagSet.Bool("type-prefix", false, "use type name as optional function prefix")
+		useTypePrefix   = flagSet.Bool("type-prefix", false, "use type name as option function prefix")
 		nolint          = params.Nolint(flagSet)
 	)
 
 	return New(
-		cmdName, "generates a structure constructor with optional arguments",
+		cmdName, "generates a structure constructor with options",
 		flagSet,
 		func(context *Context) error {
 			model, err := context.StructModel()
@@ -38,7 +38,16 @@ func NewConstructWithOptions() *Command {
 			if err != nil {
 				return err
 			}
+
 			rec := generator.TypeReceiverVar(model.TypeName())
+			if !(*noConstructor) {
+				typeParams := TypeParamsString(model, g)
+				typeParamsDecl := TypeParamsDeclarationString(model, g)
+				constrName, constructorBody := GenerateConstructor(*constructorName, model.TypeName(), typeParamsDecl, typeParams, !(*noExportMethods), *nolint,
+					"opts... func(*"+model.TypeName()+typeParams+")",
+					func(receiver string) string { return "for _, opt := range opts {\nopt(" + receiver + ")\n}" })
+				g.AddFuncOrMethod(constrName, constructorBody)
+			}
 			fieldMethods, err := generateOptionFuncs(g, model, model, pkgName, rec, *suffix, *useTypePrefix, !(*noExportMethods), *nolint, nil)
 			if err != nil {
 				return err

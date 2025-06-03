@@ -4,6 +4,7 @@ import (
 	goconstant "go/constant"
 	"go/types"
 
+	"github.com/m4gshm/fieldr/model/util"
 	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/seq"
@@ -15,7 +16,7 @@ const DefaultMethodSuffixByName = "ByName"
 const DefaultMethodSuffixByValue = "ByValue"
 const DefaultMethodSuffixAll = "All"
 
-func (g *Generator) GenerateEnumFromValue(typ *types.Named, constValNamesMap c.KVRange[goconstant.Value, []string],
+func (g *Generator) GenerateEnumFromValue(typ util.TypeNamedOrAlias, constValNamesMap c.KVRange[goconstant.Value, []string],
 	name string, export bool, nolint bool) (string, string, error) {
 
 	obj := typ.Obj()
@@ -63,7 +64,7 @@ func enumFromValueSwitchExpr(constValNamesMap c.KVRange[goconstant.Value, []stri
 	return expr + "\nreturn"
 }
 
-func (g *Generator) GenerateEnumFromName(typ *types.Named, constNames c.Range[[]string],
+func (g *Generator) GenerateEnumFromName(typ util.TypeNamedOrAlias, constNames c.Range[[]string],
 	name string, export bool, nolint bool) (string, string, error) {
 
 	obj := typ.Obj()
@@ -101,7 +102,7 @@ func enumFromNameSwitchExpr[C c.Range[[]string]](consts C, receiverVar, resultVa
 	return expr + "\nreturn"
 }
 
-func (g *Generator) GenerateEnumName(typ *types.Named, constValNamesMap c.KVRange[goconstant.Value, []string],
+func (g *Generator) GenerateEnumName(typ util.TypeNamedOrAlias, constValNamesMap c.KVRange[goconstant.Value, []string],
 	name string, export bool, nolint bool) (string, string, error) {
 
 	obj := typ.Obj()
@@ -145,7 +146,7 @@ func constsSwitchExpr[C c.KVRange[goconstant.Value, []string]](consts C, receive
 	return expr + "default:\n\treturn " + op.IfElse(onlyFirst, "\"\"", "nil") + "\n}"
 }
 
-func (g *Generator) GenerateEnumValues(typ *types.Named, constValNamesMap c.KVRange[goconstant.Value, []string],
+func (g *Generator) GenerateEnumValues(typ util.TypeNamedOrAlias, constValNamesMap c.KVRange[goconstant.Value, []string],
 	name string, export bool, nolint bool) (string, string, error) {
 
 	obj := typ.Obj()

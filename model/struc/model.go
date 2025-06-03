@@ -29,9 +29,9 @@ type (
 
 	//Model struct type model.
 	Model struct {
-		Typ            *types.Named
+		Typ            util.TypeNamedOrAlias
 		typeName       string
-		RefCount       int
+		RefDeep        int
 		pkg            *types.Package
 		OutPkgPath     string
 		FieldsTagValue map[FieldName]map[TagName]TagValue
@@ -62,7 +62,7 @@ func (m *Model) TypeName() string {
 }
 
 // New - Model's default constructor.
-func New(outPkgPath string, structType *types.Named) (*Model, error) {
+func New(outPkgPath string, structType util.TypeNamedOrAlias) (*Model, error) {
 	structModel, err := newBuilder(outPkgPath, handledStructs{}).newModel(structType)
 	if err != nil {
 		return nil, fmt.Errorf("new model of %+v: %w", structType, err)

@@ -1,12 +1,19 @@
 package util
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/m4gshm/gollections/c"
+	"github.com/m4gshm/gollections/collection/mutable/ordered"
+	"github.com/m4gshm/gollections/collection/mutable/ordered/set"
+	"github.com/m4gshm/gollections/expr/use"
 	"github.com/m4gshm/gollections/map_"
 	"github.com/m4gshm/gollections/op"
 	"golang.org/x/tools/go/packages"
@@ -14,7 +21,39 @@ import (
 	"github.com/m4gshm/fieldr/logger"
 )
 
-func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.Range[*packages.Package]) (*types.Named, *packages.Package, *ast.File, error) {
+const packageMode = packages.NeedSyntax | packages.NeedName | packages.NeedTypesInfo | packages.NeedTypes | packages.NeedModule | packages.NeedForTest
+
+func ExtractPackages(fileSet *token.FileSet, buildTags []string, fileName string) (*ordered.Set[*packages.Package], error) {
+	if dir, err := GetDir(fileName); err != nil {
+		return nil, err
+	} else if pkgs, err := packages.Load(&packages.Config{
+		Dir:        dir,
+		Fset:       fileSet,
+		Mode:       packageMode,
+		BuildFlags: buildTagsArg(buildTags),
+		Tests:      true,
+		Logf:       func(format string, args ...any) { logger.Debugf("packagesLoad: "+format, args...) },
+	}, "."); err != nil {
+		return nil, err
+	} else {
+		return set.Of(pkgs...), nil
+	}
+}
+
+func buildTagsArg(buildTags []string) []string {
+	return []string{fmt.Sprintf("-tags=%s", strings.Join(buildTags, " "))}
+}
+
+func GetDir(fileName string) (string, error) {
+	fileStat, err := os.Stat(fileName)
+	isNoExists := errors.Is(err, os.ErrNotExist)
+	if !isNoExists && err != nil {
+		return "", err
+	}
+	return use.If(!isNoExists && fileStat.IsDir(), fileName).ElseGet(func() string { return filepath.Dir(fileName) }), nil
+}
+
+func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.Range[*packages.Package]) (TypeNamedOrAlias, *packages.Package, *ast.File, error) {
 	for pkg := range pkgs.All {
 		pkgTypes := pkg.Types
 		if lookup := pkgTypes.Scope().Lookup(typeName); lookup == nil {
@@ -47,9 +86,38 @@ func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.Range[*
 	return nil, nil, nil, nil
 }
 
-func GetTypeNamed(typ types.Type) (*types.Named, int) {
+func GetTypeUnderPointer(typ types.Type) (types.Type, int) {
+	switch ftt := typ.(type) {
+	case *types.Pointer:
+		t, p := GetTypeUnderPointer(ftt.Elem())
+		return t, p + 1
+	case *types.Named, *types.Alias:
+		t, p := GetTypeUnderPointer(ftt.Underlying())
+		if p == 0 {
+			return ftt, 0
+		} 
+		return t, p
+	default:
+		return typ, 0
+	}
+}
+
+type TypeNamedOrAlias interface {
+	types.Type
+	Underlying() types.Type
+	Obj() *types.TypeName
+	TypeParams() *types.TypeParamList
+}
+
+var _ TypeNamedOrAlias = (*types.Named)(nil)
+var _ TypeNamedOrAlias = (*types.Alias)(nil)
+var _ types.Type = (TypeNamedOrAlias)(nil)
+
+func GetTypeNamed(typ types.Type) (TypeNamedOrAlias, int) {
 	switch ftt := typ.(type) {
 	case *types.Named:
+		return ftt, 0
+	case *types.Alias:
 		return ftt, 0
 	case *types.Pointer:
 		t, p := GetTypeNamed(ftt.Elem())
@@ -59,12 +127,11 @@ func GetTypeNamed(typ types.Type) (*types.Named, int) {
 	}
 }
 
-func GetStructTypeNamed(typ types.Type) (*types.Named, int) {
+func GetStructTypeNamed(typ types.Type) (TypeNamedOrAlias, int) {
 	if ftt, deep := GetTypeNamed(typ); ftt != nil {
 		und := ftt.Underlying()
 		if _, ok := und.(*types.Struct); ok {
 			return ftt, deep
-
 		} else if sund, sp := GetStructTypeNamed(und); sund != nil {
 			return ftt, sp + deep
 		}

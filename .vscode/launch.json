@@ -161,12 +161,12 @@
             "request": "launch",
             "mode": "debug",
             "program": "main.go",
-            "cwd": "internal/examples/with",
+            "cwd": "internal/examples/construct_with_options",
             "args": [
                 "-debug",
                 "-type",
                 "Entity",
-                "with"
+                "construct-with-options"
             ]
         },
         {
