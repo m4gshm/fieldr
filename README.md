@@ -11,6 +11,10 @@ type properties like name, structure fields, tags or base type nature.
 - [get-set](#get-set-usage-example) - generates getters, setters for a
   structure type.
 
+- [constructor](#constructor-with-optional-arguments-usage-example) -
+  generates a function to create a struct instance with optional
+  initialization.
+
 - [builder](#builder-usage-example) - generates builder API of a
   structure type.
 
