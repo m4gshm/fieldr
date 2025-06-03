@@ -1,4 +1,4 @@
-package construct_with_options
+package constructor
 
 import (
 	"testing"

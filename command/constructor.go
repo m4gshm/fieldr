@@ -13,13 +13,13 @@ import (
 
 func NewConstructWithOptions() *Command {
 	const (
-		cmdName = "construct-with-options"
+		cmdName = "constructor"
 	)
 	var (
 		flagSet         = flag.NewFlagSet(cmdName, flag.ExitOnError)
 		suffix          = flagSet.String("option-suffix", "With", "option function suffix")
 		constructorName = flagSet.String("name", generator.Autoname, "constructor function name, use "+generator.Autoname+" for autoname (New<Type name> as default)")
-		noConstructor   = flagSet.Bool("no-constructor", false, "generate options only")
+		noConstructor   = flagSet.Bool("options-only", false, "generate options only")
 		noExportMethods = flagSet.Bool("no-export", false, "no export generated methods")
 		useTypePrefix   = flagSet.Bool("type-prefix", false, "use type name as option function prefix")
 		nolint          = params.Nolint(flagSet)
@@ -38,7 +38,6 @@ func NewConstructWithOptions() *Command {
 			if err != nil {
 				return err
 			}
-
 			rec := generator.TypeReceiverVar(model.TypeName())
 			if !(*noConstructor) {
 				typeParams := TypeParamsString(model, g)

@@ -98,6 +98,26 @@ generates `entity_fieldr.go`
 include::../examples/usage/get_set/entity_fieldr.go[]
 ----
 
+=== constructor with optional arguments usage example
+
+source `entity.go`
+
+[source,go]
+----
+include::../examples/usage/constructor/entity.go[]
+----
+
+[source,console]
+----
+go generate .
+----
+generates `entity_fieldr.go`
+
+[source,go]
+----
+include::../examples/usage/constructor/entity_fieldr.go[]
+----
+
 === builder usage example
 
 source `entity.go`
@@ -117,7 +137,6 @@ generates `entity_fieldr.go`
 ----
 include::../examples/usage/builder/entity_fieldr.go[]
 ----
-
 
 === as-map usage example
 

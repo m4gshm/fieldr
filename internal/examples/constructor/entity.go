@@ -1,8 +1,8 @@
-package construct_with_options
+package constructor
 
 //go:generate fieldr -debug
 
-//go:fieldr -type Entity construct-with-options
+//go:fieldr -type Entity constructor
 
 import (
 	"bytes"
