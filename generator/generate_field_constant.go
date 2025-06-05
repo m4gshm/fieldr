@@ -201,7 +201,7 @@ func makeFieldConstsTempl(
 		return constants, nil
 	}
 
-	for _, fieldName := range model.FieldNames {
+	for fieldName, fieldType := range model.FieldsNameAndType {
 		if !usePrivate && !token.IsExported(string(fieldName)) {
 			logger.Debugf("exclude private field %v\n", fieldName)
 			continue
@@ -212,7 +212,6 @@ func makeFieldConstsTempl(
 			continue
 		}
 
-		fieldType := model.FieldsType[fieldName]
 		embedded := fieldType.Embedded
 		flat := flats.Contains(fieldName)
 		fieldModel := fieldType.Model
@@ -319,8 +318,7 @@ func makeFieldConstsTempl(
 
 func makeFieldConsts(g *Generator, model *struc.Model, export, snake, allFields bool, flats c.Checkable[string]) ([]FieldConst, error) {
 	constants := []FieldConst{}
-	for _, fieldName := range model.FieldNames {
-		fieldType := model.FieldsType[fieldName]
+	for fieldName, fieldType := range model.FieldsNameAndType {
 		embedded := fieldType.Embedded
 		flat := flats.Contains(fieldName)
 		filedInfo := FieldInfo{Name: fieldName, Type: fieldType}

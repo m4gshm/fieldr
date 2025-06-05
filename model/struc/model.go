@@ -3,6 +3,8 @@ package struc
 import (
 	"fmt"
 	"go/types"
+
+	"github.com/m4gshm/fieldr/model/util"
 )
 
 const ReplaceableValueSeparator = "="
@@ -18,18 +20,18 @@ type (
 	TagValue  = string
 	FieldName = string
 	FieldType struct {
-		Embedded       bool
-		RefCount       int
-		Name, FullName string
-		Model          *Model
-		Type           types.Type
+		Embedded bool
+		RefDeep  int
+		Name     string
+		Model    *Model
+		Type     types.Type
 	}
 
 	//Model struct type model.
 	Model struct {
-		Typ            *types.Named
+		Typ            util.TypeNamedOrAlias
 		typeName       string
-		RefCount       int
+		RefDeep        int
 		pkg            *types.Package
 		OutPkgPath     string
 		FieldsTagValue map[FieldName]map[TagName]TagValue
@@ -38,6 +40,18 @@ type (
 		FieldsType     map[FieldName]FieldType
 	}
 )
+
+func (f *FieldType) FullName(outPkgPath string) string {
+	return util.TypeString(f.Type, outPkgPath)
+}
+
+func (m *Model) FieldsNameAndType(yield func(FieldName, FieldType) bool) {
+	for _, fn := range m.FieldNames {
+		if !yield(fn, m.FieldsType[fn]) {
+			break
+		}
+	}
+}
 
 func (m *Model) Package() *types.Package {
 	return m.pkg
@@ -48,7 +62,7 @@ func (m *Model) TypeName() string {
 }
 
 // New - Model's default constructor.
-func New(outPkgPath string, structType *types.Named) (*Model, error) {
+func New(outPkgPath string, structType util.TypeNamedOrAlias) (*Model, error) {
 	structModel, err := newBuilder(outPkgPath, handledStructs{}).newModel(structType)
 	if err != nil {
 		return nil, fmt.Errorf("new model of %+v: %w", structType, err)

@@ -80,21 +80,9 @@ func generateGettersSetters(
 	fieldMethodNames := []string{}
 	for _, fieldName := range fieldsModel.FieldNames {
 		fieldType := fieldsModel.FieldsType[fieldName]
-		if len(pkgName) > 0 {
-			if !generator.IsExported(fieldName) {
-				logger.Debugf("cannot generate getter, setter for private field %s for package %s", fieldName, pkgName)
-				continue
-			}
-
-			if m := fieldType.Model; m != nil {
-				if !generator.IsExported(m.TypeName()) {
-					logger.Debugf("cannot generate getter, setter for field %s with private type % for package %s", fieldName, m.TypeName(), pkgName)
-					continue
-				}
-			}
-		}
-
-		if fieldType.Embedded {
+		if !isAccessible("getter, setter", pkgName, fieldName, fieldType) {
+			continue
+		} else if fieldType.Embedded {
 			ebmeddedFieldMethodNames, ebmeddedFieldMethodBodies, err := generateGettersSetters(
 				g, baseModel, fieldType.Model, pkgName, receiverVar, getterPrefix, setterPrefix, getters, setters, isReceiverReference, exportMethods, nolint,
 				append(parentFieldInfo, generator.FieldInfo{Name: fieldType.Name, Type: fieldType}))
@@ -133,4 +121,19 @@ func generateGettersSetters(
 		}
 	}
 	return fieldMethodNames, fieldMethodBodies, nil
+}
+
+func isAccessible(code string, pkgName string, fieldName struc.FieldName, fieldType struc.FieldType) bool {
+	if len(pkgName) > 0 {
+		if !generator.IsExported(fieldName) {
+			logger.Debugf("cannot generate %s for private field %s for package %s", code, fieldName, pkgName)
+			return false
+		} else if model := fieldType.Model; model != nil {
+			if !generator.IsExported(model.TypeName()) {
+				logger.Debugf("cannot generate %s for field %s with private type % for package %s", code, fieldName, model.TypeName(), pkgName)
+				return false
+			}
+		}
+	}
+	return true
 }

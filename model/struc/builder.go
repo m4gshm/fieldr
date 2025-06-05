@@ -67,11 +67,11 @@ func (b *structModelBuilder) populateByStruct(typ *types.Struct) error {
 		}
 		fieldType := fieldVar.Type()
 		fieldTypeName := util.TypeString(fieldType, b.outPkgPath)
-		ref := 0
+		refDeep := 0
 		var fieldModel *Model
 		if structType, p := util.GetStructTypeNamed(fieldType); structType != nil {
 			typeName := structType.Obj().Name()
-			ref = p
+			refDeep = p
 			fieldTypeName = typeName
 			if b.deep {
 				if fmodel, ok := b.loopControl[structType]; ok {
@@ -84,22 +84,28 @@ func (b *structModelBuilder) populateByStruct(typ *types.Struct) error {
 				}
 			}
 		}
-		b.model.FieldsType[fldName] = FieldType{
-			Embedded: fieldVar.Embedded(), RefCount: ref, Name: fieldTypeName,
-			FullName: util.TypeString(fieldType, b.outPkgPath),
-			Type:     fieldType, Model: fieldModel,
-		}
+		b.model.FieldsType[fldName] = NewFieldType(fieldVar.Embedded(), refDeep, fieldTypeName, fieldType, fieldModel)
 	}
 	return nil
 }
 
-func (b *structModelBuilder) newModel(typ *types.Named) (*Model, error) {
+func NewFieldType(embedded bool, refDeep int, name string, fieldType types.Type, fieldModel *Model) FieldType {
+	return FieldType{
+		Embedded: embedded,
+		RefDeep:  refDeep,
+		Name:     name,
+		Type:     fieldType,
+		Model:    fieldModel,
+	}
+}
+
+func (b *structModelBuilder) newModel(typ util.TypeNamedOrAlias) (*Model, error) {
 	obj := typ.Obj()
 	typName := obj.Name()
 	if _, ok := b.loopControl[typ]; ok {
 		return nil, fmt.Errorf("already handled type %v", typName)
 	}
-	typStruct, rc := util.GetTypeStruct(typ)
+	typStruct, refDeep := util.GetTypeStruct(typ)
 	if typStruct == nil {
 		return nil, fmt.Errorf("'%s' is not a struct type", typName)
 	}
@@ -113,7 +119,7 @@ func (b *structModelBuilder) newModel(typ *types.Named) (*Model, error) {
 		TagsFieldValue: map[TagName]map[FieldName]TagValue{},
 		FieldNames:     []FieldName{},
 		FieldsType:     map[FieldName]FieldType{},
-		RefCount:       rc,
+		RefDeep:        refDeep,
 	}
 	b.loopControl[typ] = model
 	b.model = model
