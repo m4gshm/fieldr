@@ -120,7 +120,7 @@ func NewBuilderStruct() *Command {
 			}
 
 			builderConstructorMethodName, builderConstructorMethodBody := GenerateConstructor(*newBuilderMethodName, builderName,
-				typeParamsDecl, typeParams, exportConstructor, *nolint, "", nil)
+				typeParamsDecl, typeParams, exportConstructor, *nolint, "", "", nil)
 			instanceConstructorMethodBody := "func (" + receiver + " " + builderType + ") " + constrMethodName + "() " +
 				op.IfElse(*buildValue, "", "*") + buildedType + typeParams +
 				" {" + generator.NoLint(*nolint) + "\n" +
@@ -179,7 +179,7 @@ func TypeParamsString(model *struc.Model, g *generator.Generator) string {
 	return generator.TypeParamsString(model.Typ.TypeParams(), g.OutPkgPath)
 }
 
-func GenerateConstructor(name, typeName, typeParamsDecl, typeParams string, exportMethods, nolint bool, arguments string, init func(receiver string) string) (string, string) {
+func GenerateConstructor(name, typeName, typeParamsDecl, typeParams string, exportMethods, nolint bool, arguments, initInstace string, init func(receiver string) string) (string, string) {
 	receiver := "r"
 	constructorName := generator.IdentName(get.If(name == generator.Autoname, sum.Of("New", typeName)).Else(name), exportMethods)
 
@@ -192,7 +192,7 @@ func GenerateConstructor(name, typeName, typeParamsDecl, typeParams string, expo
 	}
 
 	body := "func " + constructorName + typeParamsDecl + "(" + arguments + ") " + "*" + typeName + typeParams + " {" + generator.NoLint(nolint) + "\n"
-	createInstance := "&" + typeName + typeParams + "{}\n"
+	createInstance := "&" + typeName + typeParams + "{ " + initInstace + " }\n"
 	if len(initPart) > 0 {
 		body += "r := " + createInstance
 		body += initPart

@@ -2,7 +2,7 @@ package constructor
 
 //go:generate fieldr -debug
 
-//go:fieldr -type Entity constructor
+//go:fieldr -type Entity constructor-opt
 
 import (
 	"bytes"

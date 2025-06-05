@@ -13,7 +13,7 @@ import (
 
 func NewConstructWithOptions() *Command {
 	const (
-		cmdName = "constructor"
+		cmdName = "constructor-opt"
 	)
 	var (
 		flagSet         = flag.NewFlagSet(cmdName, flag.ExitOnError)
@@ -43,7 +43,7 @@ func NewConstructWithOptions() *Command {
 				typeParams := TypeParamsString(model, g)
 				typeParamsDecl := TypeParamsDeclarationString(model, g)
 				constrName, constructorBody := GenerateConstructor(*constructorName, model.TypeName(), typeParamsDecl, typeParams, !(*noExportMethods), *nolint,
-					"opts... func(*"+model.TypeName()+typeParams+")",
+					"opts... func(*"+model.TypeName()+typeParams+")", "",
 					func(receiver string) string { return "for _, opt := range opts {\nopt(" + receiver + ")\n}" })
 				g.AddFuncOrMethod(constrName, constructorBody)
 			}

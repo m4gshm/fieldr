@@ -8,7 +8,8 @@ Generator of various enumerated constants, types, functions based on a type prop
 
 * link:#fields-to-consts-example[fields-to-consts] - generate constants based on template applied to struct fields.
 * link:#get-set-usage-example[get-set] - generates getters, setters for a structure type.
-* link:#constructor-with-optional-arguments-usage-example[constructor] - generates a function to create a struct instance with optional initialization.
+* link:#constructor-with-optional-arguments-usage-example[constructor-opt] - generates a function to create a struct instance with optional initialization.
+* link:#constructor-that-required-all-field-values-usage-example[constructor] - generates a function to create a struct instance with full initialization.
 * link:#builder-usage-example[builder] - generates builder API of a structure type.
 * link:#as-map-usage-example[as-map] - generates a method or functon that converts the struct type to a map.
 * link:#enrich-const-type-usage-example[enrich-const-type] - extends a constants type by 'get name' method, 'enum all values' function and 'get a constant by a value of the underlying type' function.
@@ -105,7 +106,16 @@ source `entity.go`
 
 [source,go]
 ----
-include::../examples/usage/constructor/entity.go[]
+include::../examples/usage/constructor-opt/entity.go[]
+----
+
+=== constructor that required all field values usage example
+
+source `entity.go`
+
+[source,go]
+----
+include::../examples/usage/constructor-full/entity.go[]
 ----
 
 [source,console]
