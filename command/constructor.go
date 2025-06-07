@@ -4,6 +4,7 @@ import (
 	"flag"
 
 	"github.com/m4gshm/fieldr/generator"
+	"github.com/m4gshm/fieldr/generator/constructor"
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/model/struc"
 	"github.com/m4gshm/fieldr/params"
@@ -11,22 +12,24 @@ import (
 	"github.com/m4gshm/gollections/collection/mutable"
 )
 
-func NewConstructWithOptions() *Command {
+func NewConstructor() *Command {
 	const (
-		cmdName = "constructor-opt"
+		cmdName = "constructor"
 	)
 	var (
-		flagSet         = flag.NewFlagSet(cmdName, flag.ExitOnError)
-		suffix          = flagSet.String("option-suffix", "With", "option function suffix")
-		constructorName = flagSet.String("name", generator.Autoname, "constructor function name, use "+generator.Autoname+" for autoname (New<Type name> as default)")
-		noConstructor   = flagSet.Bool("options-only", false, "generate options only")
-		noExportMethods = flagSet.Bool("no-export", false, "no export generated methods")
-		useTypePrefix   = flagSet.Bool("type-prefix", false, "use type name as option function prefix")
-		nolint          = params.Nolint(flagSet)
+		flagSet             = flag.NewFlagSet(cmdName, flag.ExitOnError)
+		suffix              = flagSet.String("option-suffix", "With", "option function suffix")
+		optConstructorName  = flagSet.String("opt-name", generator.Autoname, "optional constructor function name, use "+generator.Autoname+" for autoname New<Type name> or New<TypeName>Opt if generated with full constructor")
+		fullConstructorName = flagSet.String("full-name", "", "full constructor function name, use "+generator.Autoname+" for autoname New<Type name>")
+		noConstructor       = flagSet.Bool("options-only", false, "generate option functions only")
+		noExportMethods     = flagSet.Bool("no-export", false, "no export generated methods")
+		useTypePrefix       = flagSet.Bool("type-prefix", false, "use type name as option function prefix")
+		nolint              = params.Nolint(flagSet)
 	)
 
+	_ = fullConstructorName
 	return New(
-		cmdName, "generates a structure constructor with options",
+		cmdName, "generates a structure constructor",
 		flagSet,
 		func(context *Context) error {
 			model, err := context.StructModel()
@@ -38,15 +41,22 @@ func NewConstructWithOptions() *Command {
 			if err != nil {
 				return err
 			}
-			rec := generator.TypeReceiverVar(model.TypeName())
+			if fullConstructorName != nil && len(*fullConstructorName) > 0 {
+				if err := g.AddFuncOrMethod(constructor.FullArgs(g, model, *fullConstructorName, !(*noExportMethods), *nolint)); err != nil {
+					return err
+				}
+			}
 			if !(*noConstructor) {
 				typeParams := TypeParamsString(model, g)
 				typeParamsDecl := TypeParamsDeclarationString(model, g)
-				constrName, constructorBody := GenerateConstructor(*constructorName, model.TypeName(), typeParamsDecl, typeParams, !(*noExportMethods), *nolint,
-					"opts... func(*"+model.TypeName()+typeParams+")", "",
+				constrName, constructorBody := constructor.New(*optConstructorName, model.TypeName(), typeParamsDecl,
+					typeParams, !(*noExportMethods), *nolint, "opts... func(*"+model.TypeName()+typeParams+")", "",
 					func(receiver string) string { return "for _, opt := range opts {\nopt(" + receiver + ")\n}" })
-				g.AddFuncOrMethod(constrName, constructorBody)
+				if err := g.AddFuncOrMethod(constrName, constructorBody); err != nil {
+					return err
+				}
 			}
+			rec := generator.TypeReceiverVar(model.TypeName())
 			fieldMethods, err := generateOptionFuncs(g, model, model, pkgName, rec, *suffix, *useTypePrefix, !(*noExportMethods), *nolint, nil)
 			if err != nil {
 				return err

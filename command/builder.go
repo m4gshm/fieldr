@@ -16,6 +16,7 @@ import (
 	"github.com/m4gshm/gollections/slice/split"
 
 	"github.com/m4gshm/fieldr/generator"
+	"github.com/m4gshm/fieldr/generator/constructor"
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/model/struc"
 	"github.com/m4gshm/fieldr/model/util"
@@ -119,8 +120,8 @@ func NewBuilderStruct() *Command {
 				return err
 			}
 
-			builderConstructorMethodName, builderConstructorMethodBody := GenerateConstructor(*newBuilderMethodName, builderName,
-				typeParamsDecl, typeParams, exportConstructor, *nolint, "", "", nil)
+			builderConstructorMethodName, builderConstructorMethodBody := constructor.New(*newBuilderMethodName, builderName,
+				typeParamsDecl, typeParams, exportConstructor, *nolint, "", "", nil)	
 			instanceConstructorMethodBody := "func (" + receiver + " " + builderType + ") " + constrMethodName + "() " +
 				op.IfElse(*buildValue, "", "*") + buildedType + typeParams +
 				" {" + generator.NoLint(*nolint) + "\n" +
@@ -177,31 +178,6 @@ func NewBuilderStruct() *Command {
 
 func TypeParamsString(model *struc.Model, g *generator.Generator) string {
 	return generator.TypeParamsString(model.Typ.TypeParams(), g.OutPkgPath)
-}
-
-func GenerateConstructor(name, typeName, typeParamsDecl, typeParams string, exportMethods, nolint bool, arguments, initInstace string, init func(receiver string) string) (string, string) {
-	receiver := "r"
-	constructorName := generator.IdentName(get.If(name == generator.Autoname, sum.Of("New", typeName)).Else(name), exportMethods)
-
-	initPart := ""
-	if init != nil {
-		initPart = init(receiver)
-		if len(initPart) > 0 {
-			initPart += "\n"
-		}
-	}
-
-	body := "func " + constructorName + typeParamsDecl + "(" + arguments + ") " + "*" + typeName + typeParams + " {" + generator.NoLint(nolint) + "\n"
-	createInstance := "&" + typeName + typeParams + "{ " + initInstace + " }\n"
-	if len(initPart) > 0 {
-		body += "r := " + createInstance
-		body += initPart
-		body += "return " + receiver + "\n"
-	} else {
-		body += "return " + createInstance
-	}
-	body += "}\n"
-	return constructorName, body
 }
 
 func TypeParamsDeclarationString(model *struc.Model, g *generator.Generator) string {

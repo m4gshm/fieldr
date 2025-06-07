@@ -75,8 +75,7 @@ func PrintUsage() {
 var commands = []func() *Command{
 	NewFieldsToConsts,
 	NewAsMapMethod,
-	NewConstructFull,
-	NewConstructWithOptions,
+	NewConstructor,
 	NewBuilderStruct,
 	NewGettersSetters,
 	NewEnrichConstType,
