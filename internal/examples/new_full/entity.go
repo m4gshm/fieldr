@@ -1,8 +1,8 @@
-package constructor
+package new_full
 
 //go:generate fieldr -debug
 
-//go:fieldr -type Entity constructor-opt
+//go:fieldr -type Entity new-full
 
 import (
 	"bytes"

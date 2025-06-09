@@ -8,7 +8,8 @@ Generator of various enumerated constants, types, functions based on a type prop
 
 * link:#fields-to-consts-example[fields-to-consts] - generate constants based on template applied to struct fields.
 * link:#get-set-usage-example[get-set] - generates getters, setters for a structure type.
-* link:#constructors-with-fill-and-optional-arguments-example[constructor] - generates functions that create a structure instance with full or partial initialization.
+* link:#functional-options-constructor-example[new] - generates a function that creates an optionally initialized instance of the structure type.
+* link:#full-constructor-example[new-full] - generates a function that creates a full initialized instance of the structure type.
 * link:#builder-usage-example[builder] - generates builder API of a structure type.
 * link:#as-map-usage-example[as-map] - generates a method or functon that converts the struct type to a map.
 * link:#enrich-const-type-usage-example[enrich-const-type] - extends a constants type by 'get name' method, 'enum all values' function and 'get a constant by a value of the underlying type' function.
@@ -99,13 +100,13 @@ generates `entity_fieldr.go`
 include::../examples/usage/get_set/entity_fieldr.go[]
 ----
 
-=== constructors with fill and optional arguments example
+=== 'Functional Options' constructor example 
 
 source `entity.go`
 
 [source,go]
 ----
-include::../examples/usage/constructor/entity.go[]
+include::../examples/usage/new_opts/entity.go[]
 ----
 
 [source,console]
@@ -116,7 +117,27 @@ generates `entity_fieldr.go`
 
 [source,go]
 ----
-include::../examples/usage/constructor/entity_fieldr.go[]
+include::../examples/usage/new_opts/entity_fieldr.go[]
+----
+
+=== Full constructor example 
+
+source `entity.go`
+
+[source,go]
+----
+include::../examples/usage/new_full/entity.go[]
+----
+
+[source,console]
+----
+go generate .
+----
+generates `entity_fieldr.go`
+
+[source,go]
+----
+include::../examples/usage/new_full/entity_fieldr.go[]
 ----
 
 === builder usage example

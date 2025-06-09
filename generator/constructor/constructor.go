@@ -32,11 +32,15 @@ func New(name, typeName, typeParamsDecl, typeParams string, exportMethods, nolin
 	return constructorName, body
 }
 
-func FullArgs(g *generator.Generator, model *struc.Model, constructorName string, noExportMethods bool, nolint bool) (string, string) {
+func FullArgs(g *generator.Generator, model *struc.Model, constructorName string, exportMethods bool, nolint bool) (string, string, error) {
 	initPart := ""
 	args := ""
 	for fieldName, fieldType := range model.FieldsNameAndType {
-		args += fieldName + " " + fieldType.FullName(g.OutPkgPath) + ",\n"
+		fullFieldType, err := g.GetFullFieldTypeName(fieldType, false)
+		if err != nil {
+			return "", "", err
+		}
+		args += fieldName + " " + fullFieldType + ",\n"
 		initPart += fieldName + ":" + fieldName + ",\n"
 	}
 	if len(initPart) > 0 {
@@ -49,5 +53,6 @@ func FullArgs(g *generator.Generator, model *struc.Model, constructorName string
 	typeParams := generator.TypeParamsString(model.Typ.TypeParams(), g.OutPkgPath)
 	typeParamsDecl := generator.TypeParamsDeclarationString(model.Typ.TypeParams(), g.OutPkgPath)
 
-	return New(constructorName, model.TypeName(), typeParamsDecl, typeParams, !noExportMethods, nolint, args, initPart, nil)
+	name, body := New(constructorName, model.TypeName(), typeParamsDecl, typeParams, exportMethods, nolint, args, initPart, nil)
+	return name, body, nil
 }

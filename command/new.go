@@ -12,24 +12,21 @@ import (
 	"github.com/m4gshm/gollections/collection/mutable"
 )
 
-func NewConstructor() *Command {
+func NewNewOpt() *Command {
 	const (
-		cmdName = "constructor"
+		cmdName = "new"
 	)
 	var (
-		flagSet             = flag.NewFlagSet(cmdName, flag.ExitOnError)
-		suffix              = flagSet.String("option-suffix", "With", "option function suffix")
-		optConstructorName  = flagSet.String("opt-name", generator.Autoname, "optional constructor function name, use "+generator.Autoname+" for autoname New<Type name> or New<TypeName>Opt if generated with full constructor")
-		fullConstructorName = flagSet.String("full-name", "", "full constructor function name, use "+generator.Autoname+" for autoname New<Type name>")
-		noConstructor       = flagSet.Bool("options-only", false, "generate option functions only")
-		noExportMethods     = flagSet.Bool("no-export", false, "no export generated methods")
-		useTypePrefix       = flagSet.Bool("type-prefix", false, "use type name as option function prefix")
-		nolint              = params.Nolint(flagSet)
+		flagSet         = flag.NewFlagSet(cmdName, flag.ExitOnError)
+		suffix          = flagSet.String("option-suffix", "With", "option function suffix")
+		name            = flagSet.String("name", generator.Autoname, "constructor name, use "+generator.Autoname+" for autoname New<Type name>")
+		noConstructor   = flagSet.Bool("options-only", false, "generate option functions only")
+		noExportMethods = flagSet.Bool("no-export", false, "no export generated methods")
+		useTypePrefix   = flagSet.Bool("type-prefix", false, "use type name as option function prefix")
+		nolint          = params.Nolint(flagSet)
 	)
-
-	_ = fullConstructorName
 	return New(
-		cmdName, "generates a structure constructor",
+		cmdName, "generates a structure constructor that uses 'Functional Options' to initialize the returned instance.",
 		flagSet,
 		func(context *Context) error {
 			model, err := context.StructModel()
@@ -41,15 +38,10 @@ func NewConstructor() *Command {
 			if err != nil {
 				return err
 			}
-			if fullConstructorName != nil && len(*fullConstructorName) > 0 {
-				if err := g.AddFuncOrMethod(constructor.FullArgs(g, model, *fullConstructorName, !(*noExportMethods), *nolint)); err != nil {
-					return err
-				}
-			}
 			if !(*noConstructor) {
 				typeParams := TypeParamsString(model, g)
 				typeParamsDecl := TypeParamsDeclarationString(model, g)
-				constrName, constructorBody := constructor.New(*optConstructorName, model.TypeName(), typeParamsDecl,
+				constrName, constructorBody := constructor.New(*name, model.TypeName(), typeParamsDecl,
 					typeParams, !(*noExportMethods), *nolint, "opts... func(*"+model.TypeName()+typeParams+")", "",
 					func(receiver string) string { return "for _, opt := range opts {\nopt(" + receiver + ")\n}" })
 				if err := g.AddFuncOrMethod(constrName, constructorBody); err != nil {
