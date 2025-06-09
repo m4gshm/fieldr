@@ -1,8 +1,8 @@
-package new_opts
+package new_opt
 
 //go:generate fieldr -debug
 
-//go:fieldr -type Entity new
+//go:fieldr -type Entity new-opt
 
 import (
 	"bytes"

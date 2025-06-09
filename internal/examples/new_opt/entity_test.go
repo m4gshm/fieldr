@@ -1,4 +1,4 @@
-package new_opts
+package new_opt
 
 import (
 	"testing"

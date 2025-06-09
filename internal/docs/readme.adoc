@@ -106,7 +106,7 @@ source `entity.go`
 
 [source,go]
 ----
-include::../examples/usage/new_opts/entity.go[]
+include::../examples/usage/new_opt/entity.go[]
 ----
 
 [source,console]
@@ -117,7 +117,7 @@ generates `entity_fieldr.go`
 
 [source,go]
 ----
-include::../examples/usage/new_opts/entity_fieldr.go[]
+include::../examples/usage/new_opt/entity_fieldr.go[]
 ----
 
 === Full constructor example 

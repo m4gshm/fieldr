@@ -14,7 +14,7 @@ import (
 
 func NewNewOpt() *Command {
 	const (
-		cmdName = "new"
+		cmdName = "new-opt"
 	)
 	var (
 		flagSet         = flag.NewFlagSet(cmdName, flag.ExitOnError)
