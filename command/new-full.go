@@ -19,7 +19,7 @@ func NewNewFull() *Command {
 		nolint          = params.Nolint(flagSet)
 	)
 	return New(
-		cmdName, "generates a structure creation function with mandatory mapping of arguments to fields.",
+		cmdName, "generates a struct creation function with mandatory mapping of arguments to fields.",
 		flagSet,
 		func(context *Context) error {
 			model, err := context.StructModel()

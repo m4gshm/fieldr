@@ -26,7 +26,7 @@ func NewNewOpt() *Command {
 		nolint          = params.Nolint(flagSet)
 	)
 	return New(
-		cmdName, "generates a structure creator function with optional arguments",
+		cmdName, "generates a struct creation function with optional arguments",
 		flagSet,
 		func(context *Context) error {
 			model, err := context.StructModel()
