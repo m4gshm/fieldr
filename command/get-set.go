@@ -27,7 +27,7 @@ func NewGettersSetters() *Command {
 	)
 
 	return New(
-		cmdName, "generates getters, setters for a structure type",
+		cmdName, "generates getters and setters",
 		flagSet,
 		func(context *Context) error {
 

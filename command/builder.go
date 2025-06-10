@@ -48,7 +48,7 @@ func NewBuilderStruct() *Command {
 	)
 
 	return New(
-		cmdName, "generates builder API of a structure type",
+		cmdName, "generates builder API of the struct type",
 		flagSet,
 		func(context *Context) error {
 			model, err := context.StructModel()
@@ -121,7 +121,7 @@ func NewBuilderStruct() *Command {
 			}
 
 			builderConstructorMethodName, builderConstructorMethodBody := constructor.New(*newBuilderMethodName, builderName,
-				typeParamsDecl, typeParams, exportConstructor, *nolint, "", "", nil)	
+				typeParamsDecl, typeParams, exportConstructor, *nolint, "", "", nil)
 			instanceConstructorMethodBody := "func (" + receiver + " " + builderType + ") " + constrMethodName + "() " +
 				op.IfElse(*buildValue, "", "*") + buildedType + typeParams +
 				" {" + generator.NoLint(*nolint) + "\n" +

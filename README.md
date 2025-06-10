@@ -8,20 +8,19 @@ type properties like name, structure fields, tags or base type nature.
 - [fields-to-consts](#fields-to-consts-example) - generate constants
   based on template applied to struct fields.
 
-- [get-set](#get-set-usage-example) - generates getters, setters for a
-  structure type.
+- [get-set](#get-set-usage-example) - generates getters and setters.
 
 - [new](#functional-options-constructor-example) - generates a function
-  that creates an optionally initialized instance of the structure type.
+  that creates an optionally initialized struct instance.
 
 - [new-full](#full-constructor-example) - generates a function that
-  creates a full initialized instance of the structure type.
+  creates a full initialized struct instance.
 
-- [builder](#builder-usage-example) - generates builder API of a
-  structure type.
+- [builder](#builder-usage-example) - generates builder API of a struct
+  type.
 
 - [as-map](#as-map-usage-example) - generates a method or functon that
-  converts the struct type to a map.
+  converts a struct to a map.
 
 - [enrich-const-type](#enrich-const-type-usage-example) - extends a
   constants type by 'get name' method, 'enum all values' function and

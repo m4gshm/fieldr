@@ -7,11 +7,11 @@ Generator of various enumerated constants, types, functions based on a type prop
 === Supported commands
 
 * link:#fields-to-consts-example[fields-to-consts] - generate constants based on template applied to struct fields.
-* link:#get-set-usage-example[get-set] - generates getters, setters for a structure type.
-* link:#functional-options-constructor-example[new] - generates a function that creates an optionally initialized instance of the structure type.
-* link:#full-constructor-example[new-full] - generates a function that creates a full initialized instance of the structure type.
-* link:#builder-usage-example[builder] - generates builder API of a structure type.
-* link:#as-map-usage-example[as-map] - generates a method or functon that converts the struct type to a map.
+* link:#get-set-usage-example[get-set] - generates getters and setters.
+* link:#functional-options-constructor-example[new] - generates a function that creates an optionally initialized struct instance.
+* link:#full-constructor-example[new-full] - generates a function that creates a full initialized struct instance.
+* link:#builder-usage-example[builder] - generates builder API of a struct type.
+* link:#as-map-usage-example[as-map] - generates a method or functon that converts a struct to a map.
 * link:#enrich-const-type-usage-example[enrich-const-type] - extends a constants type by 'get name' method, 'enum all values' function and 'get a constant by a value of the underlying type' function.
 
 === Installation
