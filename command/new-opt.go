@@ -18,11 +18,10 @@ func NewNewOpt() *Command {
 	)
 	var (
 		flagSet         = flag.NewFlagSet(cmdName, flag.ExitOnError)
-		suffix          = flagSet.String("option-suffix", "With", "option function suffix")
+		suffix          = flagSet.String("suffix", "With", "option function suffix, use "+generator.Autoname+" for autoname <Type name>FieldName")
 		name            = flagSet.String("name", generator.Autoname, "constructor name, use "+generator.Autoname+" for autoname New<Type name>")
 		noConstructor   = flagSet.Bool("options-only", false, "generate option functions only")
 		noExportMethods = flagSet.Bool("no-export", false, "no export generated methods")
-		useTypePrefix   = flagSet.Bool("type-prefix", false, "use type name as option function prefix")
 		nolint          = params.Nolint(flagSet)
 	)
 	return New(
@@ -49,7 +48,10 @@ func NewNewOpt() *Command {
 				}
 			}
 			rec := generator.TypeReceiverVar(model.TypeName())
-			fieldMethods, err := generateOptionFuncs(g, model, model, pkgName, rec, *suffix, *useTypePrefix, !(*noExportMethods), *nolint, nil)
+			if suffix != nil && *suffix == generator.Autoname {
+				*suffix = model.TypeName()
+			}
+			fieldMethods, err := generateOptionFuncs(g, model, model, pkgName, rec, *suffix, !(*noExportMethods), *nolint, nil)
 			if err != nil {
 				return err
 			}
@@ -65,7 +67,7 @@ func NewNewOpt() *Command {
 
 func generateOptionFuncs(
 	g *generator.Generator, baseModel, fieldsModel *struc.Model, pkgName, receiverVar, suffix string,
-	useTypePrefix, exportMethods, nolint bool, parentFieldInfo []generator.FieldInfo,
+	exportMethods, nolint bool, parentFieldInfo []generator.FieldInfo,
 ) (collection.Map[string, string], error) {
 	logger.Debugf("generate option function: receiver %s, type %s, suffix %s", receiverVar, baseModel.TypeName(), suffix)
 	fieldMethods := mutable.NewMapOrdered[string, string]()
@@ -74,7 +76,7 @@ func generateOptionFuncs(
 			continue
 		} else if fieldType.Embedded {
 			embeddedFieldMethods, err := generateOptionFuncs(
-				g, baseModel, fieldType.Model, pkgName, receiverVar, suffix, useTypePrefix, exportMethods, nolint,
+				g, baseModel, fieldType.Model, pkgName, receiverVar, suffix, exportMethods, nolint,
 				append(parentFieldInfo, generator.FieldInfo{Name: fieldType.Name, Type: fieldType}))
 			if err != nil {
 				return nil, err
