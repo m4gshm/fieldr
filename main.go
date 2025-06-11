@@ -394,7 +394,7 @@ func parseCommands(args []string) ([]*command.Command, []string, error) {
 	for len(args) > 0 {
 		cmd, cmdArgs := args[0], args[1:]
 		if c := command.Get(cmd); c == nil {
-			return nil, args, fuse.Err("unknowd command '" + cmd + "'")
+			return nil, args, fuse.Err("unknown command '" + cmd + "'")
 		} else if unusedArgs, err := c.Parse(cmdArgs); err != nil {
 			return nil, nil, err
 		} else {
