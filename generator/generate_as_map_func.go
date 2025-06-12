@@ -8,6 +8,7 @@ import (
 	"github.com/m4gshm/gollections/slice/split"
 
 	"github.com/m4gshm/fieldr/model/struc"
+	"github.com/m4gshm/fieldr/typeparams"
 	"github.com/m4gshm/fieldr/unique"
 )
 
@@ -35,7 +36,7 @@ func (g *Generator) GenerateAsMapFunc(
 
 	funcName := renameFuncByConfig(IdentName("AsMap", export), name)
 	typParams := model.Typ.TypeParams()
-	receiverType := GetTypeName(typeName, pkgName) + TypeParamsString(TypeParamsSeq(typParams, g.OutPkgPath))
+	receiverType := GetTypeName(typeName, pkgName) + typeparams.New(typParams).IdentString(g.OutPkgPath)
 	returnType := "map[" + keyType + "]any"
 	body := MethodBody(funcName, noReceiver, receiverVar, "*"+receiverType, returnType, nolint, internal)
 

@@ -10,26 +10,27 @@ import (
 	"github.com/m4gshm/gollections/slice/split"
 
 	"github.com/m4gshm/fieldr/model/struc"
+	"github.com/m4gshm/fieldr/typeparams"
 	"github.com/m4gshm/fieldr/unique"
 )
 
 func GenerateSetter(model *struc.Model, pkgName, receiverVar, methodName, fieldName, fieldType, outPkgPath string, nolint bool, isReceiverReference bool, fieldParts []FieldInfo) string {
 
 	uniqueNames := unique.NewNamesWith(unique.PreInit(receiverVar), unique.DistinctBySuffix("_"))
-	typeParams := TypeParamsSeq(model.Typ.TypeParams(), outPkgPath)
-	seq.ForEach(typeParams, uniqueNames.Add)
+	params := typeparams.New(model.Typ.TypeParams())
+	seq.ForEach(params.Names(outPkgPath), uniqueNames.Add)
 
 	buildedType := GetTypeName(model.TypeName(), pkgName)
 	typeName := op.IfElse(isReceiverReference, "*", "") + buildedType
-	typeParamsStr := TypeParamsString(typeParams)
-	typeParamsDecl := TypeParamsDeclarationString(model.Typ.TypeParams(), outPkgPath)
+	typeParams := params.IdentString(outPkgPath)
+	typeParamsDecl := params.DeclarationString(outPkgPath)
 	_, conditionalPath, conditions := FiledPathAndAccessCheckCondition(receiverVar, isReceiverReference, false, fieldParts, uniqueNames)
 	varsConditionStart, varsConditionEnd := split.AndReduce(conditions, string_.Wrap("if ", " {\n"), replace.By("}\n"), op.Sum, op.Sum)
 
 	arg := LegalIdentName(uniqueNames.Get(fieldName))
 	return get.If(len(pkgName) == 0,
-		sum.Of("func (", receiverVar, " ", typeName, typeParamsStr, ") ", methodName, "(", arg, " ", fieldType, ")")).ElseGet(
-		sum.Of("func ", methodName, typeParamsDecl, "(", receiverVar, " ", typeName, typeParamsStr, ",", arg, " ", fieldType, ")"),
+		sum.Of("func (", receiverVar, " ", typeName, typeParams, ") ", methodName, "(", arg, " ", fieldType, ")")).ElseGet(
+		sum.Of("func ", methodName, typeParamsDecl, "(", receiverVar, " ", typeName, typeParams, ",", arg, " ", fieldType, ")"),
 	) + " {" + NoLint(nolint) + "\n" + varsConditionStart +
 		op.IfElse(len(varsConditionStart) > 0, conditionalPath, receiverVar) + "." + fieldName + "=" + arg + "\n" +
 		varsConditionEnd + "}\n"
@@ -37,13 +38,13 @@ func GenerateSetter(model *struc.Model, pkgName, receiverVar, methodName, fieldN
 
 func GenerateGetter(model *struc.Model, pkgName, receiverVar, methodName, fieldName, fieldType, outPkgPath string, nolint bool, isReceiverReference bool, fieldParts []FieldInfo) string {
 	uniqueNames := unique.NewNamesWith(unique.PreInit(receiverVar), unique.DistinctBySuffix("_"))
-	typeParams := TypeParamsSeq(model.Typ.TypeParams(), outPkgPath)
-	seq.ForEach(typeParams, uniqueNames.Add)
+	params := typeparams.New(model.Typ.TypeParams())
+	seq.ForEach(params.Names(outPkgPath), uniqueNames.Add)
 
 	buildedType := GetTypeName(model.TypeName(), pkgName)
 	typeName := op.IfElse(isReceiverReference, "*", "") + buildedType
-	typeParamsStr := TypeParamsString(typeParams)
-	typeParamsDecl := TypeParamsDeclarationString(model.Typ.TypeParams(), outPkgPath)
+	typeParams := params.IdentString(outPkgPath)
+	typeParamsDecl := params.DeclarationString(outPkgPath)
 	_, conditionalPath, conditions := FiledPathAndAccessCheckCondition(receiverVar, isReceiverReference, false, fieldParts, uniqueNames)
 	varsConditionStart, varsConditionEnd := split.AndReduce(conditions, string_.Wrap("if ", " {\n"), replace.By("}\n"), op.Sum, op.Sum)
 
@@ -51,8 +52,8 @@ func GenerateGetter(model *struc.Model, pkgName, receiverVar, methodName, fieldN
 	emptyResult := "var " + emptyVar + " " + fieldType
 
 	return get.If(len(pkgName) == 0,
-		sum.Of("func (", receiverVar, " ", typeName, typeParamsStr, ") ", methodName, "()")).ElseGet(
-		sum.Of("func ", methodName, typeParamsDecl, "(", receiverVar, " ", typeName, typeParamsStr, ")"),
+		sum.Of("func (", receiverVar, " ", typeName, typeParams, ") ", methodName, "()")).ElseGet(
+		sum.Of("func ", methodName, typeParamsDecl, "(", receiverVar, " ", typeName, typeParams, ")"),
 	) + " " + fieldType + " {" + NoLint(nolint) + "\n" + varsConditionStart + "return " +
 		op.IfElse(len(varsConditionStart) > 0, conditionalPath, receiverVar) + "." + fieldName +
 		varsConditionEnd + "\n" + get.If(len(varsConditionStart) > 0, sum.Of(emptyResult, "\n", "return ", emptyVar, "\n")).Else("") + "}\n"

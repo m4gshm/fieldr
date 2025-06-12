@@ -7,6 +7,7 @@ import (
 
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/model/struc"
+	"github.com/m4gshm/fieldr/typeparams"
 	"github.com/m4gshm/fieldr/unique"
 )
 
@@ -52,12 +53,12 @@ func FullArgs(g *generator.Generator, model *struc.Model, constructorName string
 		args = "\n" + args
 	}
 
-	params := generator.TypeParamsSeq(model.Typ.TypeParams(), g.OutPkgPath)
-	typeParamsStr := generator.TypeParamsString(params)
-	typeParamsDecl := generator.TypeParamsDeclarationString(model.Typ.TypeParams(), g.OutPkgPath)
+	params := typeparams.New(model.Typ.TypeParams())
+	typeParams := params.IdentString(g.OutPkgPath)
+	typeParamsDecl := params.DeclarationString(g.OutPkgPath)
 	uniqueNames := unique.NewNamesWith(unique.DistinctBySuffix("_"))
-	seq.ForEach(params, uniqueNames.Add)
+	seq.ForEach(params.Names(g.OutPkgPath), uniqueNames.Add)
 
-	name, body := New(constructorName, model.TypeName(), typeParamsDecl, typeParamsStr, uniqueNames.Get("r"), exportMethods, nolint, args, initPart, nil)
+	name, body := New(constructorName, model.TypeName(), typeParamsDecl, typeParams, uniqueNames.Get("r"), exportMethods, nolint, args, initPart, nil)
 	return name, body, nil
 }

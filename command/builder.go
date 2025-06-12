@@ -21,6 +21,7 @@ import (
 	"github.com/m4gshm/fieldr/model/struc"
 	"github.com/m4gshm/fieldr/model/util"
 	"github.com/m4gshm/fieldr/params"
+	"github.com/m4gshm/fieldr/typeparams"
 	"github.com/m4gshm/fieldr/unique"
 )
 
@@ -99,13 +100,13 @@ func NewBuilderStruct() *Command {
 			autogen := len(*buildMethodName) == 0 || *buildMethodName == generator.Autoname
 			constrMethodName := generator.LegalIdentName(generator.IdentName(op.IfElse(autogen, default_constructor, *buildMethodName), exportMethods))
 
-			params := generator.TypeParamsSeq(model.Typ.TypeParams(), g.OutPkgPath)
-			typeParamsStr := generator.TypeParamsString(params)
-			typeParamsDecl := generator.TypeParamsDeclarationString(model.Typ.TypeParams(), g.OutPkgPath)
+			params := typeparams.New(model.Typ.TypeParams())
+			typeParams := params.IdentString(g.OutPkgPath)
+			typeParamsDecl := params.DeclarationString(g.OutPkgPath)
 			uniqueNames := unique.NewNamesWith(unique.DistinctBySuffix("_"))
-			seq.ForEach(params, uniqueNames.Add)
+			seq.ForEach(params.Names(g.OutPkgPath), uniqueNames.Add)
 
-			builderReceiver := uniqueNames.Get("b")
+			receiver := uniqueNames.Get("b")
 			logger.Debugf("constrMethodName %v", constrMethodName)
 
 			uniques := map[string]string{}
@@ -117,21 +118,21 @@ func NewBuilderStruct() *Command {
 				methodPrefix = defMethPref
 			}
 
-			builderType := op.IfElse(*chainValue, "", "*") + builderName + typeParamsStr
+			builderType := op.IfElse(*chainValue, "", "*") + builderName + typeParams
 
-			parts, err := generateBuilderParts(g, model, uniques, builderReceiver, builderType, methodPrefix,
+			parts, err := generateBuilderParts(g, model, uniques, receiver, builderType, methodPrefix,
 				!(*chainValue), *light, exportMethods, exportFields, *nolint)
 			if err != nil {
 				return err
 			}
 
 			builderConstructorMethodName, builderConstructorMethodBody := constructor.New(*newBuilderMethodName, builderName,
-				typeParamsDecl, typeParamsStr, uniqueNames.Get("r"), exportConstructor, *nolint, "", "", nil)
-			instanceConstructorMethodBody := "func (" + builderReceiver + " " + builderType + ") " + constrMethodName + "() " +
-				op.IfElse(*buildValue, "", "*") + buildedType + typeParamsStr +
+				typeParamsDecl, typeParams, uniqueNames.Get("r"), exportConstructor, *nolint, "", "", nil)
+			instanceConstructorMethodBody := "func (" + receiver + " " + builderType + ") " + constrMethodName + "() " +
+				op.IfElse(*buildValue, "", "*") + buildedType + typeParams +
 				" {" + generator.NoLint(*nolint) + "\n" +
-				use.If(*chainValue, "").ElseGet(sum.Of("if ", builderReceiver, " == nil {\n", "return ", op.IfElse(*buildValue, "", "&"), buildedType, typeParamsStr, " {}\n", "}\n")) +
-				"return " + op.IfElse(*buildValue, "", "&") + buildedType + typeParamsStr + " {\n" + parts.constructorMethodBody + "}\n" +
+				use.If(*chainValue, "").ElseGet(sum.Of("if ", receiver, " == nil {\n", "return ", op.IfElse(*buildValue, "", "&"), buildedType, typeParams, " {}\n", "}\n")) +
+				"return " + op.IfElse(*buildValue, "", "&") + buildedType + typeParams + " {\n" + parts.constructorMethodBody + "}\n" +
 				"}\n"
 
 			builderBody := util.TypeString(btyp, g.OutPkgPath) + " struct {" + generator.NoLint(*nolint) + "\n" + parts.structBody + "}"
@@ -158,9 +159,9 @@ func NewBuilderStruct() *Command {
 
 			if len(*toBuilderMethodName) > 0 {
 				*toBuilderMethodName = op.IfElse(*toBuilderMethodName == generator.Autoname, default_deconstructor, *toBuilderMethodName)
-				builderType := op.IfElse(*chainValue, "", "*") + builderName + typeParamsStr
-				builderInstantiate := op.IfElse(*chainValue, "", "&") + builderName + typeParamsStr
-				instanceType := op.IfElse(*buildValue, "", "*") + buildedType + typeParamsStr
+				builderType := op.IfElse(*chainValue, "", "*") + builderName + typeParams
+				builderInstantiate := op.IfElse(*chainValue, "", "&") + builderName + typeParams
+				instanceType := op.IfElse(*buildValue, "", "*") + buildedType + typeParams
 				typeName := model.TypeName()
 				instanceReceiver := generator.TypeReceiverVar(typeName)
 

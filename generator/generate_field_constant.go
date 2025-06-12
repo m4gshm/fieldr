@@ -27,6 +27,7 @@ import (
 
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/model/struc"
+	"github.com/m4gshm/fieldr/typeparams"
 	"github.com/m4gshm/fieldr/unique"
 )
 
@@ -510,7 +511,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 		argVar          = "f"
 		recVar          = "s"
 		recType         = GetTypeName(model.TypeName(), pkgName)
-		recParamType    = recType + TypeParamsString(TypeParamsSeq(model.Typ.TypeParams(), g.OutPkgPath))
+		recParamType    = recType + typeparams.New(model.Typ.TypeParams()).IdentString(g.OutPkgPath)
 		recParamTypeRef = "*" + recParamType
 		returnTypes     = "any"
 		returnNoCase    = "nil"
