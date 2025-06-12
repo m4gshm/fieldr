@@ -10,7 +10,7 @@ import (
 )
 
 type EntityBuilder[ID any, S string] struct {
-	iD           ID
+	id           ID
 	code         string
 	foreignID    ID
 	schema       string
@@ -37,7 +37,7 @@ func (b *EntityBuilder[ID, S]) Build() *builder.Entity[ID, S] {
 	}
 	return &builder.Entity[ID, S]{
 		BaseEntity: &builder.BaseEntity[ID]{
-			ID: b.iD,
+			ID: b.id,
 			RefCodeAwareEntity: &builder.RefCodeAwareEntity{
 				CodeAwareEntity: &builder.CodeAwareEntity{
 					Code: b.code,
@@ -64,9 +64,9 @@ func (b *EntityBuilder[ID, S]) Build() *builder.Entity[ID, S] {
 	}
 }
 
-func (b *EntityBuilder[ID, S]) ID(iD ID) *EntityBuilder[ID, S] {
+func (b *EntityBuilder[ID, S]) ID(id ID) *EntityBuilder[ID, S] {
 	if b != nil {
-		b.iD = iD
+		b.id = id
 	}
 	return b
 }
@@ -189,7 +189,7 @@ func ToBuilder[ID any, S string](e *builder.Entity[ID, S]) *EntityBuilder[ID, S]
 	}
 
 	return &EntityBuilder[ID, S]{
-		iD:           e_BaseEntity_ID,
+		id:           e_BaseEntity_ID,
 		code:         e_BaseEntity_be_RefCodeAwareEntity_rcae_CodeAwareEntity_Code,
 		foreignID:    e_BaseEntity_be_ForeignIDAwareEntity_ForeignID,
 		schema:       e.Metadata.Schema,

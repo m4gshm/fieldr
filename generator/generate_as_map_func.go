@@ -8,6 +8,7 @@ import (
 	"github.com/m4gshm/gollections/slice/split"
 
 	"github.com/m4gshm/fieldr/model/struc"
+	"github.com/m4gshm/fieldr/unique"
 )
 
 func (g *Generator) GenerateAsMapFunc(
@@ -34,7 +35,7 @@ func (g *Generator) GenerateAsMapFunc(
 
 	funcName := renameFuncByConfig(IdentName("AsMap", export), name)
 	typParams := model.Typ.TypeParams()
-	receiverType := GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
+	receiverType := GetTypeName(typeName, pkgName) + TypeParamsString(TypeParamsSeq(typParams, g.OutPkgPath))
 	returnType := "map[" + keyType + "]any"
 	body := MethodBody(funcName, noReceiver, receiverVar, "*"+receiverType, returnType, nolint, internal)
 
@@ -44,7 +45,7 @@ func (g *Generator) GenerateAsMapFunc(
 func generateMapInits(mapVar, recVar string, rewriter *CodeRewriter, constants []FieldConst, model *struc.Model) string {
 	return seq.Reduce(seq.Convert(seq.Of(constants...), func(constant FieldConst) string {
 		var (
-			_, conditionPath, conditions         = FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
+			_, conditionPath, conditions         = FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath, unique.NewNamesWith(unique.PreInit(recVar)))
 			varsConditionStart, varsConditionEnd = split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum, op.Sum)
 			field                                = constant.fieldPath[len(constant.fieldPath)-1]
 			revr, _                              = rewriter.Transform(field.Name, field.Type.FullName(model.OutPkgPath), conditionPath)

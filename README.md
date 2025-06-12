@@ -212,7 +212,7 @@ package get_set
 
 import "time"
 
-func (e *Entity[ID]) Id() ID {
+func (e *Entity[ID]) ID() ID {
     if e != nil {
         if be := e.BaseEntity; be != nil {
             return be.id
@@ -223,7 +223,7 @@ func (e *Entity[ID]) Id() ID {
     return no
 }
 
-func (e *Entity[ID]) SetId(id ID) {
+func (e *Entity[ID]) SetID(id ID) {
     if e != nil {
         if be := e.BaseEntity; be != nil {
             be.id = id
@@ -316,14 +316,14 @@ func NewEntity[ID any](opts ...func(*Entity[ID])) *Entity[ID] {
     return r
 }
 
-func WithID[ID any](iD ID) func(e *Entity[ID]) {
+func WithID[ID any](id ID) func(e *Entity[ID]) {
     return func(e *Entity[ID]) {
         m := e.Model
         if m == nil {
             m = new(Model[ID])
             e.Model = m
         }
-        m.ID = iD
+        m.ID = id
     }
 }
 
@@ -430,7 +430,7 @@ generates `entity_fieldr.go`
 package builder
 
 type EntityBuilder[ID any] struct {
-    iD        ID
+    id        ID
     createdAt int64
     updatedAt int64
     name      string
@@ -446,7 +446,7 @@ func (b *EntityBuilder[ID]) Build() *Entity[ID] {
     }
     return &Entity[ID]{
         Model: &Model[ID]{
-            ID:        b.iD,
+            ID:        b.id,
             CreatedAt: b.createdAt,
             UpdatedAt: b.updatedAt,
         },
@@ -454,9 +454,9 @@ func (b *EntityBuilder[ID]) Build() *Entity[ID] {
     }
 }
 
-func (b *EntityBuilder[ID]) ID(iD ID) *EntityBuilder[ID] {
+func (b *EntityBuilder[ID]) ID(id ID) *EntityBuilder[ID] {
     if b != nil {
-        b.iD = iD
+        b.id = id
     }
     return b
 }
@@ -498,7 +498,7 @@ func (e *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
     }
 
     return &EntityBuilder[ID]{
-        iD:        e_Model_ID,
+        id:        e_Model_ID,
         createdAt: e_Model_CreatedAt,
         updatedAt: e_Model_UpdatedAt,
         name:      e.Name,

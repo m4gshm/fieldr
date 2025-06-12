@@ -27,6 +27,7 @@ import (
 
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/model/struc"
+	"github.com/m4gshm/fieldr/unique"
 )
 
 type stringer struct {
@@ -509,7 +510,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 		argVar          = "f"
 		recVar          = "s"
 		recType         = GetTypeName(model.TypeName(), pkgName)
-		recParamType    = recType + TypeParamsString(model.Typ.TypeParams(), g.OutPkgPath)
+		recParamType    = recType + TypeParamsString(TypeParamsSeq(model.Typ.TypeParams(), g.OutPkgPath))
 		recParamTypeRef = "*" + recParamType
 		returnTypes     = "any"
 		returnNoCase    = "nil"
@@ -517,6 +518,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 		isFunc          = len(pkgName) > 0
 	)
 
+	uniqueNames := unique.NewNamesWith(unique.PreInit(recVar))
 	body := "func " + get.If(isFunc,
 		sum.Of(name, "(", recVar, " ", recParamTypeRef, ", ", argVar, " ", typ, ") "),
 	).ElseGet(
@@ -525,7 +527,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 		"if " + recVar + " == nil {\nreturn nil\n}\n" +
 		"switch " + argVar + " {\n" +
 		seq.Reduce(seq.Convert(seq.Of(constants...), func(constant FieldConst) string {
-			_, conditionPath, conditions := FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
+			_, conditionPath, conditions := FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath, uniqueNames)
 			varsConditionStart, varsConditionEnd := split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum, op.Sum)
 			return "case " + constant.name + ":\n" + varsConditionStart + "return " + pref + conditionPath + "\n" + varsConditionEnd
 		}), op.Sum) +

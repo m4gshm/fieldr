@@ -42,7 +42,7 @@ func (g *Generator) GenerateEnumFromValue(typ util.TypeNamedOrAlias, constValNam
 	basicType, _ := baseType.(*types.Basic)
 
 	var (
-		returnType   = GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
+		returnType   = GetTypeName(typeName, pkgName) + TypeParamsString(TypeParamsSeq(typParams, g.OutPkgPath))
 		funcName     = IdentName(op.IfElse(name == Autoname, typeName+DefaultMethodSuffixByValue, name), export)
 		resultVar    = "e"
 		receiverVar  = "value"
@@ -79,7 +79,7 @@ func (g *Generator) GenerateEnumFromName(typ util.TypeNamedOrAlias, constNames c
 	typParams := typ.TypeParams()
 
 	var (
-		returnType  = GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
+		returnType  = GetTypeName(typeName, pkgName) + TypeParamsString(TypeParamsSeq(typParams, g.OutPkgPath))
 		funcName    = IdentName(op.IfElse(name == Autoname, typeName+DefaultMethodSuffixByName, name), export)
 		resultVar   = "e"
 		receiverVar = "name"
@@ -119,7 +119,7 @@ func (g *Generator) GenerateEnumName(typ util.TypeNamedOrAlias, constValNamesMap
 	var (
 		returnSlice     = seq.Reduce(seq.Convert(seq2.Values(constValNamesMap.All), slice.Len), op.Max) > 1
 		returnType      = op.IfElse(returnSlice, "[]string", "string")
-		receiverType    = GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
+		receiverType    = GetTypeName(typeName, pkgName) + TypeParamsString(TypeParamsSeq(typParams, g.OutPkgPath))
 		receiverVar     = TypeReceiverVar(typeName)
 		internalContent = constsSwitchExpr(constValNamesMap, receiverVar, !returnSlice)
 		funcName        = IdentName(name, export)
@@ -161,7 +161,7 @@ func (g *Generator) GenerateEnumValues(typ util.TypeNamedOrAlias, constValNamesM
 	typParams := typ.TypeParams()
 
 	var (
-		returnType = "[]" + GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
+		returnType = "[]" + GetTypeName(typeName, pkgName) + TypeParamsString(TypeParamsSeq(typParams, g.OutPkgPath))
 		funcName   = IdentName(op.IfElse(name == Autoname, typeName+DefaultMethodSuffixAll, name), export)
 		body       = FuncBodyNoArg(funcName, returnType, nolint, arrayExpr(constValNamesMap, returnType))
 	)

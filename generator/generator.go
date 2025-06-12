@@ -721,6 +721,11 @@ func getIdentPart(suffix string, snake bool) string {
 }
 
 func IdentName(name string, export bool) string {
+	if low := strings.ToLower(name); strings.HasPrefix(low, "id") {
+		return op.IfElse(export, "ID", "id")
+	} else if strings.HasPrefix(low, "url") {
+		return op.IfElse(export, "URL", "url")
+	}
 	return string(op.IfElse(export, unicode.ToUpper, unicode.ToLower)(rune(name[0]))) + name[1:]
 }
 

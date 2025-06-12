@@ -19,10 +19,10 @@ func (e *Entity[ID]) GetID() ID {
 	return no
 }
 
-func (e *Entity[ID]) SetID(iD ID) {
+func (e *Entity[ID]) SetID(IDID_ ID) {
 	if e != nil {
 		if be := e.BaseEntity; be != nil {
-			be.ID = iD
+			be.ID = IDID_
 		}
 	}
 }
@@ -42,12 +42,12 @@ func (e *Entity[ID]) GetCode() string {
 	return no
 }
 
-func (e *Entity[ID]) SetCode(code string) {
+func (e *Entity[ID]) SetCode(Code string) {
 	if e != nil {
 		if be := e.BaseEntity; be != nil {
 			if rcae := be.RefCodeAwareEntity; rcae != nil {
 				if cae := rcae.CodeAwareEntity; cae != nil {
-					cae.Code = code
+					cae.Code = Code
 				}
 			}
 		}
@@ -65,10 +65,10 @@ func (e *Entity[ID]) GetForeignID() ID {
 	return no
 }
 
-func (e *Entity[ID]) SetForeignID(foreignID ID) {
+func (e *Entity[ID]) SetForeignID(ForeignID ID) {
 	if e != nil {
 		if be := e.BaseEntity; be != nil {
-			be.foreignIDAwareEntity.ForeignID = foreignID
+			be.foreignIDAwareEntity.ForeignID = ForeignID
 		}
 	}
 }
@@ -106,9 +106,9 @@ func (e *Entity[ID]) GetNoDB() *NoDBFieldsEntity {
 	return no
 }
 
-func (e *Entity[ID]) SetNoDB(noDB *NoDBFieldsEntity) {
+func (e *Entity[ID]) SetNoDB(NoDB *NoDBFieldsEntity) {
 	if e != nil {
-		e.NoDB = noDB
+		e.NoDB = NoDB
 	}
 }
 
@@ -151,9 +151,9 @@ func (e *Entity[ID]) GetValues() []int32 {
 	return no
 }
 
-func (e *Entity[ID]) SetValues(values []int32) {
+func (e *Entity[ID]) SetValues(Values []int32) {
 	if e != nil {
-		e.Values = values
+		e.Values = Values
 	}
 }
 
@@ -166,9 +166,9 @@ func (e *Entity[ID]) GetTs() []*time.Time {
 	return no
 }
 
-func (e *Entity[ID]) SetTs(ts []*time.Time) {
+func (e *Entity[ID]) SetTs(Ts []*time.Time) {
 	if e != nil {
-		e.Ts = ts
+		e.Ts = Ts
 	}
 }
 
@@ -226,9 +226,9 @@ func (e *Entity[ID]) GetEmbedded() EmbeddedEntity {
 	return no
 }
 
-func (e *Entity[ID]) SetEmbedded(embedded EmbeddedEntity) {
+func (e *Entity[ID]) SetEmbedded(Embedded EmbeddedEntity) {
 	if e != nil {
-		e.Embedded = embedded
+		e.Embedded = Embedded
 	}
 }
 
@@ -241,8 +241,8 @@ func (e *Entity[ID]) GetOldForeignID() *foreignIDAwareEntity[ID] {
 	return no
 }
 
-func (e *Entity[ID]) SetOldForeignID(oldForeignID *foreignIDAwareEntity[ID]) {
+func (e *Entity[ID]) SetOldForeignID(OldForeignID *foreignIDAwareEntity[ID]) {
 	if e != nil {
-		e.OldForeignID = oldForeignID
+		e.OldForeignID = OldForeignID
 	}
 }

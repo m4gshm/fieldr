@@ -10,14 +10,14 @@ func NewEntity[ID any](opts ...func(*Entity[ID])) *Entity[ID] {
 	return r
 }
 
-func WithID[ID any](iD ID) func(e *Entity[ID]) {
+func WithID[ID any](id ID) func(e *Entity[ID]) {
 	return func(e *Entity[ID]) {
 		m := e.Model
 		if m == nil {
 			m = new(Model[ID])
 			e.Model = m
 		}
-		m.ID = iD
+		m.ID = id
 	}
 }
 

@@ -1,14 +1,16 @@
 package constructor
 
 import (
-	"github.com/m4gshm/fieldr/generator"
-	"github.com/m4gshm/fieldr/model/struc"
 	"github.com/m4gshm/gollections/expr/get"
 	"github.com/m4gshm/gollections/op/delay/sum"
+	"github.com/m4gshm/gollections/seq"
+
+	"github.com/m4gshm/fieldr/generator"
+	"github.com/m4gshm/fieldr/model/struc"
+	"github.com/m4gshm/fieldr/unique"
 )
 
-func New(name, typeName, typeParamsDecl, typeParams string, exportMethods, nolint bool, arguments, initInstace string, init func(receiver string) string) (string, string) {
-	receiver := "r"
+func New(name, typeName, typeParamsDecl, typeParams, receiver string, exportMethods, nolint bool, arguments, initInstace string, init func(receiver string) string) (string, string) {
 	constructorName := generator.IdentName(get.If(name == generator.Autoname, sum.Of("New", typeName)).Else(name), exportMethods)
 
 	initPart := ""
@@ -50,9 +52,12 @@ func FullArgs(g *generator.Generator, model *struc.Model, constructorName string
 		args = "\n" + args
 	}
 
-	typeParams := generator.TypeParamsString(model.Typ.TypeParams(), g.OutPkgPath)
+	params := generator.TypeParamsSeq(model.Typ.TypeParams(), g.OutPkgPath)
+	typeParamsStr := generator.TypeParamsString(params)
 	typeParamsDecl := generator.TypeParamsDeclarationString(model.Typ.TypeParams(), g.OutPkgPath)
+	uniqueNames := unique.NewNamesWith(unique.DistinctBySuffix("_"))
+	seq.ForEach(params, uniqueNames.Add)
 
-	name, body := New(constructorName, model.TypeName(), typeParamsDecl, typeParams, exportMethods, nolint, args, initPart, nil)
+	name, body := New(constructorName, model.TypeName(), typeParamsDecl, typeParamsStr, uniqueNames.Get("r"), exportMethods, nolint, args, initPart, nil)
 	return name, body, nil
 }

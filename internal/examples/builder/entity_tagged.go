@@ -66,9 +66,9 @@ func (b *EntityBuilder[ID, S]) Build() *Entity[ID, S] {
 	}
 }
 
-func (b *EntityBuilder[ID, S]) SetID(iD ID) *EntityBuilder[ID, S] {
+func (b *EntityBuilder[ID, S]) SetID(id ID) *EntityBuilder[ID, S] {
 	if b != nil {
-		b.ID = iD
+		b.ID = id
 	}
 	return b
 }

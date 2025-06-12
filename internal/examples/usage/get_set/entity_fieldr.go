@@ -4,7 +4,7 @@ package get_set
 
 import "time"
 
-func (e *Entity[ID]) Id() ID {
+func (e *Entity[ID]) ID() ID {
 	if e != nil {
 		if be := e.BaseEntity; be != nil {
 			return be.id
@@ -15,7 +15,7 @@ func (e *Entity[ID]) Id() ID {
 	return no
 }
 
-func (e *Entity[ID]) SetId(id ID) {
+func (e *Entity[ID]) SetID(id ID) {
 	if e != nil {
 		if be := e.BaseEntity; be != nil {
 			be.id = id

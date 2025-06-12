@@ -63,9 +63,9 @@ func (b *EntityBuilderChainRefBuildVal[ID, S]) Build() Entity[ID, S] {
 	}
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID, S]) SetID(iD ID) *EntityBuilderChainRefBuildVal[ID, S] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) SetID(id ID) *EntityBuilderChainRefBuildVal[ID, S] {
 	if b != nil {
-		b.ID = iD
+		b.ID = id
 	}
 	return b
 }

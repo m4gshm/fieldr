@@ -10,6 +10,7 @@ import (
 	"github.com/m4gshm/gollections/slice"
 
 	"github.com/m4gshm/fieldr/model/struc"
+	"github.com/m4gshm/fieldr/unique"
 )
 
 type FieldInfo struct {
@@ -17,7 +18,7 @@ type FieldInfo struct {
 	Type struc.FieldType
 }
 
-func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference, redeclareReceiver bool, fieldParts []FieldInfo) (string, string, []string) {
+func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference, redeclareReceiver bool, fieldParts []FieldInfo, uniqueNames *unique.Names) (string, string, []string) {
 	conditions := []string{}
 	if isReceiverReference {
 		newReceiver := receiverVar
@@ -25,7 +26,7 @@ func FiledPathAndAccessCheckCondition(receiverVar string, isReceiverReference, r
 		conditions = append(conditions, receiverCondition)
 		receiverVar = newReceiver
 	}
-	accessInfo := GetFieldConditionalPartsAccessInfo(receiverVar, fieldParts)
+	accessInfo := GetFieldConditionalPartsAccessInfo(receiverVar, fieldParts, uniqueNames)
 	for _, cp := range accessInfo.AccessPathParts {
 		conditions = append(conditions, cp.ShortVar+":="+cp.FieldPath+";"+cp.ShortVar+"!=nil")
 	}
@@ -44,11 +45,10 @@ type AccessPathPart struct {
 	Type      *struc.FieldType
 }
 
-func GetFieldConditionalPartsAccessInfo(receiverVar string, fieldParts []FieldInfo) FieldConditionalPartsAccessInfo {
+func GetFieldConditionalPartsAccessInfo(receiverVar string, fieldParts []FieldInfo, uniqueNames *unique.Names) FieldConditionalPartsAccessInfo {
 	conditionParts := []AccessPathPart{}
 	shortVar := receiverVar
 	fieldPath := receiverVar
-	uniqueVars := NewUniqueShortVarGenerator(receiverVar)
 	for _, part := range fieldParts {
 		fieldPath += op.IfElse(len(fieldPath) > 0, ".", "") + part.Name
 		partShortPath := get.If(len(shortVar) > 0, sum.Of(shortVar, ".", part.Name)).Else("")
@@ -56,11 +56,11 @@ func GetFieldConditionalPartsAccessInfo(receiverVar string, fieldParts []FieldIn
 		if partType.RefDeep == 0 {
 			shortVar = partShortPath
 		} else {
-			parthShortVar := uniqueVars.Get(PathToShortVarName(part.Name))
+			parthShortVar := uniqueNames.Get(PathToShortVarName(part.Name))
 			conditionParts = append(conditionParts, AccessPathPart{ShortVar: parthShortVar, FieldPath: partShortPath, Type: &partType})
 			for ri := 1; ri < partType.RefDeep; ri++ {
 				parthShortVarRef := "*" + parthShortVar
-				newReceiver := uniqueVars.Get(PathToShortVarName(parthShortVarRef))
+				newReceiver := uniqueNames.Get(PathToShortVarName(parthShortVarRef))
 
 				ut := partType.Type.Underlying()
 				ctyp := struc.NewFieldType(partType.Embedded, partType.RefDeep-1, partType.Name, ut, partType.Model)

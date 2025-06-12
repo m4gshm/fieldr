@@ -3,7 +3,7 @@
 package builder
 
 type EntityBuilder[ID any] struct {
-	iD        ID
+	id        ID
 	createdAt int64
 	updatedAt int64
 	name      string
@@ -19,7 +19,7 @@ func (b *EntityBuilder[ID]) Build() *Entity[ID] {
 	}
 	return &Entity[ID]{
 		Model: &Model[ID]{
-			ID:        b.iD,
+			ID:        b.id,
 			CreatedAt: b.createdAt,
 			UpdatedAt: b.updatedAt,
 		},
@@ -27,9 +27,9 @@ func (b *EntityBuilder[ID]) Build() *Entity[ID] {
 	}
 }
 
-func (b *EntityBuilder[ID]) ID(iD ID) *EntityBuilder[ID] {
+func (b *EntityBuilder[ID]) ID(id ID) *EntityBuilder[ID] {
 	if b != nil {
-		b.iD = iD
+		b.id = id
 	}
 	return b
 }
@@ -71,7 +71,7 @@ func (e *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
 	}
 
 	return &EntityBuilder[ID]{
-		iD:        e_Model_ID,
+		id:        e_Model_ID,
 		createdAt: e_Model_CreatedAt,
 		updatedAt: e_Model_UpdatedAt,
 		name:      e.Name,

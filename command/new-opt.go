@@ -8,8 +8,10 @@ import (
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/model/struc"
 	"github.com/m4gshm/fieldr/params"
+	"github.com/m4gshm/fieldr/unique"
 	"github.com/m4gshm/gollections/collection"
 	"github.com/m4gshm/gollections/collection/mutable"
+	"github.com/m4gshm/gollections/seq"
 )
 
 func NewNewOpt() *Command {
@@ -38,10 +40,14 @@ func NewNewOpt() *Command {
 				return err
 			}
 			if !(*noConstructor) {
-				typeParams := TypeParamsString(model, g)
-				typeParamsDecl := TypeParamsDeclarationString(model, g)
+				params := generator.TypeParamsSeq(model.Typ.TypeParams(), g.OutPkgPath)
+				typeParamsStr := generator.TypeParamsString(params)
+				typeParamsDecl := generator.TypeParamsDeclarationString(model.Typ.TypeParams(), g.OutPkgPath)
+				uniqueNames := unique.NewNamesWith(unique.DistinctBySuffix("_"))
+				seq.ForEach(params, uniqueNames.Add)
+
 				constrName, constructorBody := constructor.New(*name, model.TypeName(), typeParamsDecl,
-					typeParams, !(*noExportMethods), *nolint, "opts... func(*"+model.TypeName()+typeParams+")", "",
+					typeParamsStr, uniqueNames.Get("r"), !(*noExportMethods), *nolint, "opts... func(*"+model.TypeName()+typeParamsStr+")", "",
 					func(receiver string) string { return "for _, opt := range opts {\nopt(" + receiver + ")\n}" })
 				if err := g.AddFuncOrMethod(constrName, constructorBody); err != nil {
 					return err

@@ -33,11 +33,16 @@ func MethodBody(name string, isFunc bool, methodReceiverVar, methodReceiverType,
 	) + " " + returnType + " {" + NoLint(nolint) + "\n" + content + "\n}\n"
 }
 
-func TypeParamsString(tparams *types.TypeParamList, basePkgPath string) string {
-	return string_.WrapNonEmpty("[", seq.Reduce(seq.Convert(seq.OfIndexed(tparams.Len(), tparams.At), func(elem *types.TypeParam) string {
+func TypeParamsString(params seq.Seq[string]) string {
+	return string_.WrapNonEmpty("[", seq.Reduce(params, join.NonEmpty(", ")), "]")
+}
+
+func TypeParamsSeq(tparams *types.TypeParamList, basePkgPath string) seq.Seq[string] {
+	newVar := seq.Convert(seq.OfIndexed(tparams.Len(), tparams.At), func(elem *types.TypeParam) string {
 		return use.If(elem == nil, "/*error: nil type parameter*/").ElseGet(
 			func() string { return util.TypeString(elem, basePkgPath) })
-	}), join.NonEmpty(", ")), "]")
+	})
+	return newVar
 }
 
 func TypeParamsDeclarationString(list *types.TypeParamList, basePkgPath string) string {
