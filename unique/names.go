@@ -15,6 +15,11 @@ func NewNamesWith(opts ...func(*Names)) *Names {
 	return u
 }
 
+type Names struct {
+	uniques *mutable.Set[string]
+	calc    func(u *Names, varName string) string
+}
+
 func PreInit(suffix ...string) func(*Names) {
 	return func(un *Names) {
 		seq.ForEach(seq.Of(suffix...), un.Add)
@@ -25,11 +30,6 @@ func DistinctBySuffix(suffix string) func(*Names) {
 	return func(un *Names) {
 		un.calc = addSuffix(suffix)
 	}
-}
-
-type Names struct {
-	uniques *mutable.Set[string]
-	calc    func(u *Names, varName string) string
 }
 
 func (u *Names) Get(varName string) string {
