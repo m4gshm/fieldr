@@ -14,7 +14,7 @@ const (
 
 func NewTypeConfig(flagSet *flag.FlagSet) *TypeConfig {
 	typeConfig := &TypeConfig{}
-	flagSet.StringVar(&typeConfig.Type, "type", "", "structure type used as a source for creating content")
+	flagSet.StringVar(&typeConfig.Type, "type", "", "struct type used as a source for creating content")
 	flagSet.StringVar(&typeConfig.Output, "out", "", "output file name; default ./<type>"+DefaultFileSuffix+"; use "+generator.Autoname+" to inject generated code into the Type source file")
 	flagSet.StringVar(&typeConfig.OutBuildTags, "out-build-tag", "", "add build tag to generated file")
 	flagSet.StringVar(&typeConfig.OutPackage, "out-package", "", "output package name")

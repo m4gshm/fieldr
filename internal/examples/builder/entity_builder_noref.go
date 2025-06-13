@@ -60,8 +60,8 @@ func (b EntityBuilderVal[ID, S]) Build() Entity[ID, S] {
 	}
 }
 
-func (b EntityBuilderVal[ID, S]) SetID(iD ID) EntityBuilderVal[ID, S] {
-	b.ID = iD
+func (b EntityBuilderVal[ID, S]) SetID(id ID) EntityBuilderVal[ID, S] {
+	b.ID = id
 	return b
 }
 

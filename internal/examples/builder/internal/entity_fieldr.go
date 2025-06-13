@@ -10,7 +10,7 @@ import (
 )
 
 type EntityBuilder[ID any, S string] struct {
-	iD           ID
+	id           ID
 	code         string
 	foreignID    ID
 	schema       string
@@ -37,7 +37,7 @@ func (b *EntityBuilder[ID, S]) Build() *builder.Entity[ID, S] {
 	}
 	return &builder.Entity[ID, S]{
 		BaseEntity: &builder.BaseEntity[ID]{
-			ID: b.iD,
+			ID: b.id,
 			RefCodeAwareEntity: &builder.RefCodeAwareEntity{
 				CodeAwareEntity: &builder.CodeAwareEntity{
 					Code: b.code,
@@ -64,9 +64,9 @@ func (b *EntityBuilder[ID, S]) Build() *builder.Entity[ID, S] {
 	}
 }
 
-func (b *EntityBuilder[ID, S]) ID(iD ID) *EntityBuilder[ID, S] {
+func (b *EntityBuilder[ID, S]) ID(id ID) *EntityBuilder[ID, S] {
 	if b != nil {
-		b.iD = iD
+		b.id = id
 	}
 	return b
 }
@@ -174,24 +174,24 @@ func ToBuilder[ID any, S string](e *builder.Entity[ID, S]) *EntityBuilder[ID, S]
 		return &EntityBuilder[ID, S]{}
 	}
 	var (
-		BaseEntity_ID                                      ID
-		BaseEntity_RefCodeAwareEntity_CodeAwareEntity_Code string
-		BaseEntity_ForeignIDAwareEntity_ForeignID          ID
+		e_BaseEntity_ID                                              ID
+		e_BaseEntity_be_RefCodeAwareEntity_rcae_CodeAwareEntity_Code string
+		e_BaseEntity_be_ForeignIDAwareEntity_ForeignID               ID
 	)
 	if be := e.BaseEntity; be != nil {
-		BaseEntity_ID = be.ID
+		e_BaseEntity_ID = be.ID
 		if rcae := be.RefCodeAwareEntity; rcae != nil {
 			if cae := rcae.CodeAwareEntity; cae != nil {
-				BaseEntity_RefCodeAwareEntity_CodeAwareEntity_Code = cae.Code
+				e_BaseEntity_be_RefCodeAwareEntity_rcae_CodeAwareEntity_Code = cae.Code
 			}
 		}
-		BaseEntity_ForeignIDAwareEntity_ForeignID = be.ForeignIDAwareEntity.ForeignID
+		e_BaseEntity_be_ForeignIDAwareEntity_ForeignID = be.ForeignIDAwareEntity.ForeignID
 	}
 
 	return &EntityBuilder[ID, S]{
-		iD:           BaseEntity_ID,
-		code:         BaseEntity_RefCodeAwareEntity_CodeAwareEntity_Code,
-		foreignID:    BaseEntity_ForeignIDAwareEntity_ForeignID,
+		id:           e_BaseEntity_ID,
+		code:         e_BaseEntity_be_RefCodeAwareEntity_rcae_CodeAwareEntity_Code,
+		foreignID:    e_BaseEntity_be_ForeignIDAwareEntity_ForeignID,
 		schema:       e.Metadata.Schema,
 		version:      e.Metadata.Version,
 		noDB:         e.NoDB,

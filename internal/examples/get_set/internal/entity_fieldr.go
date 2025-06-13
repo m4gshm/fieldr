@@ -18,10 +18,10 @@ func GetID[ID any](e *get_set.Entity[ID]) ID {
 	return no
 }
 
-func SetID[ID any](e *get_set.Entity[ID], iD ID) {
+func SetID[ID any](e *get_set.Entity[ID], id ID) {
 	if e != nil {
 		if be := e.BaseEntity; be != nil {
-			be.ID = iD
+			be.ID = id
 		}
 	}
 }

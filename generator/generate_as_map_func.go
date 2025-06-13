@@ -8,6 +8,8 @@ import (
 	"github.com/m4gshm/gollections/slice/split"
 
 	"github.com/m4gshm/fieldr/model/struc"
+	"github.com/m4gshm/fieldr/typeparams"
+	"github.com/m4gshm/fieldr/unique"
 )
 
 func (g *Generator) GenerateAsMapFunc(
@@ -29,25 +31,25 @@ func (g *Generator) GenerateAsMapFunc(
 	mapVar := "m"
 	internal := "if " + receiverVar + " == nil{\nreturn nil\n}\n" +
 		mapVar + " := map[" + keyType + "]any{}\n" +
-		generateMapInits(mapVar, receiverRef, rewriter, constants) +
+		generateMapInits(mapVar, receiverRef, rewriter, constants, model) +
 		"return " + mapVar
 
 	funcName := renameFuncByConfig(IdentName("AsMap", export), name)
 	typParams := model.Typ.TypeParams()
-	receiverType := GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
+	receiverType := GetTypeName(typeName, pkgName) + typeparams.New(typParams).IdentString(g.OutPkgPath)
 	returnType := "map[" + keyType + "]any"
 	body := MethodBody(funcName, noReceiver, receiverVar, "*"+receiverType, returnType, nolint, internal)
 
 	return receiverType, op.IfElse(noReceiver, funcName, MethodName(typeName, funcName)), body, nil
 }
 
-func generateMapInits(mapVar, recVar string, rewriter *CodeRewriter, constants []FieldConst) string {
+func generateMapInits(mapVar, recVar string, rewriter *CodeRewriter, constants []FieldConst, model *struc.Model) string {
 	return seq.Reduce(seq.Convert(seq.Of(constants...), func(constant FieldConst) string {
 		var (
-			_, conditionPath, conditions         = FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
+			_, conditionPath, conditions         = FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath, unique.NewNamesWith(unique.PreInit(recVar)))
 			varsConditionStart, varsConditionEnd = split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum, op.Sum)
 			field                                = constant.fieldPath[len(constant.fieldPath)-1]
-			revr, _                              = rewriter.Transform(field.Name, field.Type, conditionPath)
+			revr, _                              = rewriter.Transform(field.Name, field.Type.FullName(model.OutPkgPath), conditionPath)
 		)
 		return varsConditionStart + mapVar + "[" + constant.name + "]= " + revr + "\n" + varsConditionEnd
 	}), op.Sum)

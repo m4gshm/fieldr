@@ -4,6 +4,8 @@ import (
 	goconstant "go/constant"
 	"go/types"
 
+	"github.com/m4gshm/fieldr/model/util"
+	"github.com/m4gshm/fieldr/typeparams"
 	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/seq"
@@ -15,7 +17,7 @@ const DefaultMethodSuffixByName = "ByName"
 const DefaultMethodSuffixByValue = "ByValue"
 const DefaultMethodSuffixAll = "All"
 
-func (g *Generator) GenerateEnumFromValue(typ *types.Named, constValNamesMap c.KVRange[goconstant.Value, []string],
+func (g *Generator) GenerateEnumFromValue(typ util.TypeNamedOrAlias, constValNamesMap c.KVRange[goconstant.Value, []string],
 	name string, export bool, nolint bool) (string, string, error) {
 
 	obj := typ.Obj()
@@ -41,7 +43,7 @@ func (g *Generator) GenerateEnumFromValue(typ *types.Named, constValNamesMap c.K
 	basicType, _ := baseType.(*types.Basic)
 
 	var (
-		returnType   = GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
+		returnType   = GetTypeName(typeName, pkgName) + typeparams.New(typParams).IdentString(g.OutPkgPath)
 		funcName     = IdentName(op.IfElse(name == Autoname, typeName+DefaultMethodSuffixByValue, name), export)
 		resultVar    = "e"
 		receiverVar  = "value"
@@ -63,7 +65,7 @@ func enumFromValueSwitchExpr(constValNamesMap c.KVRange[goconstant.Value, []stri
 	return expr + "\nreturn"
 }
 
-func (g *Generator) GenerateEnumFromName(typ *types.Named, constNames c.Range[[]string],
+func (g *Generator) GenerateEnumFromName(typ util.TypeNamedOrAlias, constNames c.Range[[]string],
 	name string, export bool, nolint bool) (string, string, error) {
 
 	obj := typ.Obj()
@@ -78,7 +80,7 @@ func (g *Generator) GenerateEnumFromName(typ *types.Named, constNames c.Range[[]
 	typParams := typ.TypeParams()
 
 	var (
-		returnType  = GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
+		returnType  = GetTypeName(typeName, pkgName) + typeparams.New(typParams).IdentString(g.OutPkgPath)
 		funcName    = IdentName(op.IfElse(name == Autoname, typeName+DefaultMethodSuffixByName, name), export)
 		resultVar   = "e"
 		receiverVar = "name"
@@ -101,7 +103,7 @@ func enumFromNameSwitchExpr[C c.Range[[]string]](consts C, receiverVar, resultVa
 	return expr + "\nreturn"
 }
 
-func (g *Generator) GenerateEnumName(typ *types.Named, constValNamesMap c.KVRange[goconstant.Value, []string],
+func (g *Generator) GenerateEnumName(typ util.TypeNamedOrAlias, constValNamesMap c.KVRange[goconstant.Value, []string],
 	name string, export bool, nolint bool) (string, string, error) {
 
 	obj := typ.Obj()
@@ -118,7 +120,7 @@ func (g *Generator) GenerateEnumName(typ *types.Named, constValNamesMap c.KVRang
 	var (
 		returnSlice     = seq.Reduce(seq.Convert(seq2.Values(constValNamesMap.All), slice.Len), op.Max) > 1
 		returnType      = op.IfElse(returnSlice, "[]string", "string")
-		receiverType    = GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
+		receiverType    = GetTypeName(typeName, pkgName) + typeparams.New(typParams).IdentString(g.OutPkgPath)
 		receiverVar     = TypeReceiverVar(typeName)
 		internalContent = constsSwitchExpr(constValNamesMap, receiverVar, !returnSlice)
 		funcName        = IdentName(name, export)
@@ -145,7 +147,7 @@ func constsSwitchExpr[C c.KVRange[goconstant.Value, []string]](consts C, receive
 	return expr + "default:\n\treturn " + op.IfElse(onlyFirst, "\"\"", "nil") + "\n}"
 }
 
-func (g *Generator) GenerateEnumValues(typ *types.Named, constValNamesMap c.KVRange[goconstant.Value, []string],
+func (g *Generator) GenerateEnumValues(typ util.TypeNamedOrAlias, constValNamesMap c.KVRange[goconstant.Value, []string],
 	name string, export bool, nolint bool) (string, string, error) {
 
 	obj := typ.Obj()
@@ -160,7 +162,7 @@ func (g *Generator) GenerateEnumValues(typ *types.Named, constValNamesMap c.KVRa
 	typParams := typ.TypeParams()
 
 	var (
-		returnType = "[]" + GetTypeName(typeName, pkgName) + TypeParamsString(typParams, g.OutPkgPath)
+		returnType = "[]" + GetTypeName(typeName, pkgName) + typeparams.New(typParams).IdentString(g.OutPkgPath)
 		funcName   = IdentName(op.IfElse(name == Autoname, typeName+DefaultMethodSuffixAll, name), export)
 		body       = FuncBodyNoArg(funcName, returnType, nolint, arrayExpr(constValNamesMap, returnType))
 	)

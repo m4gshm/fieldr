@@ -40,7 +40,7 @@ func NewAsMapMethod() *Command {
 		flats = params.MultiVal(flagSet, "flat", []string{}, "apply generator to fields of nested structs")
 	)
 
-	return New(cmdName, "generates a method or functon that converts the struct type to a map", flagSet, func(context *Context) error {
+	return New(cmdName, "generates a method or functon that converts the struct to a map", flagSet, func(context *Context) error {
 		g := context.Generator
 		if model, err := context.StructModel(); err != nil {
 			return err
