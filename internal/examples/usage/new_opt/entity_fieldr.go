@@ -2,10 +2,10 @@
 
 package new_opt
 
-func NewEntity[ID any](opts ...func(*Entity[ID])) *Entity[ID] {
-	r := &Entity[ID]{}
+func NewEntity[ID any](opts ...func(*Entity[ID])) Entity[ID] {
+	r := Entity[ID]{}
 	for _, opt := range opts {
-		opt(r)
+		opt(&r)
 	}
 	return r
 }

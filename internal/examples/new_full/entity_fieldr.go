@@ -24,8 +24,8 @@ func NewEntity[ID any](
 	someMap map[StringBasedType[string]]bytes.Buffer,
 	Embedded EmbeddedEntity,
 	OldForeignID *foreignIDAwareEntity[ID],
-) *Entity[ID] {
-	return &Entity[ID]{
+) Entity[ID] {
+	return Entity[ID]{
 		E:            E,
 		metadata:     metadata,
 		NoDB:         NoDB,

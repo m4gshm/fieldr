@@ -127,7 +127,7 @@ func NewBuilderStruct() *Command {
 			}
 
 			builderConstructorMethodName, builderConstructorMethodBody := constructor.New(*newBuilderMethodName, builderName,
-				typeParamsDecl, typeParams, uniqueNames.Get("r"), exportConstructor, *nolint, "", "", nil)
+				typeParamsDecl, typeParams, uniqueNames.Get("r"), false, exportConstructor, *nolint, "", "", nil)
 			instanceConstructorMethodBody := "func (" + receiver + " " + builderType + ") " + constrMethodName + "() " +
 				op.IfElse(*buildValue, "", "*") + buildedType + typeParams +
 				" {" + generator.NoLint(*nolint) + "\n" +

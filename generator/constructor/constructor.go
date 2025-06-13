@@ -2,6 +2,7 @@ package constructor
 
 import (
 	"github.com/m4gshm/gollections/expr/get"
+	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/op/delay/sum"
 	"github.com/m4gshm/gollections/seq"
 
@@ -11,7 +12,11 @@ import (
 	"github.com/m4gshm/fieldr/unique"
 )
 
-func New(name, typeName, typeParamsDecl, typeParams, receiver string, exportMethods, nolint bool, arguments, initInstace string, init func(receiver string) string) (string, string) {
+func New(
+	name, typeName, typeParamsDecl, typeParams, receiver string,
+	returnVal, exportMethods, nolint bool,
+	arguments, initInstace string, init func(receiver string) string,
+) (string, string) {
 	constructorName := generator.IdentName(get.If(name == generator.Autoname, sum.Of("New", typeName)).Else(name), exportMethods)
 
 	initPart := ""
@@ -22,8 +27,9 @@ func New(name, typeName, typeParamsDecl, typeParams, receiver string, exportMeth
 		}
 	}
 
-	body := "func " + constructorName + typeParamsDecl + "(" + arguments + ") " + "*" + typeName + typeParams + " {" + generator.NoLint(nolint) + "\n"
-	createInstance := "&" + typeName + typeParams + "{ " + initInstace + " }\n"
+	body := "func " + constructorName + typeParamsDecl + "(" + arguments + ") " + op.IfElse(returnVal, "", "*") +
+		typeName + typeParams + " {" + generator.NoLint(nolint) + "\n"
+	createInstance := op.IfElse(returnVal, "", "&") + typeName + typeParams + "{ " + initInstace + " }\n"
 	if len(initPart) > 0 {
 		body += "r := " + createInstance
 		body += initPart
@@ -35,7 +41,7 @@ func New(name, typeName, typeParamsDecl, typeParams, receiver string, exportMeth
 	return constructorName, body
 }
 
-func FullArgs(g *generator.Generator, model *struc.Model, constructorName string, exportMethods bool, nolint bool) (string, string, error) {
+func FullArgs(g *generator.Generator, model *struc.Model, constructorName string, returnVal, exportMethods bool, nolint bool) (string, string, error) {
 	initPart := ""
 	args := ""
 	for fieldName, fieldType := range model.FieldsNameAndType {
@@ -59,6 +65,6 @@ func FullArgs(g *generator.Generator, model *struc.Model, constructorName string
 	uniqueNames := unique.NewNamesWith(unique.DistinctBySuffix("_"))
 	seq.ForEach(params.Names(g.OutPkgPath), uniqueNames.Add)
 
-	name, body := New(constructorName, model.TypeName(), typeParamsDecl, typeParams, uniqueNames.Get("r"), exportMethods, nolint, args, initPart, nil)
+	name, body := New(constructorName, model.TypeName(), typeParamsDecl, typeParams, uniqueNames.Get("r"), returnVal, exportMethods, nolint, args, initPart, nil)
 	return name, body, nil
 }

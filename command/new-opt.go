@@ -10,8 +10,10 @@ import (
 	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/typeparams"
 	"github.com/m4gshm/fieldr/unique"
+
 	"github.com/m4gshm/gollections/collection"
 	"github.com/m4gshm/gollections/collection/mutable"
+	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/seq"
 )
 
@@ -25,6 +27,7 @@ func NewNewOpt() *Command {
 		name            = flagSet.String("name", generator.Autoname, "constructor name, use "+generator.Autoname+" for autoname New<Type name>")
 		noConstructor   = flagSet.Bool("options-only", false, "generate option functions only")
 		noExportMethods = flagSet.Bool("no-export", false, "no export generated methods")
+		returnVal       = flagSet.Bool("return-value", false, "returns value instead of pointer")
 		nolint          = params.Nolint(flagSet)
 	)
 	return New(
@@ -48,8 +51,11 @@ func NewNewOpt() *Command {
 				seq.ForEach(params.Names(g.OutPkgPath), uniqueNames.Add)
 
 				constrName, constructorBody := constructor.New(*name, model.TypeName(), typeParamsDecl,
-					typeParams, uniqueNames.Get("r"), !(*noExportMethods), *nolint, "opts... func(*"+model.TypeName()+typeParams+")", "",
-					func(receiver string) string { return "for _, opt := range opts {\nopt(" + receiver + ")\n}" })
+					typeParams, uniqueNames.Get("r"), *returnVal, !(*noExportMethods), *nolint,
+					"opts... func(*"+model.TypeName()+typeParams+")", "",
+					func(receiver string) string {
+						return "for _, opt := range opts {\nopt(" + op.IfElse(*returnVal, "&", "") + receiver + ")\n}"
+					})
 				if err := g.AddFuncOrMethod(constrName, constructorBody); err != nil {
 					return err
 				}
