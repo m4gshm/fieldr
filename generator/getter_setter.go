@@ -27,7 +27,8 @@ func GenerateSetter(model *struc.Model, pkgName, receiverVar, methodName, fieldN
 	_, conditionalPath, conditions := FiledPathAndAccessCheckCondition(receiverVar, isReceiverReference, false, fieldParts, uniqueNames)
 	varsConditionStart, varsConditionEnd := split.AndReduce(conditions, string_.Wrap("if ", " {\n"), replace.By("}\n"), op.Sum, op.Sum)
 
-	arg := LegalIdentName(uniqueNames.Get(fieldName))
+
+	arg := uniqueNames.Get(LegalIdentName(ArgName(fieldName)))
 	return get.If(len(pkgName) == 0,
 		sum.Of("func (", receiverVar, " ", typeName, typeParams, ") ", methodName, "(", arg, " ", fieldType, ")")).ElseGet(
 		sum.Of("func ", methodName, typeParamsDecl, "(", receiverVar, " ", typeName, typeParams, ",", arg, " ", fieldType, ")"),

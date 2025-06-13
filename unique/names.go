@@ -58,7 +58,7 @@ func increment(first, delta int) func(u *Names, varName string) string {
 func addSuffix(suffix string) func(u *Names, varName string) string {
 	return func(u *Names, varName string) string {
 		for i := 1; !u.uniques.AddNew(varName); i++ {
-			varName += varName + suffix
+			varName += suffix
 		}
 		return varName
 	}

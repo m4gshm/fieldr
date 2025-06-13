@@ -120,7 +120,7 @@ func NewBuilderStruct() *Command {
 
 			builderType := op.IfElse(*chainValue, "", "*") + builderName + typeParams
 
-			parts, err := generateBuilderParts(g, model, uniques, receiver, builderType, methodPrefix,
+			parts, err := generateBuilderParts(g, model, uniques, receiver, builderType, methodPrefix, uniqueNames,
 				!(*chainValue), *light, exportMethods, exportFields, *nolint)
 			if err != nil {
 				return err
@@ -189,6 +189,7 @@ type builderParts struct {
 
 func generateBuilderParts(
 	g *generator.Generator, model *struc.Model, uniques map[string]string, receiverVar, typeName, setterPrefix string,
+	uniqueNames *unique.Names,
 	isReceiverReference, noMethods, exportMethods, exportFields, nolint bool,
 ) (*builderParts, error) {
 	logger.Debugf("generate builder parts: receiver %v, type %v, setterPrefix %v", receiverVar, typeName, setterPrefix)
@@ -205,6 +206,7 @@ func generateBuilderParts(
 			if fullFieldType, err := g.GetFullFieldTypeName(fieldType, true); err != nil {
 				return nil, err
 			} else if embedParts, err := generateBuilderParts(g, fieldType.Model, uniques, receiverVar, typeName, setterPrefix,
+				uniqueNames,
 				isReceiverReference, noMethods, exportMethods, exportFields, nolint); err != nil {
 				return nil, err
 			} else {
@@ -230,7 +232,7 @@ func generateBuilderParts(
 			structBody += builderField + " " + fullFieldType
 			if !noMethods {
 				fieldMethodName := generator.LegalIdentName(generator.IdentName(setterPrefix+builderField, exportMethods))
-				arg := generator.LegalIdentName(generator.IdentName(builderField, false))
+				arg := uniqueNames.Get(generator.LegalIdentName(generator.ArgName(builderField)))
 
 				fieldMethod := "func (" + receiverVar + " " + typeName + ") " + fieldMethodName + "(" + arg + " " + fullFieldType + ") " + typeName +
 					" {" + generator.NoLint(nolint) + "\n" +

@@ -16,10 +16,10 @@ func GenerateOptionFieldFunc(model *struc.Model, pkgName, receiverVar, methodNam
 	params := typeparams.New(model.Typ.TypeParams())
 	typeParams := params.IdentString(outPkgPath)
 	typeParamsDecl := params.DeclarationString(outPkgPath)
-	uniqueVars := unique.NewNamesWith(unique.PreInit(receiverVar))
-	seq.ForEach(params.Names(outPkgPath), uniqueVars.Add)
+	uniqueNames := unique.NewNamesWith(unique.PreInit(receiverVar))
+	seq.ForEach(params.Names(outPkgPath), uniqueNames.Add)
 
-	accessInfo := GetFieldConditionalPartsAccessInfo(receiverVar, fieldParts, uniqueVars)
+	accessInfo := GetFieldConditionalPartsAccessInfo(receiverVar, fieldParts, uniqueNames)
 	variableName := accessInfo.ShortVar
 
 	funcBody := ""
@@ -31,7 +31,7 @@ func GenerateOptionFieldFunc(model *struc.Model, pkgName, receiverVar, methodNam
 		funcBody += newIfNilExpr
 	}
 
-	arg := LegalIdentName(IdentName(fieldName, false))
+	arg := uniqueNames.Get(LegalIdentName(ArgName(fieldName)))
 	optType := "func (" + receiverVar + " " + typeName + typeParams + ")"
 
 	result := "func " + methodName + typeParamsDecl + "(" + arg + " " + fieldType + ") " + optType +
