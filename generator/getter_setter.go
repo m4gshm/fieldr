@@ -48,7 +48,7 @@ func GenerateGetter(model *struc.Model, pkgName, receiverVar, methodName, fieldN
 	_, conditionalPath, conditions := FiledPathAndAccessCheckCondition(receiverVar, isReceiverReference, false, fieldParts, uniqueNames)
 	varsConditionStart, varsConditionEnd := split.AndReduce(conditions, string_.Wrap("if ", " {\n"), replace.By("}\n"), op.Sum, op.Sum)
 
-	emptyVar := "no"
+	emptyVar := uniqueNames.Get("no")
 	emptyResult := "var " + emptyVar + " " + fieldType
 
 	return get.If(len(pkgName) == 0,
