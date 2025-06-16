@@ -8,7 +8,7 @@ Generator of various enumerated constants, types, functions based on a type prop
 
 * link:#fields-to-consts-example[fields-to-consts] - generate constants based on template applied to struct fields.
 * link:#get-set-usage-example[get-set] - generates getters and setters.
-* link:#functional-options-constructor-example[new] - generates a function that creates an optionally initialized struct instance.
+* link:#functional-options-constructor-example[new-opt] - generates a function that creates an optionally initialized struct instance.
 * link:#full-constructor-example[new-full] - generates a function that creates a full initialized struct instance.
 * link:#builder-usage-example[builder] - generates builder API of a struct type.
 * link:#as-map-usage-example[as-map] - generates a method or functon that converts a struct to a map.
