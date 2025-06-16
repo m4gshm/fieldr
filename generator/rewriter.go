@@ -100,11 +100,12 @@ func NewCodeRewriter(fieldValueRewriters []string) (*CodeRewriter, error) {
 	return r, nil
 }
 
-func (rewrite *CodeRewriter) Transform(fieldName string, fieldType struc.FieldType, fieldRef string) (string, bool) {
+func (rewrite *CodeRewriter) Transform(fieldName string, filedType string, fieldRef string) (string, bool) {
 	rewriters, ok := rewrite.byFieldName[fieldName]
 	if !ok {
-		if rewriters, ok = rewrite.byFieldType[fieldType.FullName]; !ok {
-			logger.Debugf("no rewriter by type for field %s, type %s", fieldName, fieldType.FullName)
+		
+		if rewriters, ok = rewrite.byFieldType[filedType]; !ok {
+			logger.Debugf("no rewriter by type for field %s, type %s", fieldName, filedType)
 			rewriters = rewrite.all[:]
 		}
 	}
