@@ -10,8 +10,8 @@ type properties like name, structure fields, tags or base type nature.
 
 - [get-set](#get-set-usage-example) - generates getters and setters.
 
-- [new](#functional-options-constructor-example) - generates a function
-  that creates an optionally initialized struct instance.
+- [new-opt](#functional-options-constructor-example) - generates a
+  function that creates an optionally initialized struct instance.
 
 - [new-full](#full-constructor-example) - generates a function that
   creates a full initialized struct instance.
