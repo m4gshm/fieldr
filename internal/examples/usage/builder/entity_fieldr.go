@@ -3,7 +3,7 @@
 package builder
 
 type EntityBuilder[ID any] struct {
-	iD        ID
+	id        ID
 	createdAt int64
 	updatedAt int64
 	name      string
@@ -19,7 +19,7 @@ func (b *EntityBuilder[ID]) Build() *Entity[ID] {
 	}
 	return &Entity[ID]{
 		Model: &Model[ID]{
-			ID:        b.iD,
+			ID:        b.id,
 			CreatedAt: b.createdAt,
 			UpdatedAt: b.updatedAt,
 		},
@@ -27,9 +27,9 @@ func (b *EntityBuilder[ID]) Build() *Entity[ID] {
 	}
 }
 
-func (b *EntityBuilder[ID]) ID(iD ID) *EntityBuilder[ID] {
+func (b *EntityBuilder[ID]) ID(id ID) *EntityBuilder[ID] {
 	if b != nil {
-		b.iD = iD
+		b.id = id
 	}
 	return b
 }
@@ -60,20 +60,20 @@ func (e *Entity[ID]) ToBuilder() *EntityBuilder[ID] {
 		return &EntityBuilder[ID]{}
 	}
 	var (
-		Model_ID        ID
-		Model_CreatedAt int64
-		Model_UpdatedAt int64
+		e_Model_ID        ID
+		e_Model_CreatedAt int64
+		e_Model_UpdatedAt int64
 	)
 	if m := e.Model; m != nil {
-		Model_ID = m.ID
-		Model_CreatedAt = m.CreatedAt
-		Model_UpdatedAt = m.UpdatedAt
+		e_Model_ID = m.ID
+		e_Model_CreatedAt = m.CreatedAt
+		e_Model_UpdatedAt = m.UpdatedAt
 	}
 
 	return &EntityBuilder[ID]{
-		iD:        Model_ID,
-		createdAt: Model_CreatedAt,
-		updatedAt: Model_UpdatedAt,
+		id:        e_Model_ID,
+		createdAt: e_Model_CreatedAt,
+		updatedAt: e_Model_UpdatedAt,
 		name:      e.Name,
 	}
 }

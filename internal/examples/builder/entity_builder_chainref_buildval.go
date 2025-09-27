@@ -16,7 +16,7 @@ type EntityBuilderChainRefBuildVal[ID any, S string] struct {
 	Version      int
 	NoDB         *NoDBFieldsEntity
 	Name         StringBasedType[S]
-	Surname      string
+	Surname      StringBasedAlias
 	Values       []int32
 	Ts           []*time.Time
 	Versioned    sql_base.VersionedEntity
@@ -63,9 +63,9 @@ func (b *EntityBuilderChainRefBuildVal[ID, S]) Build() Entity[ID, S] {
 	}
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID, S]) SetID(iD ID) *EntityBuilderChainRefBuildVal[ID, S] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) SetID(id ID) *EntityBuilderChainRefBuildVal[ID, S] {
 	if b != nil {
-		b.ID = iD
+		b.ID = id
 	}
 	return b
 }
@@ -112,7 +112,7 @@ func (b *EntityBuilderChainRefBuildVal[ID, S]) SetName(name StringBasedType[S]) 
 	return b
 }
 
-func (b *EntityBuilderChainRefBuildVal[ID, S]) SetSurname(surname string) *EntityBuilderChainRefBuildVal[ID, S] {
+func (b *EntityBuilderChainRefBuildVal[ID, S]) SetSurname(surname StringBasedAlias) *EntityBuilderChainRefBuildVal[ID, S] {
 	if b != nil {
 		b.Surname = surname
 	}

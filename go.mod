@@ -5,7 +5,7 @@ go 1.24
 toolchain go1.24.2
 
 require (
-	github.com/expr-lang/expr v1.16.9
+	github.com/expr-lang/expr v1.17.5
 	github.com/m4gshm/flag v0.0.0-20240621201228-8e3eb7dfa346
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.10.0
@@ -13,7 +13,7 @@ require (
 	golang.org/x/tools v0.32.0
 )
 
-require github.com/m4gshm/gollections v0.0.15
+require github.com/m4gshm/gollections v0.0.17-0.20250927174335-7bb3a55555e8
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect

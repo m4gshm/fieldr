@@ -3,11 +3,13 @@ package generator
 import (
 	"fmt"
 	"go/token"
+	"reflect"
 	"regexp"
 	"strings"
 	"unicode"
 
 	"github.com/expr-lang/expr"
+	"github.com/expr-lang/expr/patcher/value"
 	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/collection/immutable"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
@@ -25,6 +27,8 @@ import (
 
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/model/struc"
+	"github.com/m4gshm/fieldr/typeparams"
+	"github.com/m4gshm/fieldr/unique"
 )
 
 type stringer struct {
@@ -37,19 +41,19 @@ func (c *stringer) String() string {
 		return ""
 	}
 	c.callback()
-	val := c.val
-	return val
+	return c.val
 }
 
 func (c *stringer) isNil() bool {
 	return c == nil
 }
 
-func (c *stringer) isEmpty() bool {
-	return len(c.String()) == 0
+func (c *stringer) AsString() string {
+	return c.String()
 }
 
 var _ fmt.Stringer = (*stringer)(nil)
+var _ value.StringValuer = (*stringer)(nil)
 
 func (g *Generator) GenerateFieldConstants(model *struc.Model, typ string, export, snake, allFields bool, flats c.Checkable[string]) ([]FieldConst, error) {
 	constants, err := makeFieldConsts(g, model, export, snake, allFields, flats)
@@ -199,7 +203,7 @@ func makeFieldConstsTempl(
 		return constants, nil
 	}
 
-	for _, fieldName := range model.FieldNames {
+	for fieldName, fieldType := range model.FieldsNameAndType {
 		if !usePrivate && !token.IsExported(string(fieldName)) {
 			logger.Debugf("exclude private field %v\n", fieldName)
 			continue
@@ -210,7 +214,6 @@ func makeFieldConstsTempl(
 			continue
 		}
 
-		fieldType := model.FieldsType[fieldName]
 		embedded := fieldType.Embedded
 		flat := flats.Contains(fieldName)
 		fieldModel := fieldType.Model
@@ -243,7 +246,7 @@ func makeFieldConstsTempl(
 				}
 			}
 
-			parse := func(name string, data any, env map[string]any, tmplVal string) (string, error) {
+			evalStringVal := func(name string, env map[string]any, tmplVal string) (string, error) {
 				logger.Debugf("parse expression for \"%s\" %s\n", name, tmplVal)
 
 				if len(tmplVal) == 0 {
@@ -252,7 +255,7 @@ func makeFieldConstsTempl(
 
 				inExecute = true
 				defer func() { inExecute = false }()
-				program, err := expr.Compile(tmplVal, expr.Env(env))
+				program, err := expr.Compile(tmplVal, expr.Env(env), value.ValueGetter)
 				if err != nil {
 					return "", fmt.Errorf("compile: of '%s', expression %s: %w", name, tmplVal, err)
 				}
@@ -263,7 +266,7 @@ func makeFieldConstsTempl(
 				}
 
 				logger.Debugf("parse result: of '%s'; %s\n", name, cmpVal)
-				val := fmt.Sprint(cmpVal)
+				val := toString(cmpVal)
 				return val, nil
 			}
 
@@ -275,7 +278,7 @@ func makeFieldConstsTempl(
 			})
 
 			if len(include) > 0 {
-				included, err := parse(fieldName+" const val", tags, env, include)
+				included, err := evalStringVal(fieldName+" const val", env, include)
 				if err != nil {
 					return nil, err
 				}
@@ -285,14 +288,14 @@ func makeFieldConstsTempl(
 				}
 			}
 
-			val, err := parse(fieldName+" const val", tags, env, valueTmpl)
+			val, err := evalStringVal(fieldName+" const val", env, valueTmpl)
 			if err != nil {
 				return nil, err
 			}
 
 			var constName string
 			if len(nameTmpl) > 0 {
-				parsedConst, err := parse(fieldName+" const name", tags, env, nameTmpl)
+				parsedConst, err := evalStringVal(fieldName+" const name", env, nameTmpl)
 				if err != nil {
 					return nil, err
 				}
@@ -317,8 +320,7 @@ func makeFieldConstsTempl(
 
 func makeFieldConsts(g *Generator, model *struc.Model, export, snake, allFields bool, flats c.Checkable[string]) ([]FieldConst, error) {
 	constants := []FieldConst{}
-	for _, fieldName := range model.FieldNames {
-		fieldType := model.FieldsType[fieldName]
+	for fieldName, fieldType := range model.FieldsNameAndType {
 		embedded := fieldType.Embedded
 		flat := flats.Contains(fieldName)
 		filedInfo := FieldInfo{Name: fieldName, Type: fieldType}
@@ -345,25 +347,40 @@ func makeFieldConsts(g *Generator, model *struc.Model, export, snake, allFields 
 	return constants, nil
 }
 
-func addCommonFuncs[M ~map[string]any](funcs M) M {
-	toString := func(val any) string {
-		if val == nil {
-			return ""
-		}
-		str := ""
-		switch vt := val.(type) {
-		case string:
-			str = vt
-		case fmt.Stringer:
-			str = vt.String()
-		case fmt.GoStringer:
-			str = vt.GoString()
-		default:
-			str = fmt.Sprint(val)
-			logger.Debugf("toString: val '%v', result '%s'", val, str)
-		}
-		return str
+func isNil(val any) bool {
+	if val == nil {
+		return true
 	}
+	rval := reflect.ValueOf(val)
+	switch kind := rval.Kind(); kind {
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer,
+		reflect.UnsafePointer, reflect.Interface, reflect.Slice:
+		return rval.IsNil()
+	default:
+		return false
+	}
+}
+
+func toString(val any) string {
+	if isNil(val) {
+		return ""
+	}
+	str := ""
+	switch vt := val.(type) {
+	case string:
+		str = vt
+	case fmt.Stringer:
+		str = vt.String()
+	case fmt.GoStringer:
+		str = vt.GoString()
+	default:
+		str = fmt.Sprint(val)
+		logger.Debugf("toString: val '%v', result '%s'", val, str)
+	}
+	return str
+}
+
+func addCommonFuncs[M ~map[string]any](funcs M) M {
 	toStrings := func(vals []any) []string {
 		results := make([]string, len(vals))
 		for i, val := range vals {
@@ -494,7 +511,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 		argVar          = "f"
 		recVar          = "s"
 		recType         = GetTypeName(model.TypeName(), pkgName)
-		recParamType    = recType + TypeParamsString(model.Typ.TypeParams(), g.OutPkgPath)
+		recParamType    = recType + typeparams.New(model.Typ.TypeParams()).IdentString(g.OutPkgPath)
 		recParamTypeRef = "*" + recParamType
 		returnTypes     = "any"
 		returnNoCase    = "nil"
@@ -502,6 +519,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 		isFunc          = len(pkgName) > 0
 	)
 
+	uniqueNames := unique.NewNamesWith(unique.PreInit(recVar))
 	body := "func " + get.If(isFunc,
 		sum.Of(name, "(", recVar, " ", recParamTypeRef, ", ", argVar, " ", typ, ") "),
 	).ElseGet(
@@ -510,7 +528,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 		"if " + recVar + " == nil {\nreturn nil\n}\n" +
 		"switch " + argVar + " {\n" +
 		seq.Reduce(seq.Convert(seq.Of(constants...), func(constant FieldConst) string {
-			_, conditionPath, conditions := FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath)
+			_, conditionPath, conditions := FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath, uniqueNames)
 			varsConditionStart, varsConditionEnd := split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum, op.Sum)
 			return "case " + constant.name + ":\n" + varsConditionStart + "return " + pref + conditionPath + "\n" + varsConditionEnd
 		}), op.Sum) +

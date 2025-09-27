@@ -2,124 +2,173 @@ package struc
 
 import (
 	"fmt"
+	"go/ast"
+	"go/token"
 	"go/types"
 	"reflect"
 
 	"github.com/m4gshm/gollections/convert/as"
 	"github.com/m4gshm/gollections/map_"
+	// "github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/slice"
 
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/model/util"
 )
 
-type handledStructs = map[types.Type]*Model
+type HandledStructs = map[types.Type]*Model
 
-type structModelBuilder struct {
-	model       *Model
-	deep        bool
-	outPkgPath  string
-	loopControl handledStructs
-}
+func NewModel(outPkgPath string, loopControl HandledStructs, typ util.TypeNamedOrAlias, typFile *ast.File) (*Model, error) {
+	obj := typ.Obj()
+	typName := obj.Name()
+	if _, ok := loopControl[typ]; ok {
+		return nil, fmt.Errorf("already handled type %v", typName)
+	}
+	model := &Model{
+		Typ:            typ,
+		TypFile:        typFile,
+		typeName:       typName,
+		pkg:            obj.Pkg(),
+		OutPkgPath:     outPkgPath,
+		FieldsTagValue: map[FieldName]map[TagName]TagValue{},
+		TagsFieldValue: map[TagName]map[FieldName]TagValue{},
+		FieldNames:     []FieldName{},
+		FieldsType:     map[FieldName]FieldType{},
+	}
+	loopControl[typ] = model
 
-func newBuilder(outPkgPath string, loopControl handledStructs) *structModelBuilder {
-	return &structModelBuilder{
+	return model, (&structModelBuilder{
 		deep:        true,
 		outPkgPath:  outPkgPath,
 		loopControl: loopControl,
-	}
+	}).populateByStruct(model)
 }
 
-func (b *structModelBuilder) populateTags(fieldName FieldName, tagName TagName, tagValue TagValue) {
-	tagFields, tagFieldsOk := b.model.TagsFieldValue[tagName]
+type structModelBuilder struct {
+	deep        bool
+	outPkgPath  string
+	loopControl HandledStructs
+}
+
+func populateTags(model *Model, fieldName FieldName, tagName TagName, tagValue TagValue) {
+	tagFields, tagFieldsOk := model.TagsFieldValue[tagName]
 	if !tagFieldsOk {
 		tagFields = make(map[FieldName]TagValue)
-		b.model.TagsFieldValue[tagName] = tagFields
+		model.TagsFieldValue[tagName] = tagFields
 	}
 	tagFields[fieldName] = tagValue
 }
 
-func (b *structModelBuilder) populateFields(fldName FieldName, fieldTagNames []TagName, tagValues map[TagName]TagValue) {
+func populateFields(model *Model, fldName FieldName, fieldTagNames []TagName, tagValues map[TagName]TagValue) {
 	fieldTagValues := slice.Map(fieldTagNames, as.Is[TagName], map_.Getter(tagValues))
 	if len(fieldTagValues) > 0 {
-		b.model.FieldsTagValue[fldName] = fieldTagValues
+		model.FieldsTagValue[fldName] = fieldTagValues
 	}
 }
 
-func (b *structModelBuilder) populateByStruct(typ *types.Struct) error {
-	numFields := typ.NumFields()
+func (b *structModelBuilder) populateByStruct(model *Model) error {
+	deep := b.deep
+	outPkgPath := b.outPkgPath
+	loopControl := b.loopControl
+
+	typFile := model.TypFile
+	typeName := model.typeName
+
+	typeSpec := GetStructType(typeName, typFile)
+
+	var fields []*ast.Field
+	if typeSpec != nil {
+		f := typeSpec.Fields
+		if f != nil {
+			fields = f.List
+		}
+	}
+
+	typ := model.Typ
+	obj := typ.Obj()
+
+	strucTyp, _ := util.GetTypeStruct(typ)
+	if strucTyp == nil {
+		typName := obj.Name()
+		return fmt.Errorf("'%s' is not a struct type", typName)
+	}
+
+	numFields := strucTyp.NumFields()
 	for i := 0; i < numFields; i++ {
-		fieldVar := typ.Field(i)
+		field := slice.Get(fields, i)
+		_ = field
+		fieldVar := strucTyp.Field(i)
 		if !fieldVar.IsField() {
 			return fmt.Errorf("unexpected struct element, must be field, value %v, type %v", fieldVar, reflect.TypeOf(fieldVar))
 		}
+		// pos := fieldVar.Pos()
+		// b.model.TypFile.Package
+
 		fldName := fieldVar.Name()
-		if _, ok := b.model.FieldsType[fldName]; ok {
+		if _, ok := model.FieldsType[fldName]; ok {
 			logger.Infof("duplicated field '%s'", fldName)
 			continue
 		}
-		b.model.FieldNames = append(b.model.FieldNames, fldName)
+		model.FieldNames = append(model.FieldNames, fldName)
 
-		tagValues, fieldTagNames := parseTagValues(typ.Tag(i))
-		b.populateFields(fldName, fieldTagNames, tagValues)
+		tagValues, fieldTagNames := parseTagValues(strucTyp.Tag(i))
+		populateFields(model, fldName, fieldTagNames, tagValues)
 		for _, fieldTagName := range fieldTagNames {
-			b.populateTags(fldName, fieldTagName, tagValues[fieldTagName])
+			populateTags(model, fldName, fieldTagName, tagValues[fieldTagName])
 		}
 		fieldType := fieldVar.Type()
-		fieldTypeName := util.TypeString(fieldType, b.outPkgPath)
-		ref := 0
+		fieldTypeName := util.TypeString(fieldType, outPkgPath)
+
+		// op.IfGetElse(field != nil,
+		// 	func() string { return types.ExprString(field.Type) },
+		// 	func() string { return util.TypeString(fieldType, outPkgPath) })
+
+		refDeep := 0
 		var fieldModel *Model
-		if structType, p := util.GetStructTypeNamed(fieldType); structType != nil {
-			typeName := structType.Obj().Name()
-			ref = p
+		if strucTyp, p := util.GetStructTypeNamed(fieldType); strucTyp != nil {
+			strucTypObj := strucTyp.Obj()
+			typeName := strucTypObj.Name()
+			refDeep = p
 			fieldTypeName = typeName
-			if b.deep {
-				if fmodel, ok := b.loopControl[structType]; ok {
+			if deep {
+				if fmodel, ok := loopControl[strucTyp]; ok {
 					logger.Debugf("found handled type %v", typeName)
 					fieldModel = fmodel
-				} else if model, err := newBuilder(b.outPkgPath, b.loopControl).newModel(structType); err != nil {
+				} else if model, err := NewModel(outPkgPath, loopControl, strucTyp, model.TypFile); err != nil {
 					return fmt.Errorf("nested field %v.%v; %w", typeName, fldName, err)
 				} else {
 					fieldModel = model
 				}
 			}
 		}
-		b.model.FieldsType[fldName] = FieldType{
-			Embedded: fieldVar.Embedded(), RefCount: ref, Name: fieldTypeName,
-			FullName: util.TypeString(fieldType, b.outPkgPath),
-			Type:     fieldType, Model: fieldModel,
-		}
+		model.FieldsType[fldName] = NewFieldType(fieldVar.Embedded(), refDeep, fieldTypeName, fieldType, fieldModel)
 	}
 	return nil
 }
 
-func (b *structModelBuilder) newModel(typ *types.Named) (*Model, error) {
-	obj := typ.Obj()
-	typName := obj.Name()
-	if _, ok := b.loopControl[typ]; ok {
-		return nil, fmt.Errorf("already handled type %v", typName)
+func GetStructType(typeName string, typFile *ast.File) *ast.StructType {
+	var typeSpec *ast.StructType
+	for _, d := range typFile.Decls {
+		if genDecl, ok := d.(*ast.GenDecl); ok && genDecl.Tok == token.TYPE {
+			for _, s := range genDecl.Specs {
+				if ts := s.(*ast.TypeSpec); ts.Name.Name == typeName {
+					if st, ok := ts.Type.(*ast.StructType); ok {
+						typeSpec = st
+						break
+					}
+				}
+			}
+		}
 	}
-	typStruct, rc := util.GetTypeStruct(typ)
-	if typStruct == nil {
-		return nil, fmt.Errorf("'%s' is not a struct type", typName)
-	}
+	return typeSpec
+}
 
-	model := &Model{
-		Typ:            typ,
-		typeName:       typName,
-		pkg:            obj.Pkg(),
-		OutPkgPath:     b.outPkgPath,
-		FieldsTagValue: map[FieldName]map[TagName]TagValue{},
-		TagsFieldValue: map[TagName]map[FieldName]TagValue{},
-		FieldNames:     []FieldName{},
-		FieldsType:     map[FieldName]FieldType{},
-		RefCount:       rc,
+func NewFieldType(embedded bool, refDeep int, name string, fieldType types.Type, fieldModel *Model) FieldType {
+	return FieldType{
+		Embedded: embedded,
+		RefDeep:  refDeep,
+		Name:     name,
+		Type:     fieldType,
+		Model:    fieldModel,
 	}
-	b.loopControl[typ] = model
-	b.model = model
-
-	if err := b.populateByStruct(typStruct); err != nil {
-		return nil, err
-	}
-	return b.model, nil
 }

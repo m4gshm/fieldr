@@ -5,29 +5,32 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug AccountEventListener",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "C:/alex/github/m4gshm/distributed-transactions-practice/golang/order/service/",
+            "args": [
+                "-debug",
+                "-type",
+                "AccountEventListener",
+                "-out",
+                ".",
+                "new-full"
+            ]
+        },
+        {
             "name": "Debug sql example",
             "type": "go",
             "request": "launch",
             "mode": "debug",
             "program": "main.go",
-            "cwd": "examples/sql",
+            "cwd": "internal/examples/sql",
             "args": [
+                "-debug",
                 "-type",
-                "Entity",
-                "-in",
-                "../sql_util/postgres.go",
-                "-out",
-                "entity_sql.go",
-                "-GetFieldValuesByTag",
-                "db",
-                "-const",
-                "_upsert",
-                "-const",
-                "_selectByID",
-                "-const",
-                "_deleteByID",
-                "-const",
-                "_pk"
+                "Entity"
             ]
         },
         {
@@ -36,7 +39,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "main.go",
-            "cwd": "examples/squirrel",
+            "cwd": "internal/examples/squirrel",
             "args": [
                 "-debug"
                 // "-type",
@@ -169,12 +172,26 @@
             ]
         },
         {
+            "name": "Debug opt constructor example",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "internal/examples/new_opt",
+            "args": [
+                "-debug",
+                "-type",
+                "Entity",
+                "new-opt"
+            ]
+        },
+        {
             "name": "Debug builder example",
             "type": "go",
             "request": "launch",
             "mode": "debug",
             "program": "main.go",
-            "cwd": "examples/builder",
+            "cwd": "internal/examples/builder",
             "args": [
                 "-debug",
                 "-type",
@@ -265,7 +282,7 @@
                 "Enum",
                 "enrich-const-type"
             ]
-        },        
+        },
         {
             "name": "Launch Package",
             "type": "go",

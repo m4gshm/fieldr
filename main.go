@@ -8,7 +8,6 @@ import (
 	"go/token"
 	"go/types"
 	"io/fs"
-	"io/ioutil"
 	"iter"
 	"log"
 	"os"
@@ -25,7 +24,6 @@ import (
 	"github.com/m4gshm/gollections/convert/as"
 	"github.com/m4gshm/gollections/error_"
 	"github.com/m4gshm/gollections/expr/get"
-	"github.com/m4gshm/gollections/expr/use"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/seq"
 	"github.com/m4gshm/gollections/seqe"
@@ -106,7 +104,7 @@ func run() error {
 
 	fileSet := token.NewFileSet()
 
-	pkgs, err := extractPackages(fileSet, *buildTags, workDir)
+	pkgs, err := util.ExtractPackages(fileSet, *buildTags, workDir)
 	if err != nil {
 		return fmt.Errorf("extract packages, workDir %s, build tags %v: %w", workDir, *buildTags, err)
 	}
@@ -184,7 +182,7 @@ func run() error {
 	typeConfigs.Set(typeConfig, commands)
 
 	if pkgPtrn := *packageSearchPath; len(pkgPtrn) > 0 {
-		if patternPkgs, err := extractPackages(fileSet, *buildTags, pkgPtrn); err != nil {
+		if patternPkgs, err := util.ExtractPackages(fileSet, *buildTags, pkgPtrn); err != nil {
 			return err
 		} else {
 			pkgs.AddAllNew(patternPkgs.All)
@@ -239,8 +237,8 @@ func run() error {
 		if err != nil {
 			return err
 		}
-
 		logger.Debugf("output file %s", outputName)
+
 		if typPkg == nil {
 			return fmt.Errorf("type package not found: type %s", typeName)
 		}
@@ -256,7 +254,7 @@ func run() error {
 			logger.Debugf("out file not found, trying to fix")
 			buildTag := typeConfig.OutBuildTags
 
-			dir, err := getDir(outputName)
+			dir, err := util.GetDir(outputName)
 			if err != nil {
 				return err
 			} else if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
@@ -289,17 +287,14 @@ func run() error {
 			return fmt.Errorf("out package is undefined")
 		}
 
-		var pkgTypes *types.Package
-		var pkgPath string
-		if outPkg != nil {
-			pkgTypes = outPkg.Types
-			pkgPath = outPkg.PkgPath
-		}
+		pkgTypes := outPkg.Types
+		pkgPath := outPkg.PkgPath
+
 		g := generator.New(params.Name, typeConfig.OutBuildTags, outFile, outFileInfo, pkgPath, pkgTypes)
 		o := typ.Obj()
 		pp := o.Pkg()
 		_ = pp
-		ctx := &command.Context{Generator: g, Typ: typ}
+		ctx := &command.Context{Generator: g, Typ: typ, TypFile: typFile}
 		for _, c := range commands {
 			logger.Debugf("run command %s", c.Name())
 			if err := c.Run(ctx); err != nil {
@@ -315,7 +310,7 @@ func run() error {
 		src, fmtErr := g.FormatSrc()
 
 		const userWriteOtherRead = fs.FileMode(0644)
-		if writeErr := ioutil.WriteFile(outputName, src, userWriteOtherRead); writeErr != nil {
+		if writeErr := os.WriteFile(outputName, src, userWriteOtherRead); writeErr != nil {
 			return fmt.Errorf("writing output: %s", writeErr)
 		} else if fmtErr != nil {
 			return fmt.Errorf("go src code formatting error: %s", fmtErr)
@@ -346,7 +341,7 @@ func findPkgFile(fileSet *token.FileSet, pkgs c.Range[*packages.Package], output
 
 	logger.Debugf("findPkgFile: output file not found: %s", outputName)
 
-	dir, err := getDir(outputName)
+	dir, err := util.GetDir(outputName)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -354,7 +349,7 @@ func findPkgFile(fileSet *token.FileSet, pkgs c.Range[*packages.Package], output
 
 	for pkg, file := range seq.KeyValues(pkgs.All, as.Is, getPkgFiles) {
 		if info := fileSet.File(file.Pos()); info != nil {
-			if fileDir, err := getDir(info.Name()); err != nil {
+			if fileDir, err := util.GetDir(info.Name()); err != nil {
 				return nil, nil, nil, err
 			} else if fileDir == dir {
 				logger.Debugf("findPkgFile: found package '%s' by file '%s'", pkg.Name, info.Name())
@@ -395,7 +390,7 @@ func parseCommands(args []string) ([]*command.Command, []string, error) {
 	for len(args) > 0 {
 		cmd, cmdArgs := args[0], args[1:]
 		if c := command.Get(cmd); c == nil {
-			return nil, args, fuse.Err("unknowd command '" + cmd + "'")
+			return nil, args, fuse.Err("unknown command '" + cmd + "'")
 		} else if unusedArgs, err := c.Parse(cmdArgs); err != nil {
 			return nil, nil, err
 		} else {
@@ -533,36 +528,5 @@ func loadFilePackage(srcFile string, fileSet *token.FileSet, buildTags ...string
 	if err != nil {
 		return nil, err
 	}
-	return extractPackages(fileSet, buildTags, absSrcFile)
-}
-
-const packageMode = packages.NeedSyntax | packages.NeedName | packages.NeedTypesInfo | packages.NeedTypes | packages.NeedModule
-
-func extractPackages(fileSet *token.FileSet, buildTags []string, fileName string) (*ordered.Set[*packages.Package], error) {
-	if dir, err := getDir(fileName); err != nil {
-		return nil, err
-	} else if pkgs, err := packages.Load(&packages.Config{
-		Dir:        dir,
-		Fset:       fileSet,
-		Mode:       packageMode,
-		BuildFlags: buildTagsArg(buildTags),
-		Tests:      true,
-		Logf:       func(format string, args ...any) { logger.Debugf("packagesLoad: "+format, args...) },
-	}, "."); err != nil {
-		return nil, err
-	} else {
-		return set.Of(pkgs...), nil
-	}
-}
-func getDir(fileName string) (string, error) {
-	fileStat, err := os.Stat(fileName)
-	isNoExists := errors.Is(err, os.ErrNotExist)
-	if !isNoExists && err != nil {
-		return "", err
-	}
-	return use.If(!isNoExists && fileStat.IsDir(), fileName).ElseGet(func() string { return filepath.Dir(fileName) }), nil
-}
-
-func buildTagsArg(buildTags []string) []string {
-	return []string{fmt.Sprintf("-tags=%s", strings.Join(buildTags, " "))}
+	return util.ExtractPackages(fileSet, buildTags, absSrcFile)
 }

@@ -12,12 +12,12 @@ import (
 )
 
 type Model struct {
-	typ      *types.Named
+	typ      util.TypeNamedOrAlias
 	typBasic *types.Basic
 	consts   []*types.Const
 }
 
-func (m *Model) Typ() *types.Named {
+func (m *Model) Typ() util.TypeNamedOrAlias {
 	return m.typ
 }
 
@@ -25,7 +25,7 @@ func (m *Model) Consts() []*types.Const {
 	return m.consts
 }
 
-func New(outPkgPath string, typ *types.Named, scanPkg bool) (*Model, error) {
+func New(outPkgPath string, typ util.TypeNamedOrAlias, scanPkg bool) (*Model, error) {
 	obj := typ.Obj()
 	typName := obj.Name()
 

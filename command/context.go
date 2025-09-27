@@ -1,12 +1,13 @@
 package command
 
 import (
-	"go/types"
+	"go/ast"
 
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/model/enum"
 	"github.com/m4gshm/fieldr/model/struc"
+	"github.com/m4gshm/fieldr/model/util"
 	"github.com/m4gshm/fieldr/use"
 )
 
@@ -14,7 +15,8 @@ type Context struct {
 	Generator   *generator.Generator
 	structModel *struc.Model
 	enumModel   *enum.Model
-	Typ         *types.Named
+	Typ         util.TypeNamedOrAlias
+	TypFile     *ast.File
 }
 
 func (c *Context) StructModel() (*struc.Model, error) {
@@ -26,7 +28,7 @@ func (c *Context) StructModel() (*struc.Model, error) {
 		return nil, use.Err("no type in context")
 	}
 
-	model, err := struc.New(c.Generator.OutPkgPath, c.Typ)
+	model, err := struc.New(c.Generator.OutPkgPath, c.Typ, c.TypFile)
 	c.structModel = model
 	return model, err
 }

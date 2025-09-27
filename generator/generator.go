@@ -720,7 +720,24 @@ func getIdentPart(suffix string, snake bool) string {
 	return camel(suffix)
 }
 
+func ArgName(name string) string {
+	chars := ([]rune)(name)
+	if _, i := slice.FirstI(chars, unicode.IsLower); !(i >= 0) {
+		//empty or all are upper
+		name = string(slice.Convert(chars, unicode.ToLower))
+	} else if i == 1 {
+		chars[0] = unicode.ToLower(chars[0])
+		name = string(chars)
+	}
+	return name
+}
+
 func IdentName(name string, export bool) string {
+	if low := strings.ToLower(name); strings.HasPrefix(low, "id") {
+		return op.IfElse(export, "ID", "id") + name[2:]
+	} else if strings.HasPrefix(low, "url") {
+		return op.IfElse(export, "URL", "url") + name[3:]
+	}
 	return string(op.IfElse(export, unicode.ToUpper, unicode.ToLower)(rune(name[0]))) + name[1:]
 }
 
@@ -776,12 +793,6 @@ func (g *Generator) addConst(name, value, typ string) error {
 		g.constants[name] = constant{value: value, typ: typ}
 	}
 	return nil
-}
-
-func (g *Generator) addVarDelim() {
-	if len(g.varNames) > 0 {
-		g.varNames = append(g.varNames, "")
-	}
 }
 
 func (g *Generator) AddFuncDecl(node *ast.FuncDecl) error {

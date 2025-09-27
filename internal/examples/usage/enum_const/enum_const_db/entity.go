@@ -2,7 +2,7 @@ package enum_const_db
 
 //go:generate fieldr -type Entity
 //go:fieldr fields-to-consts -name "'col' + field.name" -val "tag.db" -flat Versioned -type column -list . -ref-access .
-//go:fieldr fields-to-consts -name "'pk' + field.name" -val "tag.db" -include "tag.pk != nil" -type column -list pk
+//go:fieldr fields-to-consts -name "'pk' + field.name" -val "tag.db" -include "tag.pk == 'true'" -type column -list pk
 
 type Entity struct {
 	BaseEntity
@@ -11,7 +11,7 @@ type Entity struct {
 }
 
 type BaseEntity struct {
-	ID int32 `db:"id" pk:""`
+	ID int32 `db:"id" pk:"true"`
 }
 
 type VersionedEntity struct {
