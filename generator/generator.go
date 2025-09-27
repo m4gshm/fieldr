@@ -795,12 +795,6 @@ func (g *Generator) addConst(name, value, typ string) error {
 	return nil
 }
 
-func (g *Generator) addVarDelim() {
-	if len(g.varNames) > 0 {
-		g.varNames = append(g.varNames, "")
-	}
-}
-
 func (g *Generator) AddFuncDecl(node *ast.FuncDecl) error {
 	funcName := FuncDeclName(node)
 	if exists, ok := g.funcBodies[funcName]; ok {

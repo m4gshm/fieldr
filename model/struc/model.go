@@ -2,6 +2,7 @@ package struc
 
 import (
 	"fmt"
+	"go/ast"
 	"go/types"
 
 	"github.com/m4gshm/fieldr/model/util"
@@ -30,8 +31,8 @@ type (
 	//Model struct type model.
 	Model struct {
 		Typ            util.TypeNamedOrAlias
+		TypFile        *ast.File
 		typeName       string
-		RefDeep        int
 		pkg            *types.Package
 		OutPkgPath     string
 		FieldsTagValue map[FieldName]map[TagName]TagValue
@@ -62,12 +63,12 @@ func (m *Model) TypeName() string {
 }
 
 // New - Model's default constructor.
-func New(outPkgPath string, structType util.TypeNamedOrAlias) (*Model, error) {
-	structModel, err := newBuilder(outPkgPath, handledStructs{}).newModel(structType)
+func New(outPkgPath string, typ util.TypeNamedOrAlias, typFile *ast.File) (*Model, error) {
+	structModel, err := NewModel(outPkgPath, HandledStructs{}, typ, typFile)
 	if err != nil {
-		return nil, fmt.Errorf("new model of %+v: %w", structType, err)
+		return nil, fmt.Errorf("new model of %+v: %w", typ, err)
 	} else if structModel == nil {
-		return nil, fmt.Errorf("nil model for type %+v", structType)
+		return nil, fmt.Errorf("nil model for type %+v", typ)
 	}
 	return structModel, nil
 }

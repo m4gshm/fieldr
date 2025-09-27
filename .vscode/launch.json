@@ -5,6 +5,22 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug AccountEventListener",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "C:/alex/github/m4gshm/distributed-transactions-practice/golang/order/service/",
+            "args": [
+                "-debug",
+                "-type",
+                "AccountEventListener",
+                "-out",
+                ".",
+                "new-full"
+            ]
+        },
+        {
             "name": "Debug sql example",
             "type": "go",
             "request": "launch",
@@ -266,7 +282,7 @@
                 "Enum",
                 "enrich-const-type"
             ]
-        },        
+        },
         {
             "name": "Launch Package",
             "type": "go",

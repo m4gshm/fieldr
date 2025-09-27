@@ -8,7 +8,6 @@ import (
 	"go/token"
 	"go/types"
 	"io/fs"
-	"io/ioutil"
 	"iter"
 	"log"
 	"os"
@@ -238,8 +237,8 @@ func run() error {
 		if err != nil {
 			return err
 		}
-
 		logger.Debugf("output file %s", outputName)
+
 		if typPkg == nil {
 			return fmt.Errorf("type package not found: type %s", typeName)
 		}
@@ -288,17 +287,14 @@ func run() error {
 			return fmt.Errorf("out package is undefined")
 		}
 
-		var pkgTypes *types.Package
-		var pkgPath string
-		if outPkg != nil {
-			pkgTypes = outPkg.Types
-			pkgPath = outPkg.PkgPath
-		}
+		pkgTypes := outPkg.Types
+		pkgPath := outPkg.PkgPath
+
 		g := generator.New(params.Name, typeConfig.OutBuildTags, outFile, outFileInfo, pkgPath, pkgTypes)
 		o := typ.Obj()
 		pp := o.Pkg()
 		_ = pp
-		ctx := &command.Context{Generator: g, Typ: typ}
+		ctx := &command.Context{Generator: g, Typ: typ, TypFile: typFile}
 		for _, c := range commands {
 			logger.Debugf("run command %s", c.Name())
 			if err := c.Run(ctx); err != nil {
@@ -314,7 +310,7 @@ func run() error {
 		src, fmtErr := g.FormatSrc()
 
 		const userWriteOtherRead = fs.FileMode(0644)
-		if writeErr := ioutil.WriteFile(outputName, src, userWriteOtherRead); writeErr != nil {
+		if writeErr := os.WriteFile(outputName, src, userWriteOtherRead); writeErr != nil {
 			return fmt.Errorf("writing output: %s", writeErr)
 		} else if fmtErr != nil {
 			return fmt.Errorf("go src code formatting error: %s", fmtErr)

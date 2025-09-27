@@ -14,8 +14,8 @@ import (
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
 	"github.com/m4gshm/gollections/collection/mutable/ordered/set"
 	"github.com/m4gshm/gollections/expr/use"
-	"github.com/m4gshm/gollections/map_"
 	"github.com/m4gshm/gollections/op"
+	"github.com/m4gshm/gollections/slice"
 	"golang.org/x/tools/go/packages"
 
 	"github.com/m4gshm/fieldr/logger"
@@ -55,35 +55,32 @@ func GetDir(fileName string) (string, error) {
 
 func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.Range[*packages.Package]) (TypeNamedOrAlias, *packages.Package, *ast.File, error) {
 	for pkg := range pkgs.All {
-		pkgTypes := pkg.Types
-		if lookup := pkgTypes.Scope().Lookup(typeName); lookup == nil {
-			logger.Debugf("no type '%s' in package '%s'", typeName, pkgTypes.Name())
+		if lookup := pkg.Types.Scope().Lookup(typeName); lookup == nil {
+			logger.Debugf("no type '%s' in package '%s'", typeName, pkg.Types.Name())
 			continue
 		} else if typeNamed, _ := GetTypeNamed(lookup.Type()); typeNamed == nil {
 			return nil, nil, nil, fmt.Errorf("cannot detect type '%s'", typeName)
 		} else {
-			var resultFile *ast.File
 			logger.Debugf("look package '%s', syntax file count %d", pkg.Name, len(pkg.Syntax))
-			for _, file := range pkg.Syntax {
-				if tokenFile := fileSet.File(file.Pos()); tokenFile != nil {
-					fileName := tokenFile.Name()
-					logger.Debugf("file by position '%d', name %s", file.Pos(), fileName)
-					if lookup := file.Scope.Lookup(typeName); lookup == nil {
-						types := map_.Keys(file.Scope.Objects)
-						logger.Debugf("no type '%s' in file '%s', package '%s', types %#v", typeName, fileName, pkgTypes.Name(), types)
-					} else if _, ok := lookup.Decl.(*ast.TypeSpec); !ok {
-						return nil, nil, nil, fmt.Errorf("type '%s' is not struct in file '%s'", typeName, fileName)
-					} else {
-						resultFile = file
-						logger.Debugf("found type file '%s'", fileName)
-						break
-					}
-				}
-			}
-			return typeNamed, pkg, resultFile, nil
+			typFile, err := FindTypeFile(typeNamed, fileSet, pkg.Syntax)
+			return typeNamed, pkg, typFile, err
 		}
 	}
 	return nil, nil, nil, nil
+}
+
+func FindTypeFile(typeNamed TypeNamedOrAlias, fileSet *token.FileSet, files []*ast.File) (*ast.File, error) {
+	typeObj := typeNamed.Obj()
+	typTokenFile := fileSet.File(typeObj.Pos())
+
+	typFile, ok := slice.First(files, func(p *ast.File) bool {
+		start := typTokenFile.Base()
+		return p.FileStart == token.Pos(start) && p.FileEnd == token.Pos(start+typTokenFile.Size())
+	})
+
+	logger.Debugf("found type file (type [%s], file [%s])'", typeObj.Id(), typFile.Name)
+
+	return op.IfElseGetErr(ok, typFile, func() error { return fmt.Errorf("type's file not found: type %s", typeObj.Id()) })
 }
 
 func GetTypeUnderPointer(typ types.Type) (types.Type, int) {
@@ -95,7 +92,7 @@ func GetTypeUnderPointer(typ types.Type) (types.Type, int) {
 		t, p := GetTypeUnderPointer(ftt.Underlying())
 		if p == 0 {
 			return ftt, 0
-		} 
+		}
 		return t, p
 	default:
 		return typ, 0
