@@ -3,7 +3,7 @@ package generator
 import (
 	"unicode"
 	"unicode/utf8"
-	
+
 	"github.com/m4gshm/gollections/predicate/is"
 	"github.com/m4gshm/gollections/slice"
 

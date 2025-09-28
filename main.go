@@ -232,13 +232,15 @@ func run() error {
 			return autoselected
 		}).ElseGetErr(func() (string, error) {
 			out := typeConfig.Output
-			_ = typFilePath
-			// _, ffn := filepath.Split(typFilePath)
-			// ext := filepath.Ext(ffn)
-			// fn := ffn[:len(ffn)-len(ext)]
-			// ofn := filepath.Join(fn + params.DefaultFileSuffix)
-			// return abs(op.IfElse(len(out) > 0, out, ofn))
-			return abs(op.IfElse(len(out) > 0, out, strings.ToLower(typeName+params.DefaultFileSuffix)))
+			_, ffn := filepath.Split(typFilePath)
+			ext := filepath.Ext(ffn)
+			fileNamePart := ffn[:len(ffn)-len(ext)]
+			typeNamePart := strings.ToLower(util.ToCamelCase(typeName))
+			if typeNamePart != fileNamePart {
+				fileNamePart +="_"+typeNamePart
+			}
+			ofn := filepath.Join(fileNamePart + params.DefaultFileSuffix)
+			return abs(op.IfElse(len(out) > 0, out, ofn))
 		})
 		if err != nil {
 			return err

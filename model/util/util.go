@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
@@ -209,4 +210,20 @@ func isVersionElement(pkgName string) bool {
 		}
 	}
 	return true
+}
+
+func ToCamelCase(s string) string {
+	out := []rune{}
+	in := []rune(s)
+	for i, l := range in {
+		switch {
+		case l == ' ':
+			out = append(out, '_')
+		case unicode.IsUpper(l) && i > 0 && unicode.IsLower(in[i-1]):
+			out = append(out, '_', l)
+		default:
+			out = append(out, l)
+		}
+	}
+	return string(out)
 }

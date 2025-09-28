@@ -4,13 +4,14 @@ import (
 	goconstant "go/constant"
 	"go/types"
 
-	"github.com/m4gshm/fieldr/model/util"
-	"github.com/m4gshm/fieldr/typeparams"
 	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/seq"
 	"github.com/m4gshm/gollections/seq2"
 	"github.com/m4gshm/gollections/slice"
+
+	"github.com/m4gshm/fieldr/model/util"
+	"github.com/m4gshm/fieldr/typeparams"
 )
 
 const DefaultMethodSuffixByName = "ByName"
