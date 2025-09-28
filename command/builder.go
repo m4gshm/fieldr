@@ -58,7 +58,8 @@ func NewBuilderStruct() *Command {
 				return err
 			}
 			g := context.Generator
-			pkgName, err := g.GetPackageNameOrAlias(model.Package().Name(), model.Package().Path())
+			pkg := model.Package()
+			pkgName, err := g.GetPackageNameOrAlias(pkg.Name(), pkg.Path())
 			if err != nil {
 				return err
 			}

@@ -15,8 +15,8 @@
                 "-debug",
                 "-type",
                 "AccountEventListener",
-                "-out",
-                ".",
+                // "-out",
+                // ".",
                 "new-full"
             ]
         },
@@ -163,11 +163,27 @@
             "request": "launch",
             "mode": "debug",
             "program": "main.go",
-            "cwd": "examples/get_set",
+            "cwd": "internal/examples/get_set",
             "args": [
                 "-debug",
                 "-type",
                 "Entity",
+                "get-set"
+            ]
+        },
+                {
+            "name": "Debug get-set internal example",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "internal/examples/get_set",
+            "args": [
+                "-debug",
+                "-type",
+                "Entity",
+                "-out",
+                "internal/entity_fieldr.go",
                 "get-set"
             ]
         },
@@ -207,7 +223,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "main.go",
-            "cwd": "examples/builder",
+            "cwd": "internal/examples/builder",
             "args": [
                 "-type",
                 "Entity",

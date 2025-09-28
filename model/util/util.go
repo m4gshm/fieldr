@@ -53,23 +53,23 @@ func GetDir(fileName string) (string, error) {
 	return use.If(!isNoExists && fileStat.IsDir(), fileName).ElseGet(func() string { return filepath.Dir(fileName) }), nil
 }
 
-func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.Range[*packages.Package]) (TypeNamedOrAlias, *packages.Package, *ast.File, error) {
+func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.Range[*packages.Package]) (TypeNamedOrAlias, *packages.Package, string, *ast.File, error) {
 	for pkg := range pkgs.All {
 		if lookup := pkg.Types.Scope().Lookup(typeName); lookup == nil {
 			logger.Debugf("no type '%s' in package '%s'", typeName, pkg.Types.Name())
 			continue
 		} else if typeNamed, _ := GetTypeNamed(lookup.Type()); typeNamed == nil {
-			return nil, nil, nil, fmt.Errorf("cannot detect type '%s'", typeName)
+			return nil, nil, "", nil, fmt.Errorf("cannot detect type '%s'", typeName)
 		} else {
 			logger.Debugf("look package '%s', syntax file count %d", pkg.Name, len(pkg.Syntax))
-			typFile, err := FindTypeFile(typeNamed, fileSet, pkg.Syntax)
-			return typeNamed, pkg, typFile, err
+			filePath, typFile, err := FindTypeFile(typeNamed, fileSet, pkg.Syntax)
+			return typeNamed, pkg, filePath, typFile, err
 		}
 	}
-	return nil, nil, nil, nil
+	return nil, nil, "", nil, nil
 }
 
-func FindTypeFile(typeNamed TypeNamedOrAlias, fileSet *token.FileSet, files []*ast.File) (*ast.File, error) {
+func FindTypeFile(typeNamed TypeNamedOrAlias, fileSet *token.FileSet, files []*ast.File) (string, *ast.File, error) {
 	typeObj := typeNamed.Obj()
 	typTokenFile := fileSet.File(typeObj.Pos())
 
@@ -80,7 +80,8 @@ func FindTypeFile(typeNamed TypeNamedOrAlias, fileSet *token.FileSet, files []*a
 
 	logger.Debugf("found type file (type [%s], file [%s])'", typeObj.Id(), typFile.Name)
 
-	return op.IfElseGetErr(ok, typFile, func() error { return fmt.Errorf("type's file not found: type %s", typeObj.Id()) })
+	f, err := op.IfElseGetErr(ok, typFile, func() error { return fmt.Errorf("type's file not found: type %s", typeObj.Id()) })
+	return typTokenFile.Name(), f, err
 }
 
 func GetTypeUnderPointer(typ types.Type) (types.Type, int) {
@@ -116,6 +117,10 @@ func GetTypeNamed(typ types.Type) (TypeNamedOrAlias, int) {
 		return ftt, 0
 	case *types.Alias:
 		return ftt, 0
+	//todo
+	// case *types.Array:
+	// 	t, p := GetTypeNamed(ftt.Elem())
+	// 	return t, p
 	case *types.Pointer:
 		t, p := GetTypeNamed(ftt.Elem())
 		return t, p + 1
@@ -175,4 +180,33 @@ func basePackQ(outPkgPath string) func(p *types.Package) string {
 	return func(p *types.Package) string {
 		return op.IfElse(p.Path() == outPkgPath, "", p.Name())
 	}
+}
+
+func GetPackageName(pkgPath string) string {
+	j := len(pkgPath)
+	i := j - 1
+	for ; i >= 0; i-- {
+		if pkgPath[i] == '/' {
+			part := pkgPath[i+1 : j]
+			if !isVersionElement(part) {
+				return part
+			}
+			j = i
+		}
+	}
+	return pkgPath[i+1 : j]
+}
+
+// isVersionElement reports whether s is a well-formed path version element:
+// v2, v3, v10, etc, but not v0, v05, v1.
+func isVersionElement(pkgName string) bool {
+	if len(pkgName) < 2 || pkgName[0] != 'v' || pkgName[1] == '0' || pkgName[1] == '1' && len(pkgName) == 2 {
+		return false
+	}
+	for i := 1; i < len(pkgName); i++ {
+		if pkgName[i] < '0' || '9' < pkgName[i] {
+			return false
+		}
+	}
+	return true
 }

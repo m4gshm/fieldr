@@ -19,16 +19,13 @@ import (
 type HandledStructs = map[types.Type]*Model
 
 func NewModel(outPkgPath string, loopControl HandledStructs, typ util.TypeNamedOrAlias, typFile *ast.File) (*Model, error) {
-	obj := typ.Obj()
-	typName := obj.Name()
+	typName := typ.Obj().Name()
 	if _, ok := loopControl[typ]; ok {
 		return nil, fmt.Errorf("already handled type %v", typName)
 	}
 	model := &Model{
 		Typ:            typ,
 		TypFile:        typFile,
-		typeName:       typName,
-		pkg:            obj.Pkg(),
 		OutPkgPath:     outPkgPath,
 		FieldsTagValue: map[FieldName]map[TagName]TagValue{},
 		TagsFieldValue: map[TagName]map[FieldName]TagValue{},
@@ -72,9 +69,8 @@ func (b *structModelBuilder) populateByStruct(model *Model) error {
 	loopControl := b.loopControl
 
 	typFile := model.TypFile
-	typeName := model.typeName
 
-	typeSpec := GetStructType(typeName, typFile)
+	typeSpec := GetStructType(model.TypeName(), typFile)
 
 	var fields []*ast.Field
 	if typeSpec != nil {
@@ -96,7 +92,6 @@ func (b *structModelBuilder) populateByStruct(model *Model) error {
 	numFields := strucTyp.NumFields()
 	for i := 0; i < numFields; i++ {
 		field := slice.Get(fields, i)
-		_ = field
 		fieldVar := strucTyp.Field(i)
 		if !fieldVar.IsField() {
 			return fmt.Errorf("unexpected struct element, must be field, value %v, type %v", fieldVar, reflect.TypeOf(fieldVar))
@@ -118,6 +113,11 @@ func (b *structModelBuilder) populateByStruct(model *Model) error {
 		}
 		fieldType := fieldVar.Type()
 		fieldTypeName := util.TypeString(fieldType, outPkgPath)
+		importFieldTypeName := ""
+		if field != nil {
+			importFieldTypeName = types.ExprString(field.Type)
+		}
+		_ = importFieldTypeName
 
 		// op.IfGetElse(field != nil,
 		// 	func() string { return types.ExprString(field.Type) },

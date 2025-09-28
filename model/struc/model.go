@@ -32,8 +32,6 @@ type (
 	Model struct {
 		Typ            util.TypeNamedOrAlias
 		TypFile        *ast.File
-		typeName       string
-		pkg            *types.Package
 		OutPkgPath     string
 		FieldsTagValue map[FieldName]map[TagName]TagValue
 		TagsFieldValue map[TagName]map[FieldName]TagValue
@@ -55,11 +53,11 @@ func (m *Model) FieldsNameAndType(yield func(FieldName, FieldType) bool) {
 }
 
 func (m *Model) Package() *types.Package {
-	return m.pkg
+	return m.Typ.Obj().Pkg()
 }
 
 func (m *Model) TypeName() string {
-	return m.typeName
+	return m.Typ.Obj().Name()
 }
 
 // New - Model's default constructor.

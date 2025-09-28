@@ -218,7 +218,7 @@ func run() error {
 			return fuse.Err("no type arg")
 		}
 
-		typ, typPkg, typFile, err := util.FindTypePackageFile(typeName, fileSet, pkgs)
+		typ, typPkg, typFilePath, typFile, err := util.FindTypePackageFile(typeName, fileSet, pkgs)
 		if err != nil {
 			return fmt.Errorf("find type %s: %w", typeName, err)
 		} else if typ == nil {
@@ -232,6 +232,12 @@ func run() error {
 			return autoselected
 		}).ElseGetErr(func() (string, error) {
 			out := typeConfig.Output
+			_ = typFilePath
+			// _, ffn := filepath.Split(typFilePath)
+			// ext := filepath.Ext(ffn)
+			// fn := ffn[:len(ffn)-len(ext)]
+			// ofn := filepath.Join(fn + params.DefaultFileSuffix)
+			// return abs(op.IfElse(len(out) > 0, out, ofn))
 			return abs(op.IfElse(len(out) > 0, out, strings.ToLower(typeName+params.DefaultFileSuffix)))
 		})
 		if err != nil {
@@ -290,7 +296,10 @@ func run() error {
 		pkgTypes := outPkg.Types
 		pkgPath := outPkg.PkgPath
 
-		g := generator.New(params.Name, typeConfig.OutBuildTags, outFile, outFileInfo, pkgPath, pkgTypes)
+		g, err := generator.New(params.Name, typeConfig.OutBuildTags, outFile, outFileInfo, pkgPath, pkgTypes)
+		if err != nil {
+			return err
+		}
 		o := typ.Obj()
 		pp := o.Pkg()
 		_ = pp
@@ -363,7 +372,13 @@ func findPkgFile(fileSet *token.FileSet, pkgs c.Range[*packages.Package], output
 	pkgName := filepath.Base(dir)
 	logger.Debugf("findPkgFile: select package by name: %s, path %s", pkgName, dir)
 	firstPkg, ok := seq.First(pkgs.All, func(p *packages.Package) bool {
-		if fullPath := filepath.Join(p.Module.Dir, path.Base(p.PkgPath)); fullPath == dir {
+		if p == nil {
+			logger.Debugf("nil package")
+			return false
+		} else if model := p.Module; model == nil {
+			logger.Debugf("nil module of package (id %s, path %s)", p.ID, p.PkgPath)
+			return false
+		} else if fullPath := filepath.Join(model.Dir, path.Base(p.PkgPath)); fullPath == dir {
 			logger.Debugf("findPkgFile: found package by name %s, %v", pkgName, fullPath)
 			return true
 		} else {
