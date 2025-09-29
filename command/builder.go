@@ -76,9 +76,9 @@ func NewBuilderStruct() *Command {
 
 			tparams := typ.TypeParams()
 
-			btyp.SetTypeParams(seq.Slice(seq.Convert(seq.OfIndexed(tparams.Len(), tparams.At), func(tp *types.TypeParam) *types.TypeParam {
+			btyp.SetTypeParams(seq.Convert(seq.OfIndexed(tparams.Len(), tparams.At), func(tp *types.TypeParam) *types.TypeParam {
 				return types.NewTypeParam(tp.Obj(), tp.Constraint())
-			})))
+			}).Slice())
 
 			var exportMethods, exportFields, exportConstructor bool
 			for _, e := range *exports {

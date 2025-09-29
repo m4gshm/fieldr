@@ -119,7 +119,7 @@ func (g *Generator) GenerateEnumName(typ util.TypeNamedOrAlias, constValNamesMap
 	typParams := typ.TypeParams()
 
 	var (
-		returnSlice     = seq.Reduce(seq.Convert(seq2.Values(constValNamesMap.All), slice.Len), op.Max) > 1
+		returnSlice     = seq.Convert(seq2.Values(constValNamesMap.All), slice.Len).Reduce(op.Max) > 1
 		returnType      = op.IfElse(returnSlice, "[]string", "string")
 		receiverType    = GetTypeName(typeName, pkgName) + typeparams.New(typParams).IdentString(g.OutPkgPath)
 		receiverVar     = TypeReceiverVar(typeName)

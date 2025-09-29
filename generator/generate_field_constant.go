@@ -527,11 +527,11 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 	) + returnTypes + " {" + NoLint(nolint) + "\n" +
 		"if " + recVar + " == nil {\nreturn nil\n}\n" +
 		"switch " + argVar + " {\n" +
-		seq.Reduce(seq.Convert(seq.Of(constants...), func(constant FieldConst) string {
+		seq.Convert(seq.Of(constants...), func(constant FieldConst) string {
 			_, conditionPath, conditions := FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath, uniqueNames)
 			varsConditionStart, varsConditionEnd := split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum, op.Sum)
 			return "case " + constant.name + ":\n" + varsConditionStart + "return " + pref + conditionPath + "\n" + varsConditionEnd
-		}), op.Sum) +
+		}).Reduce(op.Sum) +
 		"}\nreturn " + returnNoCase + "}\n"
 
 	return body, use.If(isFunc, name).Else(MethodName(recType, name)), nil

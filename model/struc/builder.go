@@ -9,6 +9,7 @@ import (
 
 	"github.com/m4gshm/gollections/convert/as"
 	"github.com/m4gshm/gollections/map_"
+	"github.com/m4gshm/gollections/seq2"
 	"github.com/m4gshm/gollections/slice"
 
 	"github.com/m4gshm/fieldr/logger"
@@ -67,18 +68,6 @@ func (b *structModelBuilder) populateByStruct(model *Model) error {
 	outPkgPath := b.outPkgPath
 	loopControl := b.loopControl
 
-	typFile := model.TypFile
-
-	typeSpec := GetStructType(model.TypeName(), typFile)
-
-	var fields []*ast.Field
-	if typeSpec != nil {
-		f := typeSpec.Fields
-		if f != nil {
-			fields = f.List
-		}
-	}
-
 	typ := model.Typ
 	obj := typ.Obj()
 
@@ -89,15 +78,11 @@ func (b *structModelBuilder) populateByStruct(model *Model) error {
 	}
 
 	numFields := strucTyp.NumFields()
-	for i := 0; i < numFields; i++ {
-		field := slice.Get(fields, i)
-		fieldVar := strucTyp.Field(i)
+
+	for fieldVar, tag := range seq2.OfIndexedPair(numFields, strucTyp.Field, strucTyp.Tag) {
 		if !fieldVar.IsField() {
 			return fmt.Errorf("unexpected struct element, must be field, value %v, type %v", fieldVar, reflect.TypeOf(fieldVar))
 		}
-		// pos := fieldVar.Pos()
-		// b.model.TypFile.Package
-
 		fldName := fieldVar.Name()
 		if _, ok := model.FieldsType[fldName]; ok {
 			logger.Infof("duplicated field '%s'", fldName)
@@ -105,22 +90,13 @@ func (b *structModelBuilder) populateByStruct(model *Model) error {
 		}
 		model.FieldNames = append(model.FieldNames, fldName)
 
-		tagValues, fieldTagNames := parseTagValues(strucTyp.Tag(i))
+		tagValues, fieldTagNames := parseTagValues(tag)
 		populateFields(model, fldName, fieldTagNames, tagValues)
 		for _, fieldTagName := range fieldTagNames {
 			populateTags(model, fldName, fieldTagName, tagValues[fieldTagName])
 		}
 		fieldType := fieldVar.Type()
 		fieldTypeName := util.TypeString(fieldType, outPkgPath)
-		importFieldTypeName := ""
-		if field != nil {
-			importFieldTypeName = types.ExprString(field.Type)
-		}
-		_ = importFieldTypeName
-
-		// op.IfGetElse(field != nil,
-		// 	func() string { return types.ExprString(field.Type) },
-		// 	func() string { return util.TypeString(fieldType, outPkgPath) })
 
 		refDeep := 0
 		var fieldModel *Model

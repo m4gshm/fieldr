@@ -81,7 +81,7 @@ func FindTypeFile(typeNamed TypeNamedOrAlias, fileSet *token.FileSet, files []*a
 
 	logger.Debugf("found type file (type [%s], file [%s])'", typeObj.Id(), typFile.Name)
 
-	f, err := op.IfElseGetErr(ok, typFile, func() error { return fmt.Errorf("type's file not found: type %s", typeObj.Id()) })
+	f, err := op.IfElseErrf(ok, typFile, "type's file not found: type %s", typeObj.Id())
 	return typTokenFile.Name(), f, err
 }
 

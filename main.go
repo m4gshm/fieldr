@@ -17,14 +17,15 @@ import (
 	"strings"
 
 	"github.com/m4gshm/gollections/c"
+	"github.com/m4gshm/gollections/collection/immutable/ordered/set"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
 	"github.com/m4gshm/gollections/collection/mutable/ordered/map_"
-	"github.com/m4gshm/gollections/collection/mutable/ordered/set"
 	"github.com/m4gshm/gollections/convert"
 	"github.com/m4gshm/gollections/convert/as"
 	"github.com/m4gshm/gollections/error_"
 	"github.com/m4gshm/gollections/expr/get"
 	"github.com/m4gshm/gollections/op"
+	"github.com/m4gshm/gollections/op/check/not"
 	"github.com/m4gshm/gollections/seq"
 	"github.com/m4gshm/gollections/seqe"
 	"github.com/m4gshm/gollections/slice"
@@ -200,11 +201,8 @@ func run() error {
 	if logger.IsDebug() {
 		pkgsFiles := getAstFiles(pkgs)
 		logger.Debugf("source files amount %d", pkgsFiles.Len())
-
-		for file := range pkgsFiles.All {
-			if info := fileSet.File(file.Pos()); info != nil {
-				logger.Debugf("found source file %s", info.Name())
-			}
+		for f := range seq.Convert(seq.Convert(pkgsFiles.All, (*ast.File).Pos), fileSet.File).Filter(not.Nil) {
+			logger.Debugf("found source file %s", f.Name())
 		}
 	}
 
@@ -223,8 +221,9 @@ func run() error {
 			return fmt.Errorf("find type %s: %w", typeName, err)
 		} else if typ == nil {
 			return fmt.Errorf("type not found: %s", typeName)
+		} else if typPkg == nil {
+			return fmt.Errorf("type package not found: type %s", typeName)
 		}
-
 		outputName, err := get.If(typeConfig.Output == generator.Autoname, func() string {
 			outFileInfo := fileSet.File(typFile.Pos())
 			autoselected := outFileInfo.Name()
@@ -237,7 +236,7 @@ func run() error {
 			fileNamePart := ffn[:len(ffn)-len(ext)]
 			typeNamePart := strings.ToLower(util.ToCamelCase(typeName))
 			if typeNamePart != fileNamePart {
-				fileNamePart +="_"+typeNamePart
+				fileNamePart += "_" + typeNamePart
 			}
 			ofn := filepath.Join(fileNamePart + params.DefaultFileSuffix)
 			return abs(op.IfElse(len(out) > 0, out, ofn))
@@ -247,13 +246,10 @@ func run() error {
 		}
 		logger.Debugf("output file %s", outputName)
 
-		if typPkg == nil {
-			return fmt.Errorf("type package not found: type %s", typeName)
-		}
 		typModule := typPkg.Module
 		moduleDir := typModule.Dir
 
-		outPkg, outFile, outFileInfo, err := findPkgFile(fileSet, pkgs, outputName, moduleDir)
+		outPkg, outFile, outFileInfo, err := findPkgFile(fileSet, pkgs, outputName)
 		if err != nil {
 			return err
 		}
@@ -274,7 +270,7 @@ func run() error {
 
 			if outPkgs, err := loadFilePackage(dir, fileSet, buildTag); err != nil {
 				return err
-			} else if outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, outPkgs, outputName, moduleDir); err != nil {
+			} else if outPkg, outFile, outFileInfo, err = findPkgFile(fileSet, outPkgs, outputName); err != nil {
 				return fmt.Errorf("findPkgFile: out file %s :%w", outputName, err)
 			} else if outPkg == nil {
 				logger.Debugf("cannot determine output package, create new: output file '%s', moduleDir '%s', dir '%s'", outputName, moduleDir, dir)
@@ -332,11 +328,11 @@ func run() error {
 
 func getPkgFiles(p *packages.Package) []*ast.File { return p.Syntax }
 
-func getAstFiles(pkgs c.Range[*packages.Package]) *ordered.Set[*ast.File] {
+func getAstFiles(pkgs c.Range[*packages.Package]) c.Collection[*ast.File] {
 	return set.FromSeq(seq.Flat(pkgs.All, getPkgFiles))
 }
 
-func findPkgFile(fileSet *token.FileSet, pkgs c.Range[*packages.Package], outputName, moduleDir string) (*packages.Package, *ast.File, *token.File, error) {
+func findPkgFile(fileSet *token.FileSet, pkgs c.Range[*packages.Package], outputName string) (*packages.Package, *ast.File, *token.File, error) {
 	logger.Debugf("findPkgFile: outputName %s", outputName)
 
 	for pkg, file := range seq.KeyValues(pkgs.All, as.Is, getPkgFiles) {
@@ -426,7 +422,7 @@ type fileCommentArgs struct {
 
 func (f fileCommentArgs) CommentArgs() []commentArgs { return f.commentArgs }
 
-func getFilesCommentArgs(fileSet *token.FileSet, files c.Collection[*ast.File]) iter.Seq2[fileCommentArgs, error] {
+func getFilesCommentArgs(fileSet *token.FileSet, files c.Range[*ast.File]) iter.Seq2[fileCommentArgs, error] {
 	return seqe.ConvertOK(seq.Conv(files.All, func(file *ast.File) (*fileCommentArgs, error) {
 		ft := fileSet.File(file.Pos())
 		if args, err := getCommentArgs(file, ft); err != nil {
@@ -444,7 +440,8 @@ type commentArgs struct {
 }
 
 func getCommentArgs(file *ast.File, fInfo *token.File) ([]commentArgs, error) {
-	return seqe.Slice(seq.Conv(seq.Flat(seq.Of(file.Comments...), func(cg *ast.CommentGroup) []*ast.Comment { return cg.List }),
+	return seq.Conv(
+		seq.Flat(seq.Of(file.Comments...), func(cg *ast.CommentGroup) []*ast.Comment { return cg.List }),
 		func(comment *ast.Comment) (a commentArgs, err error) {
 			args, err := getCommentCmdArgs(comment.Text)
 			if err == nil && len(args) > 0 {
@@ -452,7 +449,7 @@ func getCommentArgs(file *ast.File, fInfo *token.File) ([]commentArgs, error) {
 			}
 			return commentArgs{comment: comment, args: args}, err
 		},
-	))
+	).Slice()
 }
 
 var commentCmdPrefix = "//" + params.CommentConfigPrefix
@@ -461,12 +458,12 @@ func getCommentCmdArgs(text string) ([]string, error) {
 	if len(text) > 0 && strings.HasPrefix(text, commentCmdPrefix) {
 		if configComment := text[len(commentCmdPrefix)+1:]; len(configComment) > 0 {
 			logger.Debugf("split comment args '%s'", configComment)
-			if args, err := splitArgs(configComment); err != nil {
+			args, err := splitArgs(configComment)
+			if err != nil {
 				return nil, fmt.Errorf("split cofig comment %v; %w", text, err)
-			} else {
-				logger.Debugf("comment args count %d, '%s'", len(args), strings.Join(args, ","))
-				return args, nil
 			}
+			logger.Debugf("comment args count %d, '%s'", len(args), strings.Join(args, ","))
+			return args, nil
 		}
 	}
 	return nil, nil
@@ -521,11 +518,11 @@ func splitArgs(rawArgs string) ([]string, error) {
 }
 
 func loadFilesPackages(fileSet *token.FileSet, inputs []string, buildTags []string) (*ordered.Set[*packages.Package], error) {
-	return seqe.Reducee(seq.Conv(seq.Of(inputs...), func(srcFile string) (*ordered.Set[*packages.Package], error) {
+	return seq.Conv(seq.Of(inputs...), func(srcFile string) (*ordered.Set[*packages.Package], error) {
 		return loadFilePackage(srcFile, fileSet, buildTags...)
-	}), func(l, r *ordered.Set[*packages.Package]) (*ordered.Set[*packages.Package], error) {
+	}).Reduce(func(l, r *ordered.Set[*packages.Package]) *ordered.Set[*packages.Package] {
 		_ = l.AddAllNew(r.All)
-		return l, nil
+		return l
 	})
 }
 

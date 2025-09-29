@@ -23,7 +23,6 @@ import (
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/seq"
 	"github.com/m4gshm/gollections/seq2"
-	"github.com/m4gshm/gollections/seqe"
 	"github.com/m4gshm/gollections/slice"
 	"github.com/m4gshm/gollections/slice/first"
 	"github.com/pkg/errors"
@@ -215,7 +214,7 @@ func (g *Generator) GetPackageNameOrAlias(pkgName, pkgPath string) (string, erro
 	}
 	if exists, ok := g.imports.Get(pkgPath); ok {
 		logger.Debugf("GetPackageNameOrAlias exists %s", exists)
-		alias, _ := seq.Head(exists.All)
+		alias, _ := exists.Head()
 		if len(alias) == 0 {
 			//name
 			return util.GetPackageName(pkgPath), nil
@@ -629,12 +628,11 @@ func (g *Generator) getImportsExpr() (string, error) {
 }
 
 func (g *Generator) getImports() *ast.GenDecl {
-	specs := seq.Slice(seq.Flat(seq2.ToSeq(g.imports.All, func(pkgPath string, aliases *mutable.Set[string]) []ast.Spec {
-		return seq.Slice(seq.Convert(aliases.All, func(alias string) ast.Spec { return newImport(alias, pkgPath) }))
-	}), as.Is))
 	return &ast.GenDecl{
-		Tok:   token.IMPORT,
-		Specs: specs,
+		Tok: token.IMPORT,
+		Specs: seq.Flat(seq2.ToSeq(g.imports.All, func(pkgPath string, aliases *mutable.Set[string]) []ast.Spec {
+			return seq.Convert(aliases.All, func(alias string) ast.Spec { return newImport(alias, pkgPath) }).Slice()
+		}), as.Is).Slice(),
 	}
 }
 
@@ -909,7 +907,7 @@ func (g *Generator) AddImport(pkgPath, alias string) (string, error) {
 		exists = &mutable.Set[string]{}
 		imports.Set(pkgPath, exists)
 	}
-	if existsAlias, ok := seq.Head(exists.All); ok {
+	if existsAlias, ok := exists.Head(); ok {
 		logger.Debugw("package already aliased (package [%s], alias [%s]", pkgPath, existsAlias)
 		return existsAlias, nil
 	}
@@ -1002,11 +1000,11 @@ func (g *Generator) RepackVar(vr *types.Var, basePackagePath string) (*types.Var
 
 func (g *Generator) RepackTuple(vr *types.Tuple, basePackagePath string) (*types.Tuple, error) {
 	repacked := false
-	r, err := seqe.Slice(seq.Conv(seq.OfIndexed(vr.Len(), vr.At), func(v *types.Var) (*types.Var, error) {
+	r, err := seq.Conv(seq.OfIndexed(vr.Len(), vr.At), func(v *types.Var) (*types.Var, error) {
 		rv, err := g.RepackVar(v, basePackagePath)
 		repacked = repacked || rv != v
 		return rv, err
-	}))
+	}).Slice()
 
 	if err != nil {
 		return nil, err

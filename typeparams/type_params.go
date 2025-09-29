@@ -20,7 +20,7 @@ type TypeParams seq.Seq[*types.TypeParam]
 type NamesConstraints = seq.Seq2[c.KV[string, string], error]
 
 func New(tparams *types.TypeParamList) TypeParams {
-	return seq.OfIndexed(tparams.Len(), tparams.At)
+	return TypeParams(seq.OfIndexed(tparams.Len(), tparams.At))
 }
 
 func (params TypeParams) NamesConstraints(basePkgPath string) NamesConstraints {
@@ -42,7 +42,7 @@ func (params TypeParams) Names(basePkgPath string) seq.Seq[string] {
 }
 
 func (params TypeParams) IdentString(basePkgPath string) string {
-	return string_.WrapNonEmpty("[", seq.Reduce(params.Names(basePkgPath), join.NonEmpty(", ")), "]")
+	return string_.WrapNonEmpty("[", params.Names(basePkgPath).Reduce(join.NonEmpty(", ")), "]")
 }
 
 func (params TypeParams) DeclarationString(basePkgPath string) string {

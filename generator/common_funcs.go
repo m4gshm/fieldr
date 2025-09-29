@@ -34,10 +34,10 @@ func MethodBody(name string, isFunc bool, methodReceiverVar, methodReceiverType,
 }
 
 func TypeParamsString(tparams *types.TypeParamList, basePkgPath string) string {
-	return string_.WrapNonEmpty("[", seq.Reduce(seq.Convert(seq.OfIndexed(tparams.Len(), tparams.At), func(elem *types.TypeParam) string {
+	return string_.WrapNonEmpty("[", seq.Convert(seq.OfIndexed(tparams.Len(), tparams.At), func(elem *types.TypeParam) string {
 		return use.If(elem == nil, "/*error: nil type parameter*/").ElseGet(
 			func() string { return util.TypeString(elem, basePkgPath) })
-	}), join.NonEmpty(", ")), "]")
+	}).Reduce(join.NonEmpty(", ")), "]")
 }
 
 func TypeParamsDeclarationString(list *types.TypeParamList, basePkgPath string) string {
@@ -45,7 +45,7 @@ func TypeParamsDeclarationString(list *types.TypeParamList, basePkgPath string) 
 		prevElem types.Type
 		noFirst  = false
 	)
-	return string_.WrapNonEmpty("[", seq.Reduce(seq.Convert(seq.OfIndexed(list.Len(), list.At), func(elem *types.TypeParam) string {
+	return string_.WrapNonEmpty("[", seq.Convert(seq.OfIndexed(list.Len(), list.At), func(elem *types.TypeParam) string {
 		s := use.If(elem == nil, "/*error: nil type parameter*/").ElseGet(func() string {
 			constraint := elem.Constraint()
 			s := use.If(!noFirst, "").IfGet(constraint != prevElem, sum.Of(" ", util.TypeString(prevElem, basePkgPath), ",")).Else(",")
@@ -54,5 +54,5 @@ func TypeParamsDeclarationString(list *types.TypeParamList, basePkgPath string) 
 		})
 		noFirst = true
 		return s
-	}), op.Sum)+get.If(prevElem != nil, func() string { return " " + util.TypeString(prevElem, basePkgPath) }).Else(""), "]")
+	}).Reduce(op.Sum)+get.If(prevElem != nil, func() string { return " " + util.TypeString(prevElem, basePkgPath) }).Else(""), "]")
 }

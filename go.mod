@@ -1,8 +1,6 @@
 module github.com/m4gshm/fieldr
 
-go 1.24
-
-toolchain go1.24.2
+go 1.25
 
 require (
 	github.com/expr-lang/expr v1.17.5
@@ -13,7 +11,7 @@ require (
 	golang.org/x/tools v0.32.0
 )
 
-require github.com/m4gshm/gollections v0.0.17-0.20250927174335-7bb3a55555e8
+require github.com/m4gshm/gollections v0.0.17-0.20250929211938-22eae6e7e11f
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
