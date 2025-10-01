@@ -19,7 +19,6 @@ import (
 	"github.com/m4gshm/gollections/collection/immutable/ordered/set"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
 	"github.com/m4gshm/gollections/collection/mutable/ordered/map_"
-	"github.com/m4gshm/gollections/convert"
 	"github.com/m4gshm/gollections/convert/as"
 	"github.com/m4gshm/gollections/error_"
 	"github.com/m4gshm/gollections/expr/get"
