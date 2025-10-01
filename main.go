@@ -8,7 +8,6 @@ import (
 	"go/token"
 	"go/types"
 	"io/fs"
-	"iter"
 	"log"
 	"os"
 	"path"
@@ -422,8 +421,8 @@ type fileCommentArgs struct {
 
 func (f fileCommentArgs) CommentArgs() []commentArgs { return f.commentArgs }
 
-func getFilesCommentArgs(fileSet *token.FileSet, files c.Range[*ast.File]) iter.Seq2[fileCommentArgs, error] {
-	return seqe.ConvertOK(seq.Conv(files.All, func(file *ast.File) (*fileCommentArgs, error) {
+func getFilesCommentArgs(fileSet *token.FileSet, files c.Range[*ast.File]) seq.SeqE[*fileCommentArgs] {
+	return seqe.NotNil(seq.Conv(files.All, func(file *ast.File) (*fileCommentArgs, error) {
 		ft := fileSet.File(file.Pos())
 		if args, err := getCommentArgs(file, ft); err != nil {
 			return nil, err
@@ -431,7 +430,7 @@ func getFilesCommentArgs(fileSet *token.FileSet, files c.Range[*ast.File]) iter.
 			return &fileCommentArgs{astFile: file, tokenFile: ft, commentArgs: args}, nil
 		}
 		return nil, nil
-	}), convert.NoNilPtrVal)
+	}))
 }
 
 type commentArgs struct {

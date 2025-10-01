@@ -17,14 +17,15 @@ import (
 var ErrNilTypeParam = errors.New("nil type parameter")
 
 type TypeParams seq.Seq[*types.TypeParam]
-type NamesConstraints = seq.Seq2[c.KV[string, string], error]
+type NamesConstraints = seq.SeqE[c.KV[string, string]]
+type StrKV = c.KV[string, string]
 
 func New(tparams *types.TypeParamList) TypeParams {
 	return TypeParams(seq.OfIndexed(tparams.Len(), tparams.At))
 }
 
 func (params TypeParams) NamesConstraints(basePkgPath string) NamesConstraints {
-	return seq.ToSeq2(params, func(elem *types.TypeParam) (c.KV[string, string], error) {
+	return seq.Conv(params, func(elem *types.TypeParam) (StrKV, error) {
 		if elem == nil {
 			return k.V("", ""), ErrNilTypeParam
 		}
@@ -33,7 +34,7 @@ func (params TypeParams) NamesConstraints(basePkgPath string) NamesConstraints {
 }
 
 func (params TypeParams) Names(basePkgPath string) seq.Seq[string] {
-	return seq2.ToSeq(params.NamesConstraints(basePkgPath), func(nameConstraint c.KV[string, string], err error) string {
+	return seq2.ToSeq(params.NamesConstraints(basePkgPath), func(nameConstraint StrKV, err error) string {
 		if err != nil {
 			return fmt.Sprintf("error: %s", err.Error())
 		}
@@ -46,13 +47,13 @@ func (params TypeParams) IdentString(basePkgPath string) string {
 }
 
 func (params TypeParams) DeclarationString(basePkgPath string) string {
-	nameConstraints := seq2.Convert(params.NamesConstraints(basePkgPath), func(nameConstraint c.KV[string, string], err error) (string, string) {
+	nameConstraints := seq2.Convert(params.NamesConstraints(basePkgPath), func(nameConstraint StrKV, err error) (string, string) {
 		if err != nil {
 			return fmt.Sprintf("/*error: %s*/", err.Error()), ""
 		}
 		return nameConstraint.K, nameConstraint.V
 	})
-	joinedStr := seq2.Reduce(nameConstraints, func(prev *c.KV[string, string], name, constraint string) c.KV[string, string] {
+	joinedStr := seq2.Reduce(nameConstraints, func(prev *StrKV, name, constraint string) StrKV {
 		if prev != nil {
 			prevConstraint := prev.V
 			prevName := prev.K
