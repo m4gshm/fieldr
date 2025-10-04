@@ -12,6 +12,7 @@ import (
 	"github.com/m4gshm/gollections/op/delay/replace"
 	"github.com/m4gshm/gollections/op/delay/string_/wrap"
 	"github.com/m4gshm/gollections/op/delay/sum"
+	"github.com/m4gshm/gollections/predicate/always"
 	"github.com/m4gshm/gollections/seq"
 	"github.com/m4gshm/gollections/slice/split"
 
@@ -102,10 +103,9 @@ func NewBuilderStruct() *Command {
 			constrMethodName := generator.LegalIdentName(generator.IdentName(op.IfElse(autogen, default_constructor, *buildMethodName), exportMethods))
 
 			params := typeparams.New(model.Typ.TypeParams())
-			typeParams := params.IdentString(g.OutPkgPath)
-			typeParamsDecl := params.DeclarationString(g.OutPkgPath)
+			typeParams, typeParamsDecl := params.IdentDeclStrings(g.OutPkgPath)
 			uniqueNames := unique.NewNamesWith(unique.DistinctBySuffix("_"))
-			seq.ForEach(params.Names(g.OutPkgPath), uniqueNames.Add)
+			params.Names(g.OutPkgPath).ForEach(uniqueNames.Add)
 
 			receiver := uniqueNames.Get("b")
 			logger.Debugf("constrMethodName %v", constrMethodName)
@@ -127,8 +127,13 @@ func NewBuilderStruct() *Command {
 				return err
 			}
 
+			_, createInstance, err := constructor.GenerateConstructorArgs(g, uniqueNames, builderName, typeParams, nil, false, false, always.True)
+			if err != nil {
+				return err
+			}
+
 			builderConstructorMethodName, builderConstructorMethodBody := constructor.New(*newBuilderMethodName, builderName,
-				typeParamsDecl, typeParams, uniqueNames.Get("r"), false, exportConstructor, *nolint, "", "", nil)
+				typeParamsDecl, typeParams, uniqueNames.Get("r"), false, exportConstructor, *nolint, "", createInstance, nil)
 			instanceConstructorMethodBody := "func (" + receiver + " " + builderType + ") " + constrMethodName + "() " +
 				op.IfElse(*buildValue, "", "*") + buildedType + typeParams +
 				" {" + generator.NoLint(*nolint) + "\n" +

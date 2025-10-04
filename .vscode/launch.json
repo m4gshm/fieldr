@@ -171,7 +171,7 @@
                 "get-set"
             ]
         },
-                {
+        {
             "name": "Debug get-set internal example",
             "type": "go",
             "request": "launch",
@@ -195,11 +195,14 @@
             "program": "main.go",
             "cwd": "internal/examples/new_opt",
             "args": [
-                "-debug",
-                "-type",
-                "Entity",
-                "new-opt"
-            ]
+             "-debug",
+            //     "-type",
+            //     "Entity",
+            //     "new-opt",
+            //     "-return-value",
+            //     "-required",
+            //     "ID"
+             ]
         },
         {
             "name": "Debug builder example",

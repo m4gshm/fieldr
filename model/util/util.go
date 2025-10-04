@@ -105,6 +105,7 @@ type TypeNamedOrAlias interface {
 	types.Type
 	Underlying() types.Type
 	Obj() *types.TypeName
+	TypeArgs() *types.TypeList
 	TypeParams() *types.TypeParamList
 }
 

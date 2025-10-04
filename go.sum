@@ -16,6 +16,8 @@ github.com/m4gshm/gollections v0.0.17-0.20251001100611-62909eac71a3 h1:4SitqMBj6
 github.com/m4gshm/gollections v0.0.17-0.20251001100611-62909eac71a3/go.mod h1:vtUI4QqmSMNeyO+p6BGdjUfJDd3IA55x1G4ZyBBox74=
 github.com/m4gshm/gollections v0.0.17-0.20251001105713-f856bdc9317a h1:wLc47roKZ4wnaAUxUQIeDU0ldmL/Ct4buCPtP5NhMLI=
 github.com/m4gshm/gollections v0.0.17-0.20251001105713-f856bdc9317a/go.mod h1:vtUI4QqmSMNeyO+p6BGdjUfJDd3IA55x1G4ZyBBox74=
+github.com/m4gshm/gollections v0.0.17-0.20251004164826-49285384cb1d h1:nrfIV8CocCIkz5NwAdMDUvpruXy/PWULyhThKMY6zt0=
+github.com/m4gshm/gollections v0.0.17-0.20251004164826-49285384cb1d/go.mod h1:vtUI4QqmSMNeyO+p6BGdjUfJDd3IA55x1G4ZyBBox74=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

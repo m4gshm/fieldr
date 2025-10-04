@@ -330,7 +330,7 @@ func getAstFiles(pkgs c.Range[*packages.Package]) c.Collection[*ast.File] {
 	return set.FromSeq(seq.Flat(pkgs.All, getPkgFiles))
 }
 
-func findPkgFile(fileSet *token.FileSet, pkgs c.Range[*packages.Package], outputName string) (*packages.Package, *ast.File, *token.File, error) {
+func findPkgFile(fileSet *token.FileSet, pkgs c.Collection[*packages.Package], outputName string) (*packages.Package, *ast.File, *token.File, error) {
 	logger.Debugf("findPkgFile: outputName %s", outputName)
 
 	for pkg, file := range seq.KeyValues(pkgs.All, as.Is, getPkgFiles) {
@@ -367,7 +367,7 @@ func findPkgFile(fileSet *token.FileSet, pkgs c.Range[*packages.Package], output
 
 	pkgName := filepath.Base(dir)
 	logger.Debugf("findPkgFile: select package by name: %s, path %s", pkgName, dir)
-	firstPkg, ok := seq.First(pkgs.All, func(p *packages.Package) bool {
+	firstPkg, ok := pkgs.First(func(p *packages.Package) bool {
 		if p == nil {
 			logger.Debugf("nil package")
 			return false
@@ -438,8 +438,7 @@ type commentArgs struct {
 }
 
 func getCommentArgs(file *ast.File, fInfo *token.File) ([]commentArgs, error) {
-	return seq.Conv(
-		seq.Flat(seq.Of(file.Comments...), func(cg *ast.CommentGroup) []*ast.Comment { return cg.List }),
+	return seq.Conv(seq.Flat(seq.Of(file.Comments...), func(cg *ast.CommentGroup) []*ast.Comment { return cg.List }),
 		func(comment *ast.Comment) (a commentArgs, err error) {
 			args, err := getCommentCmdArgs(comment.Text)
 			if err == nil && len(args) > 0 {

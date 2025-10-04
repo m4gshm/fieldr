@@ -2,7 +2,8 @@ package new_full
 
 //go:generate fieldr -debug
 
-//go:fieldr -type Entity new-full -return-value
+//go:fieldr -type Entity new-full -return-value -flat
+//go:fieldr -type Entity new-full -name New2
 
 import (
 	"bytes"

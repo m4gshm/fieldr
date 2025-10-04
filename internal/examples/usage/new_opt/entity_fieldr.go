@@ -2,23 +2,13 @@
 
 package new_opt
 
-func NewEntity[ID any](opts ...func(*Entity[ID])) Entity[ID] {
+func NewEntity[ID any](
+	opts ...func(*Entity[ID])) Entity[ID] {
 	r := Entity[ID]{}
 	for _, opt := range opts {
 		opt(&r)
 	}
 	return r
-}
-
-func WithID[ID any](id ID) func(e *Entity[ID]) {
-	return func(e *Entity[ID]) {
-		m := e.Model
-		if m == nil {
-			m = new(Model[ID])
-			e.Model = m
-		}
-		m.ID = id
-	}
 }
 
 func WithCreatedAt[ID any](createdAt int64) func(e *Entity[ID]) {

@@ -3,6 +3,11 @@ package command
 import (
 	"flag"
 
+	"github.com/m4gshm/gollections/collection"
+	"github.com/m4gshm/gollections/collection/immutable"
+	"github.com/m4gshm/gollections/collection/mutable"
+	"github.com/m4gshm/gollections/op"
+
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/generator/constructor"
 	"github.com/m4gshm/fieldr/logger"
@@ -10,11 +15,6 @@ import (
 	"github.com/m4gshm/fieldr/params"
 	"github.com/m4gshm/fieldr/typeparams"
 	"github.com/m4gshm/fieldr/unique"
-
-	"github.com/m4gshm/gollections/collection"
-	"github.com/m4gshm/gollections/collection/mutable"
-	"github.com/m4gshm/gollections/op"
-	"github.com/m4gshm/gollections/seq"
 )
 
 func NewNewOpt() *Command {
@@ -28,8 +28,11 @@ func NewNewOpt() *Command {
 		noConstructor   = flagSet.Bool("options-only", false, "generate option functions only")
 		noExportMethods = flagSet.Bool("no-export", false, "no export generated methods")
 		returnVal       = flagSet.Bool("return-value", false, "returns value instead of pointer")
+		flat            = flagSet.Bool("flat", false, "makes fields of emmbedded types constructor arguments")
 		nolint          = params.Nolint(flagSet)
+		required        = params.MultiValFixed(flagSet, "required", nil, nil, "required arguments")
 	)
+
 	return New(
 		cmdName, "generates a struct creation function with optional arguments",
 		flagSet,
@@ -43,16 +46,21 @@ func NewNewOpt() *Command {
 			if err != nil {
 				return err
 			}
+			requird := immutable.NewSet(*required...)
 			if !(*noConstructor) {
 				params := typeparams.New(model.Typ.TypeParams())
-				typeParams := params.IdentString(g.OutPkgPath)
-				typeParamsDecl := params.DeclarationString(g.OutPkgPath)
+				typeParams, typeParamsDecl := params.IdentDeclStrings(g.OutPkgPath)
 				uniqueNames := unique.NewNamesWith(unique.DistinctBySuffix("_"))
-				seq.ForEach(params.Names(g.OutPkgPath), uniqueNames.Add)
+				params.Names(g.OutPkgPath).ForEach(uniqueNames.Add)
 
+				args, createInstance, err := constructor.GenerateConstructorArgs(g, uniqueNames, model.TypeName(),
+					typeParams, model.FieldsNameAndType, *returnVal, *flat, requird.Contains)
+				if err != nil {
+					return err
+				}
 				constrName, constructorBody := constructor.New(*name, model.TypeName(), typeParamsDecl,
 					typeParams, uniqueNames.Get("r"), *returnVal, !(*noExportMethods), *nolint,
-					"opts... func(*"+model.TypeName()+typeParams+")", "",
+					args+"opts... func(*"+model.TypeName()+typeParams+")", createInstance,
 					func(receiver string) string {
 						return "for _, opt := range opts {\nopt(" + op.IfElse(*returnVal, "&", "") + receiver + ")\n}"
 					})
@@ -64,7 +72,7 @@ func NewNewOpt() *Command {
 			if suffix != nil && *suffix == generator.Autoname {
 				*suffix = model.TypeName()
 			}
-			fieldMethods, err := generateOptionFuncs(g, model, model, pkgName, rec, *suffix, !(*noExportMethods), *nolint, nil)
+			fieldMethods, err := generateOptionFuncs(g, model, model, pkgName, rec, *suffix, !(*noExportMethods), *nolint, nil, requird.Contains)
 			if err != nil {
 				return err
 			}
@@ -80,7 +88,7 @@ func NewNewOpt() *Command {
 
 func generateOptionFuncs(
 	g *generator.Generator, baseModel, fieldsModel *struc.Model, pkgName, receiverVar, suffix string,
-	exportMethods, nolint bool, parentFieldInfo []generator.FieldInfo,
+	exportMethods, nolint bool, parentFieldInfo []generator.FieldInfo, isExclude func(struc.FieldName) bool,
 ) (collection.Map[string, string], error) {
 	logger.Debugf("generate option function: receiver %s, type %s, suffix %s", receiverVar, baseModel.TypeName(), suffix)
 	fieldMethods := mutable.NewMapOrdered[string, string]()
@@ -90,12 +98,12 @@ func generateOptionFuncs(
 		} else if fieldType.Embedded {
 			embeddedFieldMethods, err := generateOptionFuncs(
 				g, baseModel, fieldType.Model, pkgName, receiverVar, suffix, exportMethods, nolint,
-				append(parentFieldInfo, generator.FieldInfo{Name: fieldType.Name, Type: fieldType}))
+				append(parentFieldInfo, generator.FieldInfo{Name: fieldType.Name, Type: fieldType}), isExclude)
 			if err != nil {
 				return nil, err
 			}
 			fieldMethods.SetMap(embeddedFieldMethods)
-		} else {
+		} else if !isExclude(fieldName) {
 			fullFieldType, err := g.GetFullFieldTypeName(fieldType, false)
 			if err != nil {
 				return nil, err

@@ -8,23 +8,22 @@ import (
 	"time"
 )
 
-func NewEntity[ID any](opts ...func(*Entity[ID])) *Entity[ID] {
-	r := &Entity[ID]{}
+func NewEntity[ID any](
+	ID_ ID,
+	opts ...func(*Entity[ID])) *Entity[ID] {
+	r := &Entity[ID]{
+		E: &E[ID]{
+			ID: ID_,
+			RefCodeAwareEntity: &RefCodeAwareEntity{
+				CodeAwareEntity: &CodeAwareEntity{},
+			},
+			foreignIDAwareEntity: foreignIDAwareEntity[ID]{},
+		},
+	}
 	for _, opt := range opts {
 		opt(r)
 	}
 	return r
-}
-
-func WithID[ID any](id ID) func(e *Entity[ID]) {
-	return func(e *Entity[ID]) {
-		e1 := e.E
-		if e1 == nil {
-			e1 = new(E[ID])
-			e.E = e1
-		}
-		e1.ID = id
-	}
 }
 
 func WithCode[ID any](code string) func(e *Entity[ID]) {

@@ -29,7 +29,9 @@ func (params TypeParams) NamesConstraints(basePkgPath string) NamesConstraints {
 		if elem == nil {
 			return k.V("", ""), ErrNilTypeParam
 		}
-		return k.V(util.TypeString(elem, basePkgPath), util.TypeString(elem.Constraint(), basePkgPath)), nil
+		nam := util.TypeString(elem, basePkgPath)
+		typ := util.TypeString(elem.Constraint(), basePkgPath)
+		return k.V(nam, typ), nil
 	})
 }
 
@@ -42,11 +44,15 @@ func (params TypeParams) Names(basePkgPath string) seq.Seq[string] {
 	})
 }
 
+func (params TypeParams) IdentDeclStrings(basePkgPath string) (string, string) {
+	return params.IdentString(basePkgPath), params.declarationString(basePkgPath)
+}
+
 func (params TypeParams) IdentString(basePkgPath string) string {
 	return string_.WrapNonEmpty("[", params.Names(basePkgPath).Reduce(join.NonEmpty(", ")), "]")
 }
 
-func (params TypeParams) DeclarationString(basePkgPath string) string {
+func (params TypeParams) declarationString(basePkgPath string) string {
 	nameConstraints := seq2.Convert(params.NamesConstraints(basePkgPath), func(nameConstraint StrKV, err error) (string, string) {
 		if err != nil {
 			return fmt.Sprintf("/*error: %s*/", err.Error()), ""

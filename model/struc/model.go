@@ -45,9 +45,11 @@ func (f *FieldType) FullName(outPkgPath string) string {
 }
 
 func (m *Model) FieldsNameAndType(yield func(FieldName, FieldType) bool) {
-	for _, fn := range m.FieldNames {
-		if !yield(fn, m.FieldsType[fn]) {
-			break
+	if m != nil {
+		for _, fn := range m.FieldNames {
+			if !yield(fn, m.FieldsType[fn]) {
+				break
+			}
 		}
 	}
 }

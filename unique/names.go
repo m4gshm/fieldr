@@ -21,9 +21,7 @@ type Names struct {
 }
 
 func PreInit(suffix ...string) func(*Names) {
-	return func(un *Names) {
-		seq.ForEach(seq.Of(suffix...), un.Add)
-	}
+	return func(un *Names) { seq.Of(suffix...).ForEach(un.Add) }
 }
 
 func DistinctBySuffix(suffix string) func(*Names) {
