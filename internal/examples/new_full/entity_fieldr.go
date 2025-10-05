@@ -9,7 +9,9 @@ import (
 )
 
 func NewEntity[ID any](
-	E *E[ID],
+	ID_ ID,
+	Code string,
+	ForeignID ID,
 	metadata struct {
 		Schema  string
 		Version int
@@ -26,6 +28,49 @@ func NewEntity[ID any](
 	OldForeignID *foreignIDAwareEntity[ID],
 ) Entity[ID] {
 	return Entity[ID]{
+		E: &E[ID]{
+			ID: ID_,
+			RefCodeAwareEntity: &RefCodeAwareEntity{
+				CodeAwareEntity: &CodeAwareEntity{
+					Code: Code,
+				},
+			},
+			foreignIDAwareEntity: foreignIDAwareEntity[ID]{
+				ForeignID: ForeignID,
+			},
+		},
+		metadata:     metadata,
+		NoDB:         NoDB,
+		name:         name,
+		surname:      surname,
+		Values:       Values,
+		Ts:           Ts,
+		versioned:    versioned,
+		channel:      channel,
+		someMap:      someMap,
+		Embedded:     Embedded,
+		OldForeignID: OldForeignID,
+	}
+}
+
+func New2[ID any](
+	E *E[ID],
+	metadata struct {
+		Schema  string
+		Version int
+	},
+	NoDB NoDBFieldsEntity,
+	name StringBasedType[string],
+	surname StringBasedAlias,
+	Values []int32,
+	Ts []*time.Time,
+	versioned sql_base.VersionedEntity,
+	channel chan map[time.Time]string,
+	someMap map[StringBasedType[string]]bytes.Buffer,
+	Embedded EmbeddedEntity,
+	OldForeignID *foreignIDAwareEntity[ID],
+) *Entity[ID] {
+	return &Entity[ID]{
 		E:            E,
 		metadata:     metadata,
 		NoDB:         NoDB,

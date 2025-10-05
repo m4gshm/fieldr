@@ -203,11 +203,11 @@ generates `enum_fieldr.go`
 include::../examples/usage/enrich_enum/enum_fieldr.go[]
 ----
 
-and `stringenum_fieldr.go`
+and `enum_string_enum_fieldr.go`
 
 [source,go]
 ----
-include::../examples/usage/enrich_enum/stringenum_fieldr.go[]
+include::../examples/usage/enrich_enum/enum_string_enum_fieldr.go[]
 ----
 
 

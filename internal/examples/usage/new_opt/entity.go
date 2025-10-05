@@ -1,6 +1,6 @@
 package new_opt
 
-//go:generate fieldr -type Entity new-opt -return-value
+//go:generate fieldr -type Entity new-opt -return-value -required ID
 type Entity[ID any] struct {
 	*Model[ID]
 	Name string

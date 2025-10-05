@@ -9,13 +9,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/collection/mutable/ordered"
 	"github.com/m4gshm/gollections/collection/mutable/ordered/set"
 	"github.com/m4gshm/gollections/expr/use"
-	"github.com/m4gshm/gollections/map_"
 	"github.com/m4gshm/gollections/op"
+	"github.com/m4gshm/gollections/slice"
 	"golang.org/x/tools/go/packages"
 
 	"github.com/m4gshm/fieldr/logger"
@@ -53,37 +54,35 @@ func GetDir(fileName string) (string, error) {
 	return use.If(!isNoExists && fileStat.IsDir(), fileName).ElseGet(func() string { return filepath.Dir(fileName) }), nil
 }
 
-func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.Range[*packages.Package]) (TypeNamedOrAlias, *packages.Package, *ast.File, error) {
+func FindTypePackageFile(typeName string, fileSet *token.FileSet, pkgs c.Range[*packages.Package]) (TypeNamedOrAlias, *packages.Package, string, *ast.File, error) {
 	for pkg := range pkgs.All {
-		pkgTypes := pkg.Types
-		if lookup := pkgTypes.Scope().Lookup(typeName); lookup == nil {
-			logger.Debugf("no type '%s' in package '%s'", typeName, pkgTypes.Name())
+		if lookup := pkg.Types.Scope().Lookup(typeName); lookup == nil {
+			logger.Debugf("no type '%s' in package '%s'", typeName, pkg.Types.Name())
 			continue
 		} else if typeNamed, _ := GetTypeNamed(lookup.Type()); typeNamed == nil {
-			return nil, nil, nil, fmt.Errorf("cannot detect type '%s'", typeName)
+			return nil, nil, "", nil, fmt.Errorf("cannot detect type '%s'", typeName)
 		} else {
-			var resultFile *ast.File
 			logger.Debugf("look package '%s', syntax file count %d", pkg.Name, len(pkg.Syntax))
-			for _, file := range pkg.Syntax {
-				if tokenFile := fileSet.File(file.Pos()); tokenFile != nil {
-					fileName := tokenFile.Name()
-					logger.Debugf("file by position '%d', name %s", file.Pos(), fileName)
-					if lookup := file.Scope.Lookup(typeName); lookup == nil {
-						types := map_.Keys(file.Scope.Objects)
-						logger.Debugf("no type '%s' in file '%s', package '%s', types %#v", typeName, fileName, pkgTypes.Name(), types)
-					} else if _, ok := lookup.Decl.(*ast.TypeSpec); !ok {
-						return nil, nil, nil, fmt.Errorf("type '%s' is not struct in file '%s'", typeName, fileName)
-					} else {
-						resultFile = file
-						logger.Debugf("found type file '%s'", fileName)
-						break
-					}
-				}
-			}
-			return typeNamed, pkg, resultFile, nil
+			filePath, typFile, err := FindTypeFile(typeNamed, fileSet, pkg.Syntax)
+			return typeNamed, pkg, filePath, typFile, err
 		}
 	}
-	return nil, nil, nil, nil
+	return nil, nil, "", nil, nil
+}
+
+func FindTypeFile(typeNamed TypeNamedOrAlias, fileSet *token.FileSet, files []*ast.File) (string, *ast.File, error) {
+	typeObj := typeNamed.Obj()
+	typTokenFile := fileSet.File(typeObj.Pos())
+
+	typFile, ok := slice.First(files, func(p *ast.File) bool {
+		start := typTokenFile.Base()
+		return p.FileStart == token.Pos(start) && p.FileEnd == token.Pos(start+typTokenFile.Size())
+	})
+
+	logger.Debugf("found type file (type [%s], file [%s])'", typeObj.Id(), typFile.Name)
+
+	f, err := op.IfElseErrf(ok, typFile, "type's file not found: type %s", typeObj.Id())
+	return typTokenFile.Name(), f, err
 }
 
 func GetTypeUnderPointer(typ types.Type) (types.Type, int) {
@@ -95,7 +94,7 @@ func GetTypeUnderPointer(typ types.Type) (types.Type, int) {
 		t, p := GetTypeUnderPointer(ftt.Underlying())
 		if p == 0 {
 			return ftt, 0
-		} 
+		}
 		return t, p
 	default:
 		return typ, 0
@@ -106,6 +105,7 @@ type TypeNamedOrAlias interface {
 	types.Type
 	Underlying() types.Type
 	Obj() *types.TypeName
+	TypeArgs() *types.TypeList
 	TypeParams() *types.TypeParamList
 }
 
@@ -119,6 +119,10 @@ func GetTypeNamed(typ types.Type) (TypeNamedOrAlias, int) {
 		return ftt, 0
 	case *types.Alias:
 		return ftt, 0
+	//todo
+	// case *types.Array:
+	// 	t, p := GetTypeNamed(ftt.Elem())
+	// 	return t, p
 	case *types.Pointer:
 		t, p := GetTypeNamed(ftt.Elem())
 		return t, p + 1
@@ -178,4 +182,49 @@ func basePackQ(outPkgPath string) func(p *types.Package) string {
 	return func(p *types.Package) string {
 		return op.IfElse(p.Path() == outPkgPath, "", p.Name())
 	}
+}
+
+func GetPackageName(pkgPath string) string {
+	j := len(pkgPath)
+	i := j - 1
+	for ; i >= 0; i-- {
+		if pkgPath[i] == '/' {
+			part := pkgPath[i+1 : j]
+			if !isVersionElement(part) {
+				return part
+			}
+			j = i
+		}
+	}
+	return pkgPath[i+1 : j]
+}
+
+// isVersionElement reports whether s is a well-formed path version element:
+// v2, v3, v10, etc, but not v0, v05, v1.
+func isVersionElement(pkgName string) bool {
+	if len(pkgName) < 2 || pkgName[0] != 'v' || pkgName[1] == '0' || pkgName[1] == '1' && len(pkgName) == 2 {
+		return false
+	}
+	for i := 1; i < len(pkgName); i++ {
+		if pkgName[i] < '0' || '9' < pkgName[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func ToCamelCase(s string) string {
+	out := []rune{}
+	in := []rune(s)
+	for i, l := range in {
+		switch {
+		case l == ' ':
+			out = append(out, '_')
+		case unicode.IsUpper(l) && i > 0 && unicode.IsLower(in[i-1]):
+			out = append(out, '_', l)
+		default:
+			out = append(out, l)
+		}
+	}
+	return string(out)
 }

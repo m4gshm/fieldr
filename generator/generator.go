@@ -8,7 +8,6 @@ import (
 	"go/printer"
 	"go/token"
 	"go/types"
-	"io/ioutil"
 	"log"
 	"reflect"
 	"sort"
@@ -16,10 +15,13 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/m4gshm/gollections/map_"
+	"github.com/m4gshm/gollections/collection/mutable"
+	"github.com/m4gshm/gollections/convert/as"
+	"github.com/m4gshm/gollections/expr/get"
+	"github.com/m4gshm/gollections/expr/use"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/seq"
-	"github.com/m4gshm/gollections/seqe"
+	"github.com/m4gshm/gollections/seq2"
 	"github.com/m4gshm/gollections/slice"
 	"github.com/m4gshm/gollections/slice/first"
 	"github.com/pkg/errors"
@@ -27,12 +29,16 @@ import (
 
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/model/struc"
-	model "github.com/m4gshm/fieldr/model/util"
+	"github.com/m4gshm/fieldr/model/util"
+	"os"
 )
 
 const oneLineSize = 3
 
 const Autoname = "."
+
+type PkgPath = string
+type PkgAlias = string
 
 type Generator struct {
 	name string
@@ -57,13 +63,10 @@ type Generator struct {
 	funcNames    []string
 	funcBodies   funcBodies
 
-	imports map[string]packageImport
+	imports       *mutable.Map[PkgPath, *mutable.Set[PkgAlias]]
+	importUniques map[PkgAlias]PkgPath
 
 	rewriteOutFile bool
-}
-
-type packageImport struct {
-	name, alias string
 }
 
 type funcBodies map[string]funcBody
@@ -121,8 +124,8 @@ func (c constants) nvMap() map[string]string {
 	return r
 }
 
-func New(name, outBuildTags string, outFile *ast.File, outFileInfo *token.File, pkgPath string, pkgTypes *types.Package) *Generator {
-	return &Generator{
+func New(name, outBuildTags string, outFile *ast.File, outFileInfo *token.File, pkgPath string, pkgTypes *types.Package) (*Generator, error) {
+	g := &Generator{
 		name:           name,
 		outBuildTags:   outBuildTags,
 		outFile:        outFile,
@@ -139,12 +142,28 @@ func New(name, outBuildTags string, outFile *ast.File, outFileInfo *token.File, 
 		structBodies:   map[string]string{},
 		funcNames:      []string{},
 		funcBodies:     make(map[string]funcBody),
-		imports:        map[string]packageImport{},
+		imports:        mutable.NewMap[string, *mutable.Set[string]](),
+		importUniques:  map[PkgAlias]PkgPath{},
 		rewriteOutFile: isRewrite(outFile, outFileInfo, generatedMarker(name)),
 	}
+	if outFile != nil {
+		for _, imp := range outFile.Imports {
+			rawPath := types.ExprString(imp.Path)
+			path, err := strconv.Unquote(rawPath)
+			if err != nil {
+				return nil, fmt.Errorf("unqote iport path failed '%s'", rawPath)
+			}
+
+			alias := get.If(imp.Name != nil, func() string { return imp.Name.Name }).Else("")
+			if _, err := g.AddImport(path, alias); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return g, nil
 }
 
-func (g *Generator) writeBody(format string, args ...interface{}) {
+func (g *Generator) writeBody(format string, args ...any) {
 	if _, err := fmt.Fprintf(g.body, format, args...); err != nil {
 		log.Print(fmt.Errorf("writeBody; %w", err))
 	}
@@ -188,14 +207,19 @@ func OutPackageName(outPackageName string, outPackage *packages.Package) string 
 }
 
 func (g *Generator) GetPackageNameOrAlias(pkgName, pkgPath string) (string, error) {
-	logger.Debugf("GetPackageNameOrAlias pkgName %s, pkgPath %s", pkgName, pkgPath)
 	needImport := pkgPath != g.OutPkgPath
+	logger.Debugf("GetPackageNameOrAlias pkgName %s, pkgPath %s, needImport %b", pkgName, pkgPath, needImport)
 	if !needImport {
 		return "", nil
 	}
-	if exists, ok := g.imports[pkgPath]; ok {
+	if exists, ok := g.imports.Get(pkgPath); ok {
 		logger.Debugf("GetPackageNameOrAlias exists %s", exists)
-		return exists.name, nil
+		alias, _ := exists.Head()
+		if len(alias) == 0 {
+			//name
+			return util.GetPackageName(pkgPath), nil
+		}
+		return alias, nil
 	}
 	pkgAlias := pkgName
 	if !g.rewriteOutFile {
@@ -236,7 +260,7 @@ func (g *Generator) GetPackageNameOrAlias(pkgName, pkgPath string) (string, erro
 		if name == pkgAlias {
 			importAlias = ""
 		}
-		if _, err := g.AddImport(pkgPath, name, importAlias); err != nil {
+		if _, err := g.AddImport(pkgPath, importAlias); err != nil {
 			return "", err
 		}
 	}
@@ -275,7 +299,7 @@ func (g *Generator) WriteBody(outPackageName string) error {
 			return fmt.Errorf("get inject chunks %s: %w", name, err)
 		}
 
-		fileBytes, err := ioutil.ReadFile(name)
+		fileBytes, err := os.ReadFile(name)
 		if err != nil {
 			return fmt.Errorf("read file %s: %w", name, err)
 		}
@@ -384,10 +408,6 @@ func (g *Generator) getInjectChunks(outFile *ast.File, base int) (map[int]map[in
 				start := int(dt.Pos()) - base
 				end := int(dt.End()) - base
 				imports := g.getImports()
-				if len(imports.Specs) == 0 {
-					imports.Specs = []ast.Spec{}
-				}
-				imports.Specs = append(imports.Specs, dt.Specs...)
 				out := &bytes.Buffer{}
 				if err := writeSpecs(imports, out); err != nil {
 					return nil, err
@@ -598,8 +618,10 @@ func (g *Generator) getImportsExpr() (string, error) {
 
 func (g *Generator) getImports() *ast.GenDecl {
 	return &ast.GenDecl{
-		Tok:   token.IMPORT,
-		Specs: map_.Slice(g.imports, func(pack string, imp packageImport) ast.Spec { return newImport(imp.alias, pack) }),
+		Tok: token.IMPORT,
+		Specs: seq.Flat(seq2.ToSeq(g.imports.All, func(pkgPath string, aliases *mutable.Set[string]) []ast.Spec {
+			return seq.Convert(aliases.All, func(alias string) ast.Spec { return newImport(alias, pkgPath) }).Slice()
+		}), as.Is).Slice(),
 	}
 }
 
@@ -795,12 +817,6 @@ func (g *Generator) addConst(name, value, typ string) error {
 	return nil
 }
 
-func (g *Generator) addVarDelim() {
-	if len(g.varNames) > 0 {
-		g.varNames = append(g.varNames, "")
-	}
-}
-
 func (g *Generator) AddFuncDecl(node *ast.FuncDecl) error {
 	funcName := FuncDeclName(node)
 	if exists, ok := g.funcBodies[funcName]; ok {
@@ -868,24 +884,48 @@ func (g *Generator) AddFuncOrMethod(name, body string) error {
 	return nil
 }
 
-func (g *Generator) AddImport(pack, name, alias string) (string, error) {
-	if len(pack) == 0 {
+func (g *Generator) AddImport(pkgPath, alias string) (string, error) {
+	imports := g.imports
+	importUniques := g.importUniques
+
+	if len(pkgPath) == 0 {
 		return "", errors.New("empty package cannot be imported")
 	}
-	if exists, ok := g.imports[pack]; ok {
-		if exists.alias != alias {
-			logger.Debugf("package alredy imported: package %s, exists alias %s, proposed %s", exists, pack, alias)
-		}
-		return exists.alias, nil
+	exists, _ := imports.Get(pkgPath)
+	if exists == nil {
+		exists = &mutable.Set[string]{}
+		imports.Set(pkgPath, exists)
 	}
-	g.imports[pack] = packageImport{name: name, alias: alias}
-	logger.Debugf("AddImport: package %s, alias %s", pack, alias)
+	if existsAlias, ok := exists.Head(); ok {
+		// logger.Debugf("package already imported (package '%s', alias '%s'", pkgPath, existsAlias)
+		return existsAlias, nil
+	}
+
+	uniquePkgName := use.If(len(alias) > 0, alias).ElseGet(func() string { return util.GetPackageName(pkgPath) })
+
+	if existsPkgPath, ok := importUniques[uniquePkgName]; ok && existsPkgPath != pkgPath {
+		uniquePkgName = getUniqueImportName(uniquePkgName, pkgPath, importUniques)
+		alias = uniquePkgName
+	}
+	importUniques[uniquePkgName] = pkgPath
+
+	exists.Add(alias)
+	logger.Debugf("AddImport: package '%s', alias '%s'", pkgPath, alias)
 	return alias, nil
+}
+
+func getUniqueImportName(alias, pkgPath string, importUniques map[PkgAlias]PkgPath) string {
+	for i := 1; ; i++ {
+		newAlias := fmt.Sprintf("%s%d", alias, i)
+		if existsPkgPath, ok := importUniques[newAlias]; !ok || existsPkgPath == pkgPath {
+			return newAlias
+		}
+	}
 }
 
 func renameFuncByConfig(funcName, renameTo string) string {
 	if len(renameTo) > 0 {
-		logger.Debugw("rename func %v to %v", funcName, renameTo)
+		logger.Debugw("rename func %s to %s", funcName, renameTo)
 		funcName = renameTo
 	}
 	return funcName
@@ -919,7 +959,7 @@ func (g *Generator) ImportPack(pkg *types.Package, basePackagePath string) (*typ
 		return pkg, nil
 	}
 	pkgPath := pkg.Path()
-	if pkgAlias, err := g.AddImport(pkgPath, pkg.Name(), ""); err != nil {
+	if pkgAlias, err := g.AddImport(pkgPath, ""); err != nil {
 		return nil, err
 	} else if len(pkgAlias) > 0 {
 		return types.NewPackage(pkgPath, pkgAlias), nil
@@ -949,11 +989,11 @@ func (g *Generator) RepackVar(vr *types.Var, basePackagePath string) (*types.Var
 
 func (g *Generator) RepackTuple(vr *types.Tuple, basePackagePath string) (*types.Tuple, error) {
 	repacked := false
-	r, err := seqe.Slice(seq.Conv(seq.OfIndexed(vr.Len(), vr.At), func(v *types.Var) (*types.Var, error) {
+	r, err := seq.Conv(seq.OfIndexed(vr.Len(), vr.At), func(v *types.Var) (*types.Var, error) {
 		rv, err := g.RepackVar(v, basePackagePath)
 		repacked = repacked || rv != v
 		return rv, err
-	}))
+	}).Slice()
 
 	if err != nil {
 		return nil, err
@@ -1054,9 +1094,9 @@ func (g *Generator) GetFullFieldTypeName(fieldType struc.FieldType, baseType boo
 	}
 	if baseType {
 		//extract the base typeName for a pointer type
-		typ, _ = model.GetTypeNamed(typ)
+		typ, _ = util.GetTypeNamed(typ)
 	}
-	return model.TypeString(typ, g.OutPkgPath), nil
+	return util.TypeString(typ, g.OutPkgPath), nil
 }
 
 func NoLint(nolint bool) string {

@@ -52,8 +52,7 @@ func GetFieldConditionalPartsAccessInfo(receiverVar string, fieldParts []FieldIn
 	for _, part := range fieldParts {
 		fieldPath += op.IfElse(len(fieldPath) > 0, ".", "") + part.Name
 		partShortPath := get.If(len(shortVar) > 0, sum.Of(shortVar, ".", part.Name)).Else("")
-		partType := part.Type
-		if partType.RefDeep == 0 {
+		if partType := part.Type; partType.RefDeep == 0 {
 			shortVar = partShortPath
 		} else {
 			parthShortVar := uniqueNames.Get(PathToShortVarName(part.Name))

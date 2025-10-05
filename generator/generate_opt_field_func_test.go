@@ -21,7 +21,7 @@ func Test_NexExpr(t *testing.T) {
 	pkgs, err := util.ExtractPackages(fileSet, nil, filename)
 	assert.NoError(t, err)
 
-	typ, _, _, err := util.FindTypePackageFile("rrs", fileSet, pkgs)
+	typ, _, _, _, err := util.FindTypePackageFile("rrs", fileSet, pkgs)
 	assert.NoError(t, err)
 
 	res := generateNewObjectExpr(typ, "", "s")

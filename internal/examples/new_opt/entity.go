@@ -2,7 +2,7 @@ package new_opt
 
 //go:generate fieldr -debug
 
-//go:fieldr -type Entity new-opt
+//go:fieldr -type Entity new-opt -required ID -flat
 
 import (
 	"bytes"

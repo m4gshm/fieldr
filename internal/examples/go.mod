@@ -6,12 +6,11 @@ require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/jackc/pgx/v4 v4.17.2
 	github.com/lib/pq v1.10.9
-	github.com/m4gshm/gollections v0.0.16
+	github.com/m4gshm/gollections v0.0.17-0.20251004231242-d78f61b20d2a
 	github.com/pressly/goose/v3 v3.24.3
 	github.com/rs/zerolog v1.28.0
 	github.com/simukti/sqldb-logger v0.0.0-20220521163925-faf2f2be0eb6
 	github.com/simukti/sqldb-logger/logadapter/zerologadapter v0.0.0-20220521163925-faf2f2be0eb6
-	github.com/stretchr/testify v1.10.0
 	github.com/stretchr/testify v1.10.0
 )
 

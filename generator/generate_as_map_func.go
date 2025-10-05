@@ -44,7 +44,7 @@ func (g *Generator) GenerateAsMapFunc(
 }
 
 func generateMapInits(mapVar, recVar string, rewriter *CodeRewriter, constants []FieldConst, model *struc.Model) string {
-	return seq.Reduce(seq.Convert(seq.Of(constants...), func(constant FieldConst) string {
+	return seq.Convert(seq.Of(constants...), func(constant FieldConst) string {
 		var (
 			_, conditionPath, conditions         = FiledPathAndAccessCheckCondition(recVar, false, false, constant.fieldPath, unique.NewNamesWith(unique.PreInit(recVar)))
 			varsConditionStart, varsConditionEnd = split.AndReduce(conditions, wrap.By("if ", " {\n"), replace.By("}\n"), op.Sum, op.Sum)
@@ -52,5 +52,5 @@ func generateMapInits(mapVar, recVar string, rewriter *CodeRewriter, constants [
 			revr, _                              = rewriter.Transform(field.Name, field.Type.FullName(model.OutPkgPath), conditionPath)
 		)
 		return varsConditionStart + mapVar + "[" + constant.name + "]= " + revr + "\n" + varsConditionEnd
-	}), op.Sum)
+	}).Reduce(op.Sum)
 }

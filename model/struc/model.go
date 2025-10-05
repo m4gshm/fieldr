@@ -2,6 +2,7 @@ package struc
 
 import (
 	"fmt"
+	"go/ast"
 	"go/types"
 
 	"github.com/m4gshm/fieldr/model/util"
@@ -30,9 +31,7 @@ type (
 	//Model struct type model.
 	Model struct {
 		Typ            util.TypeNamedOrAlias
-		typeName       string
-		RefDeep        int
-		pkg            *types.Package
+		TypFile        *ast.File
 		OutPkgPath     string
 		FieldsTagValue map[FieldName]map[TagName]TagValue
 		TagsFieldValue map[TagName]map[FieldName]TagValue
@@ -46,28 +45,39 @@ func (f *FieldType) FullName(outPkgPath string) string {
 }
 
 func (m *Model) FieldsNameAndType(yield func(FieldName, FieldType) bool) {
-	for _, fn := range m.FieldNames {
-		if !yield(fn, m.FieldsType[fn]) {
-			break
+	if m != nil {
+		for _, fn := range m.FieldNames {
+			if !yield(fn, m.FieldsType[fn]) {
+				break
+			}
 		}
 	}
 }
 
 func (m *Model) Package() *types.Package {
-	return m.pkg
+	return m.Typ.Obj().Pkg()
 }
 
 func (m *Model) TypeName() string {
-	return m.typeName
+	return m.Typ.Obj().Name()
 }
 
+func (m *Model) TypeNameFull(outPkgPath string) string {
+	return util.TypeString(m.Type(), outPkgPath)
+}
+
+func (m *Model) Type() types.Type {
+	return m.Typ.Obj().Type()
+}
+
+
 // New - Model's default constructor.
-func New(outPkgPath string, structType util.TypeNamedOrAlias) (*Model, error) {
-	structModel, err := newBuilder(outPkgPath, handledStructs{}).newModel(structType)
+func New(outPkgPath string, typ util.TypeNamedOrAlias, typFile *ast.File) (*Model, error) {
+	structModel, err := NewModel(outPkgPath, HandledStructs{}, typ, typFile)
 	if err != nil {
-		return nil, fmt.Errorf("new model of %+v: %w", structType, err)
+		return nil, fmt.Errorf("new model of %+v: %w", typ, err)
 	} else if structModel == nil {
-		return nil, fmt.Errorf("nil model for type %+v", structType)
+		return nil, fmt.Errorf("nil model for type %+v", typ)
 	}
 	return structModel, nil
 }

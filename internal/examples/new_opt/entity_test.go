@@ -8,8 +8,8 @@ import (
 
 func Test_EmbeddedGetSet(t *testing.T) {
 	code := "code"
-
 	entity := NewEntity(
+		1,
 		WithCode[int](code),
 		WithMetadata[int](struct {
 			Schema  string
