@@ -10,7 +10,8 @@ import (
 
 func NewEntity[ID any](
 	ID_ ID,
-	opts ...func(*Entity[ID])) *Entity[ID] {
+	opts ...func(*Entity[ID]),
+) *Entity[ID] {
 	r := &Entity[ID]{
 		E: &E[ID]{
 			ID: ID_,

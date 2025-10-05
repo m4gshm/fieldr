@@ -58,9 +58,10 @@ func NewNewOpt() *Command {
 				if err != nil {
 					return err
 				}
+				arguments := args + "opts... func(*" + model.TypeName() + typeParams + ")" + op.IfElse(len(args) > 0, ",\n", "")
 				constrName, constructorBody := constructor.New(*name, model.TypeName(), typeParamsDecl,
 					typeParams, uniqueNames.Get("r"), *returnVal, !(*noExportMethods), *nolint,
-					args+"opts... func(*"+model.TypeName()+typeParams+")", createInstance,
+					arguments, createInstance,
 					func(receiver string) string {
 						return "for _, opt := range opts {\nopt(" + op.IfElse(*returnVal, "&", "") + receiver + ")\n}"
 					})

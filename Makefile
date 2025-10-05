@@ -1,3 +1,6 @@
+.ONESHELL:
+.SHELLFLAGS += -e
+
 .PHONY: all
 all: build test test-examples readme
 
