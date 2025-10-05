@@ -8,7 +8,6 @@ import (
 	"go/printer"
 	"go/token"
 	"go/types"
-	"io/ioutil"
 	"log"
 	"reflect"
 	"sort"
@@ -31,6 +30,7 @@ import (
 	"github.com/m4gshm/fieldr/logger"
 	"github.com/m4gshm/fieldr/model/struc"
 	"github.com/m4gshm/fieldr/model/util"
+	"os"
 )
 
 const oneLineSize = 3
@@ -299,7 +299,7 @@ func (g *Generator) WriteBody(outPackageName string) error {
 			return fmt.Errorf("get inject chunks %s: %w", name, err)
 		}
 
-		fileBytes, err := ioutil.ReadFile(name)
+		fileBytes, err := os.ReadFile(name)
 		if err != nil {
 			return fmt.Errorf("read file %s: %w", name, err)
 		}

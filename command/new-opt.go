@@ -77,7 +77,7 @@ func NewNewOpt() *Command {
 				return err
 			}
 			for fieldMethodName, fieldMethodBody := range fieldMethods.All {
-				if err := g.AddMethod(model.TypeName(), fieldMethodName, fieldMethodBody); err != nil {
+				if err := g.AddFuncOrMethod(fieldMethodName, fieldMethodBody); err != nil {
 					return err
 				}
 			}
