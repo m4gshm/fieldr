@@ -53,7 +53,7 @@ func NewNewOpt() *Command {
 				uniqueNames := unique.NewNamesWith(unique.DistinctBySuffix("_"))
 				params.Names(g.OutPkgPath).ForEach(uniqueNames.Add)
 
-				args, createInstance, err := constructor.GenerateConstructorArgs(g, uniqueNames, model.TypeName(),
+				args, createInstance, err := constructor.GenerateConstructorArgs(g, uniqueNames, "", model.TypeName(),
 					typeParams, model.FieldsNameAndType, *returnVal, *flat, requird.Contains)
 				if err != nil {
 					return err

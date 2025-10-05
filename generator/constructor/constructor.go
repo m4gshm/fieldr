@@ -54,7 +54,7 @@ func FullArgs(g *generator.Generator, model *struc.Model, constructorName string
 	typeName := model.TypeName()
 
 	fields := model.FieldsNameAndType
-	args, createInstance, err := GenerateConstructorArgs(g, uniqueNames, typeName, typeParams, fields, returnVal, flat, always.True)
+	args, createInstance, err := GenerateConstructorArgs(g, uniqueNames, "", typeName, typeParams, fields, returnVal, flat, always.True)
 	if err != nil {
 		return "", "", err
 	}
@@ -65,34 +65,55 @@ func FullArgs(g *generator.Generator, model *struc.Model, constructorName string
 var noFields = seq2.Of[struc.FieldName, struc.FieldType]()
 
 func GenerateConstructorArgs(
-	g *generator.Generator, uniqueNames *unique.Names, typeName string, typeParams string,
+	g *generator.Generator, uniqueNames *unique.Names, typePkg, typeName string, typeParams string,
 	fields seq.Seq2[struc.FieldName, struc.FieldType],
 	returnVal, flat bool, isInclude func(struc.FieldName) bool,
 ) (string, string, error) {
 	var args, initInstace string
 	for fieldName, fieldType := range op.IfElse(fields != nil, fields, noFields) {
 		deepRef := fieldType.RefDeep > 1
+		val := fieldType.RefDeep == 0
+		fieldModel := fieldType.Model
 		if !deepRef && fieldType.Embedded && flat {
-			model := fieldType.Model
-			typ := model.Typ
+			typ := fieldModel.Typ
 			typeParams := typeargs.New(typ.TypeArgs()).IdentString(g.OutPkgPath)
-			val := fieldType.RefDeep == 0
-			eargs, eCreateInstance, err := GenerateConstructorArgs(g, uniqueNames, model.TypeName(), typeParams, model.FieldsNameAndType, val, flat, isInclude)
+			typeName := fieldModel.TypeName()
+			typePkgName, err := g.GetPackageNameOrAlias(fieldModel.Package().Name(), fieldModel.Package().Path())
+			if err != nil {
+				return "", "", err
+			}
+			eargs, eCreateInstance, err := GenerateConstructorArgs(g, uniqueNames, typePkgName, typeName, typeParams,
+				fieldModel.FieldsNameAndType, val, flat, isInclude)
 			if err != nil {
 				return "", "", err
 			}
 			args += eargs
 			initInstace += fieldName + ":" + eCreateInstance + op.IfElse(len(eCreateInstance) > 0, ",\n", "")
 		} else if isInclude(fieldName) {
-			fullFieldType, err := g.GetFullFieldTypeName(fieldType, false)
-			if err != nil {
-				return "", "", err
+			if inline := fieldType.Embedded && fieldModel != nil && len(fieldModel.FieldNames) == 0; inline {
+				typePkgName, err := g.GetPackageNameOrAlias(fieldModel.Package().Name(), fieldModel.Package().Path())
+				if err != nil {
+					return "", "", err
+				}
+				typeName := fieldModel.TypeName()
+				_, eCreateInstance, err := GenerateConstructorArgs(g, uniqueNames, typePkgName, typeName, typeParams,
+					fieldModel.FieldsNameAndType, val, false, always.True)
+				if err != nil {
+					return "", "", err
+				}
+				initInstace += fieldName + ":" + eCreateInstance + ",\n"
+			} else {
+				fullFieldType, err := g.GetFullFieldTypeName(fieldType, false)
+				if err != nil {
+					return "", "", err
+				}
+				argName := uniqueNames.Get(fieldName)
+				args += argName + " " + fullFieldType + ",\n"
+				initInstace += fieldName + ":" + argName + ",\n"
 			}
-			argName := uniqueNames.Get(fieldName)
-			args += argName + " " + fullFieldType + ",\n"
-			initInstace += fieldName + ":" + argName + ",\n"
 		}
 	}
-	createInstance := op.IfElse(returnVal, "", "&") + typeName + typeParams + "{ " + op.IfElse(len(initInstace) > 0, "\n", "") + initInstace + " }"
+	createInstance := op.IfElse(returnVal, "", "&") + typePkg + op.IfElse(len(typePkg) > 0, ".", "") +
+		typeName + typeParams + "{ " + op.IfElse(len(initInstace) > 0, "\n", "") + initInstace + " }"
 	return args, createInstance, nil
 }
