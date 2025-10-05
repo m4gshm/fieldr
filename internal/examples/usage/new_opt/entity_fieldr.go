@@ -3,12 +3,12 @@
 package new_opt
 
 func NewEntity[ID any](
-	ID_ ID,
+	id ID,
 	opts ...func(*Entity[ID]),
 ) *Entity[ID] {
 	r := &Entity[ID]{
 		Model: &Model[ID]{
-			ID: ID_,
+			ID: id,
 		},
 	}
 	for _, opt := range opts {

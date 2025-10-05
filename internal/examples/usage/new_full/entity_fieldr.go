@@ -3,11 +3,11 @@
 package new_full
 
 func NewEntity[ID any](
-	Model *Model[ID],
-	Name string,
+	model *Model[ID],
+	name string,
 ) *Entity[ID] {
 	return &Entity[ID]{
-		Model: Model,
-		Name:  Name,
+		Model: model,
+		Name:  name,
 	}
 }

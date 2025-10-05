@@ -9,12 +9,12 @@ import (
 )
 
 func NewEntity[ID any](
-	ID_ ID,
+	id ID,
 	opts ...func(*Entity[ID]),
 ) *Entity[ID] {
 	r := &Entity[ID]{
 		E: &E[ID]{
-			ID: ID_,
+			ID: id,
 			RefCodeAwareEntity: &RefCodeAwareEntity{
 				CodeAwareEntity: &CodeAwareEntity{},
 			},

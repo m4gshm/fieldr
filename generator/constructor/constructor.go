@@ -107,7 +107,7 @@ func GenerateConstructorArgs(
 				if err != nil {
 					return "", "", err
 				}
-				argName := uniqueNames.Get(fieldName)
+				argName := uniqueNames.Get(generator.ArgName(fieldName))
 				args += argName + " " + fullFieldType + ",\n"
 				initInstace += fieldName + ":" + argName + ",\n"
 			}

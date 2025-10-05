@@ -309,12 +309,12 @@ generates `entity_fieldr.go`
 package new_opt
 
 func NewEntity[ID any](
-    ID_ ID,
+    id ID,
     opts ...func(*Entity[ID]),
 ) *Entity[ID] {
     r := &Entity[ID]{
         Model: &Model[ID]{
-            ID: ID_,
+            ID: id,
         },
     }
     for _, opt := range opts {
@@ -384,12 +384,12 @@ generates `entity_fieldr.go`
 package new_full
 
 func NewEntity[ID any](
-    Model *Model[ID],
-    Name string,
+    model *Model[ID],
+    name string,
 ) *Entity[ID] {
     return &Entity[ID]{
-        Model: Model,
-        Name:  Name,
+        Model: model,
+        Name:  name,
     }
 }
 ```

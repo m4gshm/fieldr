@@ -9,79 +9,79 @@ import (
 )
 
 func NewEntity[ID any](
-	ID_ ID,
-	Code string,
-	ForeignID ID,
+	id ID,
+	code string,
+	foreignID ID,
 	metadata struct {
 		Schema  string
 		Version int
 	},
-	NoDB NoDBFieldsEntity,
+	noDB NoDBFieldsEntity,
 	name StringBasedType[string],
 	surname StringBasedAlias,
-	Values []int32,
-	Ts []*time.Time,
+	values []int32,
+	ts []*time.Time,
 	versioned sql_base.VersionedEntity,
 	channel chan map[time.Time]string,
 	someMap map[StringBasedType[string]]bytes.Buffer,
-	Embedded EmbeddedEntity,
-	OldForeignID *foreignIDAwareEntity[ID],
+	embedded EmbeddedEntity,
+	oldForeignID *foreignIDAwareEntity[ID],
 ) Entity[ID] {
 	return Entity[ID]{
 		E: &E[ID]{
-			ID: ID_,
+			ID: id,
 			RefCodeAwareEntity: &RefCodeAwareEntity{
 				CodeAwareEntity: &CodeAwareEntity{
-					Code: Code,
+					Code: code,
 				},
 			},
 			foreignIDAwareEntity: foreignIDAwareEntity[ID]{
-				ForeignID: ForeignID,
+				ForeignID: foreignID,
 			},
 		},
 		metadata:     metadata,
-		NoDB:         NoDB,
+		NoDB:         noDB,
 		name:         name,
 		surname:      surname,
-		Values:       Values,
-		Ts:           Ts,
+		Values:       values,
+		Ts:           ts,
 		versioned:    versioned,
 		channel:      channel,
 		someMap:      someMap,
-		Embedded:     Embedded,
-		OldForeignID: OldForeignID,
+		Embedded:     embedded,
+		OldForeignID: oldForeignID,
 	}
 }
 
 func New2[ID any](
-	E *E[ID],
+	e *E[ID],
 	metadata struct {
 		Schema  string
 		Version int
 	},
-	NoDB NoDBFieldsEntity,
+	noDB NoDBFieldsEntity,
 	name StringBasedType[string],
 	surname StringBasedAlias,
-	Values []int32,
-	Ts []*time.Time,
+	values []int32,
+	ts []*time.Time,
 	versioned sql_base.VersionedEntity,
 	channel chan map[time.Time]string,
 	someMap map[StringBasedType[string]]bytes.Buffer,
-	Embedded EmbeddedEntity,
-	OldForeignID *foreignIDAwareEntity[ID],
+	embedded EmbeddedEntity,
+	oldForeignID *foreignIDAwareEntity[ID],
 ) *Entity[ID] {
 	return &Entity[ID]{
-		E:            E,
+		E:            e,
 		metadata:     metadata,
-		NoDB:         NoDB,
+		NoDB:         noDB,
 		name:         name,
 		surname:      surname,
-		Values:       Values,
-		Ts:           Ts,
+		Values:       values,
+		Ts:           ts,
 		versioned:    versioned,
 		channel:      channel,
 		someMap:      someMap,
-		Embedded:     Embedded,
-		OldForeignID: OldForeignID,
+		Embedded:     embedded,
+		OldForeignID: oldForeignID,
 	}
 }
