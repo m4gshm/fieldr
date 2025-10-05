@@ -908,7 +908,7 @@ func (g *Generator) AddImport(pkgPath, alias string) (string, error) {
 		imports.Set(pkgPath, exists)
 	}
 	if existsAlias, ok := exists.Head(); ok {
-		logger.Debugw("package already aliased (package [%s], alias [%s]", pkgPath, existsAlias)
+		// logger.Debugf("package already imported (package '%s', alias '%s'", pkgPath, existsAlias)
 		return existsAlias, nil
 	}
 
@@ -921,7 +921,7 @@ func (g *Generator) AddImport(pkgPath, alias string) (string, error) {
 	importUniques[uniquePkgName] = pkgPath
 
 	exists.Add(alias)
-	logger.Debugf("AddImport: package %s, alias %s", pkgPath, alias)
+	logger.Debugf("AddImport: package '%s', alias '%s'", pkgPath, alias)
 	return alias, nil
 }
 

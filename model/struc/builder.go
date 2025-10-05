@@ -84,8 +84,14 @@ func (b *structModelBuilder) populateByStruct(model *Model) error {
 			return fmt.Errorf("unexpected struct element, must be field, value %v, type %v", fieldVar, reflect.TypeOf(fieldVar))
 		}
 		fldName := fieldVar.Name()
-		if _, ok := model.FieldsType[fldName]; ok {
-			logger.Infof("duplicated field '%s'", fldName)
+		fieldType := fieldVar.Type()
+		fieldTypeName := util.TypeString(fieldType, outPkgPath)
+		if fldName == "_" {
+			logger.Debugf("ignore _ field (struct '%s', type '%s')",
+				model.TypeNameFull(outPkgPath), fieldTypeName)
+		} else if t, ok := model.FieldsType[fldName]; ok {
+			logger.Infof("duplicated field (struct '%s', field '%s', type '%s', duplicated type '%s')",
+				model.TypeNameFull(outPkgPath), fldName, util.TypeString(t.Type, outPkgPath), fieldTypeName)
 			continue
 		}
 		model.FieldNames = append(model.FieldNames, fldName)
@@ -95,8 +101,6 @@ func (b *structModelBuilder) populateByStruct(model *Model) error {
 		for _, fieldTagName := range fieldTagNames {
 			populateTags(model, fldName, fieldTagName, tagValues[fieldTagName])
 		}
-		fieldType := fieldVar.Type()
-		fieldTypeName := util.TypeString(fieldType, outPkgPath)
 
 		refDeep := 0
 		var fieldModel *Model
@@ -107,7 +111,7 @@ func (b *structModelBuilder) populateByStruct(model *Model) error {
 			fieldTypeName = typeName
 			if deep {
 				if fmodel, ok := loopControl[strucTyp]; ok {
-					logger.Debugf("found handled type %v", typeName)
+					// logger.Debugf("found handled type (struct '%s', field '%s', type %s)", model.TypeNameFull(outPkgPath), fldName, typeName)
 					fieldModel = fmodel
 				} else if model, err := NewModel(outPkgPath, loopControl, strucTyp, model.TypFile); err != nil {
 					return fmt.Errorf("nested field %v.%v; %w", typeName, fldName, err)

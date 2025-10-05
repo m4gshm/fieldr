@@ -62,6 +62,15 @@ func (m *Model) TypeName() string {
 	return m.Typ.Obj().Name()
 }
 
+func (m *Model) TypeNameFull(outPkgPath string) string {
+	return util.TypeString(m.Type(), outPkgPath)
+}
+
+func (m *Model) Type() types.Type {
+	return m.Typ.Obj().Type()
+}
+
+
 // New - Model's default constructor.
 func New(outPkgPath string, typ util.TypeNamedOrAlias, typFile *ast.File) (*Model, error) {
 	structModel, err := NewModel(outPkgPath, HandledStructs{}, typ, typFile)
