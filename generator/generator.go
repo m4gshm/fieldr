@@ -408,7 +408,6 @@ func (g *Generator) getInjectChunks(outFile *ast.File, base int) (map[int]map[in
 				start := int(dt.Pos()) - base
 				end := int(dt.End()) - base
 				imports := g.getImports()
-				imports.Specs = merge(imports.Specs, dt.Specs)
 				out := &bytes.Buffer{}
 				if err := writeSpecs(imports, out); err != nil {
 					return nil, err
@@ -506,16 +505,6 @@ func (g *Generator) getInjectChunks(outFile *ast.File, base int) (map[int]map[in
 		}
 	}
 	return chunks, nil
-}
-
-func merge(newSpecs []ast.Spec, existsSpecs []ast.Spec) []ast.Spec {
-	// slice.Map(existsSpecs, func(s ast.Spec) string {
-	// 	ispec := s.(*ast.ImportSpec)
-	// 	return ispec.Name.Name
-	// }, as.Is)
-	// newVar := append(newSpecs, existsSpecs...)
-	//todo
-	return newSpecs
 }
 
 func (g *Generator) addReceiverFuncOnRewrite(list []*ast.Field, name string, chunks map[int]map[int]string, start, end int) (bool, error) {
