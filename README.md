@@ -284,7 +284,7 @@ source `entity.go`
 ``` go
 package new_opt
 
-//go:generate fieldr -type Entity new-opt -return-value -required ID
+//go:generate fieldr -type Entity new-opt -return-value -flat -required ID
 type Entity[ID any] struct {
     *Model[ID]
     Name string
@@ -309,8 +309,13 @@ generates `entity_fieldr.go`
 package new_opt
 
 func NewEntity[ID any](
+    ID_ ID,
     opts ...func(*Entity[ID])) Entity[ID] {
-    r := Entity[ID]{}
+    r := Entity[ID]{
+        Model: &Model[ID]{
+            ID: ID_,
+        },
+    }
     for _, opt := range opts {
         opt(&r)
     }
