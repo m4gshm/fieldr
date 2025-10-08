@@ -127,7 +127,7 @@ func NewBuilderStruct() *Command {
 				return err
 			}
 
-			_, createInstance, err := constructor.GenerateConstructorArgs(g, uniqueNames, "", builderName, typeParams, nil, false, false, always.True)
+			_, createInstance, err := constructor.GenerateConstructorArgs(g, uniqueNames, "", builderName, typeParams, nil, false, false, false, always.True)
 			if err != nil {
 				return err
 			}

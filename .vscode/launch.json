@@ -55,6 +55,22 @@
                 "db"
             ]
         },
+                {
+            "name": "Debug ReserveService",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "C:/alex/github/m4gshm/distributed-transactions-practice/golang/reserve/service/grpc/impl/",
+            "args": [
+                "-debug",
+                "-type",
+                "ReserveService",
+                "-out",
+                ".",
+                "new-full"
+            ]
+        },
         {
             "name": "Debug sql example",
             "type": "go",

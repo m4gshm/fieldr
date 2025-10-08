@@ -208,7 +208,7 @@ func OutPackageName(outPackageName string, outPackage *packages.Package) string 
 
 func (g *Generator) GetPackageNameOrAlias(pkgName, pkgPath string) (string, error) {
 	needImport := pkgPath != g.OutPkgPath
-	logger.Debugf("GetPackageNameOrAlias pkgName %s, pkgPath %s, needImport %b", pkgName, pkgPath, needImport)
+	logger.Debugf("GetPackageNameOrAlias pkgName %s, pkgPath %s, needImport %t", pkgName, pkgPath, needImport)
 	if !needImport {
 		return "", nil
 	}
@@ -955,7 +955,9 @@ func (g *Generator) filterInjected() {
 }
 
 func (g *Generator) ImportPack(pkg *types.Package, basePackagePath string) (*types.Package, error) {
-	if pkg.Path() == basePackagePath {
+	if pkg == nil {
+		return nil, nil
+	} else if pkg.Path() == basePackagePath {
 		return pkg, nil
 	}
 	pkgPath := pkg.Path()
@@ -968,6 +970,9 @@ func (g *Generator) ImportPack(pkg *types.Package, basePackagePath string) (*typ
 }
 
 func (g *Generator) RepackObj(typName *types.TypeName, basePackagePath string) (*types.TypeName, error) {
+	if typName == nil {
+		return nil, nil
+	}
 	pkg := typName.Pkg()
 	if ipgk, err := g.ImportPack(pkg, basePackagePath); err != nil {
 		return nil, err
@@ -978,16 +983,29 @@ func (g *Generator) RepackObj(typName *types.TypeName, basePackagePath string) (
 }
 
 func (g *Generator) RepackVar(vr *types.Var, basePackagePath string) (*types.Var, error) {
+	if vr == nil {
+		return nil, nil
+	}
 	pkg := vr.Pkg()
-	if ipgk, err := g.ImportPack(pkg, basePackagePath); err != nil {
+	typ := vr.Type()
+	ntyp, err := g.Repack(typ, basePackagePath)
+	if err != nil {
 		return nil, err
-	} else if pkg != ipgk {
-		return types.NewVar(vr.Pos(), ipgk, vr.Name(), vr.Type()), nil
+	}
+	ipgk, err := g.ImportPack(pkg, basePackagePath)
+	if err != nil {
+		return nil, err
+	}
+	if pkg != ipgk || typ != ntyp {
+		return types.NewVar(vr.Pos(), ipgk, vr.Name(), ntyp), nil
 	}
 	return vr, nil
 }
 
 func (g *Generator) RepackTuple(vr *types.Tuple, basePackagePath string) (*types.Tuple, error) {
+	if vr == nil {
+		return nil, nil
+	}
 	repacked := false
 	r, err := seq.Conv(seq.OfIndexed(vr.Len(), vr.At), func(v *types.Var) (*types.Var, error) {
 		rv, err := g.RepackVar(v, basePackagePath)
@@ -1066,22 +1084,23 @@ func (g *Generator) Repack(typ types.Type, basePackagePath string) (types.Type, 
 	// 	}
 	case *types.Signature:
 		recv := tt.Recv()
-		rrecv, err := g.RepackVar(recv, basePackagePath)
+
+		nrecv, err := g.RepackVar(recv, basePackagePath)
 		if err != nil {
 			return nil, err
 		}
-		rparams := tt.Params()
-		rtuple, err := g.RepackTuple(rparams, basePackagePath)
+		params := tt.Params()
+		nparams, err := g.RepackTuple(params, basePackagePath)
 		if err != nil {
 			return nil, err
 		}
-		res := tt.Results()
-		rres, err := g.RepackTuple(res, basePackagePath)
+		results := tt.Results()
+		nresults, err := g.RepackTuple(results, basePackagePath)
 		if err != nil {
 			return nil, err
 		}
-		if recv != rrecv || rparams != rtuple || res != rres {
-			return types.NewSignature(rrecv, rparams, rres, tt.Variadic()), nil
+		if recv != nrecv || params != nparams || results != nresults {
+			return types.NewSignature(nrecv, nparams, nresults, tt.Variadic()), nil
 		}
 	}
 	return typ, nil

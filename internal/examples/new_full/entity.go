@@ -2,8 +2,9 @@ package new_full
 
 //go:generate fieldr -debug
 
-//go:fieldr -type Entity new-full -return-value -flat
-//go:fieldr -type Entity new-full -name New2
+//go:fieldr -type Entity new-full -return-value -flat -exclude excluded
+//go:fieldr -type Entity new-full -name New2 -exclude excluded
+//go:fieldr -type CodeAwareEntity new-full -no-inline -name NewCodeAware
 
 import (
 	"bytes"
@@ -19,7 +20,11 @@ type NoDBFieldsEntity struct {
 	OldID int32
 }
 
+type emptyInlined struct {
+}
+
 type CodeAwareEntity struct {
+	*emptyInlined
 	Code string
 }
 
@@ -41,6 +46,7 @@ type Entity2[ID any] = *E[ID]
 
 type Entity[ID any] struct {
 	*E[ID]
+	emptyInlined
 	metadata struct {
 		Schema  string
 		Version int
@@ -55,6 +61,7 @@ type Entity[ID any] struct {
 	someMap      map[StringBasedType[string]]bytes.Buffer
 	Embedded     EmbeddedEntity
 	OldForeignID *foreignIDAwareEntity[ID]
+	excluded     string
 }
 
 type EmbeddedEntity struct {

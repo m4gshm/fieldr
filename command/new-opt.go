@@ -29,8 +29,9 @@ func NewNewOpt() *Command {
 		noExportMethods = flagSet.Bool("no-export", false, "no export generated methods")
 		returnVal       = flagSet.Bool("return-value", false, "returns value instead of pointer")
 		flat            = flagSet.Bool("flat", false, "makes fields of emmbedded types constructor arguments")
+		noinine         = flagSet.Bool("no-inline", false, "no inlines empty embedded structs")
 		nolint          = params.Nolint(flagSet)
-		required        = params.MultiValFixed(flagSet, "required", nil, nil, "required arguments")
+		required        = params.MultiValFixed(flagSet, "required", nil, nil, "required argument")
 	)
 
 	return New(
@@ -54,7 +55,7 @@ func NewNewOpt() *Command {
 				params.Names(g.OutPkgPath).ForEach(uniqueNames.Add)
 
 				args, createInstance, err := constructor.GenerateConstructorArgs(g, uniqueNames, "", model.TypeName(),
-					typeParams, model.FieldsNameAndType, *returnVal, *flat, requird.Contains)
+					typeParams, model.FieldsNameAndType, *returnVal, *flat, *noinine, requird.Contains)
 				if err != nil {
 					return err
 				}

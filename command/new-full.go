@@ -6,6 +6,8 @@ import (
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/generator/constructor"
 	"github.com/m4gshm/fieldr/params"
+	"github.com/m4gshm/gollections/collection/immutable"
+	"github.com/m4gshm/gollections/predicate/is"
 )
 
 func NewNewFull() *Command {
@@ -18,6 +20,8 @@ func NewNewFull() *Command {
 		noExportMethods = flagSet.Bool("no-export", false, "no export generated methods")
 		returnVal       = flagSet.Bool("return-value", false, "returns value instead of pointer")
 		flat            = flagSet.Bool("flat", false, "makes fields of emmbedded types constructor arguments")
+		noinine         = flagSet.Bool("no-inline", false, "no inlines empty embedded structs")
+		exclude         = params.MultiValFixed(flagSet, "exclude", nil, nil, "excluded argument")
 		nolint          = params.Nolint(flagSet)
 	)
 	return New(
@@ -30,7 +34,8 @@ func NewNewFull() *Command {
 			}
 			if name != nil && len(*name) > 0 {
 				g := context.Generator
-				cname, body, err := constructor.FullArgs(g, model, *name, *returnVal, !(*noExportMethods), *nolint, *flat)
+				isInclude := is.Not(immutable.NewSet(*exclude...).Contains)
+				cname, body, err := constructor.FullArgs(g, model, *name, *returnVal, !(*noExportMethods), *nolint, *flat, *noinine, isInclude)
 				if err != nil {
 					return err
 				} else if err := g.AddFuncOrMethod(cname, body); err != nil {

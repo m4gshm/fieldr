@@ -32,7 +32,8 @@ func NewEntity[ID any](
 			ID: id,
 			RefCodeAwareEntity: &RefCodeAwareEntity{
 				CodeAwareEntity: &CodeAwareEntity{
-					Code: code,
+					emptyInlined: &emptyInlined{},
+					Code:         code,
 				},
 			},
 			foreignIDAwareEntity: foreignIDAwareEntity[ID]{

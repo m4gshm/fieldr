@@ -41,9 +41,7 @@ func Test_EmbeddedGetSet(t *testing.T) {
 		&E[int]{
 			ID: 1,
 			RefCodeAwareEntity: &RefCodeAwareEntity{
-				CodeAwareEntity: &CodeAwareEntity{
-					Code: code,
-				},
+				CodeAwareEntity: NewCodeAware(&emptyInlined{},code),
 			},
 			foreignIDAwareEntity: foreignIDAwareEntity[int]{
 				ForeignID: 2,
