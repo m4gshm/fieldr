@@ -8,14 +8,15 @@ import (
 	"github.com/m4gshm/fieldr/model/util"
 	"github.com/m4gshm/fieldr/typeparams"
 	"github.com/m4gshm/fieldr/unique"
+	"github.com/m4gshm/gollections/slice"
 )
 
-func GenerateOptionFieldFunc(model *struc.Model, pkgName, receiverVar, methodName, fieldName, fieldType, outPkgPath string, nolint bool, fieldParts []FieldInfo) string {
+func (g *Generator) GenerateOptionFieldFunc(model *struc.Model, pkgName, receiverVar, methodName, fieldName, fieldType, outPkgPath string, nolint bool, fieldParts []FieldInfo) string {
 	typeName := "*" + GetTypeName(model.TypeName(), pkgName)
-	params := typeparams.New(model.Typ.TypeParams())
-	typeParams, typeParamsDecl := params.IdentDeclStrings(outPkgPath)
 	uniqueNames := unique.NewNamesWith(unique.PreInit(receiverVar))
-	params.Names(outPkgPath).ForEach(uniqueNames.Add)
+	params := typeparams.New(model.Typ.TypeParams(), g.Repack, outPkgPath)
+	typeParams, typeParamsDecl, paramNames := params.IdentDeclNamess()
+	slice.ForEach(paramNames, uniqueNames.Add)
 
 	accessInfo := GetFieldConditionalPartsAccessInfo(receiverVar, fieldParts, uniqueNames)
 	variableName := accessInfo.ShortVar

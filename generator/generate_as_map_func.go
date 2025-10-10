@@ -36,7 +36,7 @@ func (g *Generator) GenerateAsMapFunc(
 
 	funcName := renameFuncByConfig(IdentName("AsMap", export), name)
 	typParams := model.Typ.TypeParams()
-	receiverType := GetTypeName(typeName, pkgName) + typeparams.New(typParams).IdentString(g.OutPkgPath)
+	receiverType := GetTypeName(typeName, pkgName) + typeparams.New(typParams, g.Repack, g.OutPkgPath).Ident()
 	returnType := "map[" + keyType + "]any"
 	body := MethodBody(funcName, noReceiver, receiverVar, "*"+receiverType, returnType, nolint, internal)
 

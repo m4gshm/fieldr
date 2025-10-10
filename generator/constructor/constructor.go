@@ -7,6 +7,7 @@ import (
 	"github.com/m4gshm/gollections/predicate/always"
 	"github.com/m4gshm/gollections/seq"
 	"github.com/m4gshm/gollections/seq2"
+	"github.com/m4gshm/gollections/slice"
 
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/model/struc"
@@ -49,9 +50,9 @@ func FullArgs(g *generator.Generator, model *struc.Model, constructorName string
 ) (string, string, error) {
 	uniqueNames := unique.NewNamesWith(unique.DistinctBySuffix("_"))
 
-	params := typeparams.New(model.Typ.TypeParams())
-	typeParams, typeParamsDecl := params.IdentDeclStrings(g.OutPkgPath)
-	params.Names(g.OutPkgPath).ForEach(uniqueNames.Add)
+	params := typeparams.New(model.Typ.TypeParams(), g.Repack, g.OutPkgPath)
+	typeParams, typeParamsDecl, paramNames := params.IdentDeclNamess()
+	slice.ForEach(paramNames, uniqueNames.Add)
 
 	typeName := model.TypeName()
 
@@ -85,7 +86,7 @@ func GenerateConstructorArgs(
 
 		if !inline && !deepRef && embedStruct && flat {
 			typ := fieldModel.Typ
-			typeParams := typeargs.New(typ.TypeArgs()).IdentString(g.OutPkgPath)
+			typeParams := typeargs.New(typ.TypeArgs(), g.OutPkgPath).IdentString()
 			typeName := fieldModel.TypeName()
 			typePkgName, err := g.GetPackageNameOrAlias(fieldModel.Package().Name(), fieldModel.Package().Path())
 			if err != nil {

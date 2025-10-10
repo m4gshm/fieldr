@@ -44,7 +44,7 @@ func (g *Generator) GenerateEnumFromValue(typ util.TypeNamedOrAlias, constValNam
 	basicType, _ := baseType.(*types.Basic)
 
 	var (
-		returnType   = GetTypeName(typeName, pkgName) + typeparams.New(typParams).IdentString(g.OutPkgPath)
+		returnType   = GetTypeName(typeName, pkgName) + typeparams.New(typParams, g.Repack, g.OutPkgPath).Ident()
 		funcName     = IdentName(op.IfElse(name == Autoname, typeName+DefaultMethodSuffixByValue, name), export)
 		resultVar    = "e"
 		receiverVar  = "value"
@@ -81,7 +81,7 @@ func (g *Generator) GenerateEnumFromName(typ util.TypeNamedOrAlias, constNames c
 	typParams := typ.TypeParams()
 
 	var (
-		returnType  = GetTypeName(typeName, pkgName) + typeparams.New(typParams).IdentString(g.OutPkgPath)
+		returnType  = GetTypeName(typeName, pkgName) + typeparams.New(typParams, g.Repack, g.OutPkgPath).Ident()
 		funcName    = IdentName(op.IfElse(name == Autoname, typeName+DefaultMethodSuffixByName, name), export)
 		resultVar   = "e"
 		receiverVar = "name"
@@ -121,7 +121,7 @@ func (g *Generator) GenerateEnumName(typ util.TypeNamedOrAlias, constValNamesMap
 	var (
 		returnSlice     = seq.Convert(seq2.Values(constValNamesMap.All), slice.Len).Reduce(op.Max) > 1
 		returnType      = op.IfElse(returnSlice, "[]string", "string")
-		receiverType    = GetTypeName(typeName, pkgName) + typeparams.New(typParams).IdentString(g.OutPkgPath)
+		receiverType    = GetTypeName(typeName, pkgName) + typeparams.New(typParams, g.Repack, g.OutPkgPath).Ident()
 		receiverVar     = TypeReceiverVar(typeName)
 		internalContent = constsSwitchExpr(constValNamesMap, receiverVar, !returnSlice)
 		funcName        = IdentName(name, export)
@@ -163,7 +163,7 @@ func (g *Generator) GenerateEnumValues(typ util.TypeNamedOrAlias, constValNamesM
 	typParams := typ.TypeParams()
 
 	var (
-		returnType = "[]" + GetTypeName(typeName, pkgName) + typeparams.New(typParams).IdentString(g.OutPkgPath)
+		returnType = "[]" + GetTypeName(typeName, pkgName) + typeparams.New(typParams, g.Repack, g.OutPkgPath).Ident()
 		funcName   = IdentName(op.IfElse(name == Autoname, typeName+DefaultMethodSuffixAll, name), export)
 		body       = FuncBodyNoArg(funcName, returnType, nolint, arrayExpr(constValNamesMap, returnType))
 	)

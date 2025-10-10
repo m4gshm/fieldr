@@ -11,7 +11,7 @@ require (
 	golang.org/x/tools v0.37.0
 )
 
-require github.com/m4gshm/gollections v0.0.17-0.20251005131003-c0ca1fbe322d
+require github.com/m4gshm/gollections v0.0.18
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect

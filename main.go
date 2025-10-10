@@ -292,7 +292,7 @@ func run() error {
 		pkgTypes := outPkg.Types
 		pkgPath := outPkg.PkgPath
 
-		g, err := generator.New(params.Name, typeConfig.OutBuildTags, outFile, outFileInfo, pkgPath, pkgTypes)
+		g, err := generator.New(fileSet, params.Name, typeConfig.OutBuildTags, outFile, outFileInfo, pkgPath, pkgTypes)
 		if err != nil {
 			return err
 		}

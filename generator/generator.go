@@ -15,10 +15,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/m4gshm/gollections/collection/mutable"
+	"github.com/m4gshm/gollections/collection/mutable/ordered"
 	"github.com/m4gshm/gollections/convert/as"
 	"github.com/m4gshm/gollections/expr/get"
-	"github.com/m4gshm/gollections/expr/use"
 	"github.com/m4gshm/gollections/op"
 	"github.com/m4gshm/gollections/seq"
 	"github.com/m4gshm/gollections/seq2"
@@ -43,6 +42,7 @@ type PkgAlias = string
 type Generator struct {
 	name string
 
+	fileSet      *token.FileSet
 	outFile      *ast.File
 	outFileInfo  *token.File
 	OutPkgPath   string
@@ -63,8 +63,9 @@ type Generator struct {
 	funcNames    []string
 	funcBodies   funcBodies
 
-	imports       *mutable.Map[PkgPath, *mutable.Set[PkgAlias]]
+	imports       *ordered.Map[PkgPath, *ordered.Set[PkgAlias]]
 	importUniques map[PkgAlias]PkgPath
+	importSpecs   map[PkgAlias]*ast.ImportSpec
 
 	rewriteOutFile bool
 }
@@ -101,13 +102,14 @@ func (c funcBodies) names() map[string]string {
 type funcBody struct {
 	body string
 	node *ast.FuncDecl
+	fset *token.FileSet
 }
 
 func (f *funcBody) String() (string, error) {
 	if len(f.body) > 0 {
 		return f.body, nil
 	}
-	return stringifyAst(f.node)
+	return stringifyAst(f.fset, f.node)
 }
 
 type constant struct {
@@ -124,9 +126,11 @@ func (c constants) nvMap() map[string]string {
 	return r
 }
 
-func New(name, outBuildTags string, outFile *ast.File, outFileInfo *token.File, pkgPath string, pkgTypes *types.Package) (*Generator, error) {
+func New(fileSet *token.FileSet, name, outBuildTags string, outFile *ast.File, outFileInfo *token.File, pkgPath string, pkgTypes *types.Package) (*Generator, error) {
+	rewriteOutFile := isRewrite(outFile, outFileInfo, generatedMarker(name))
 	g := &Generator{
 		name:           name,
+		fileSet:        fileSet,
 		outBuildTags:   outBuildTags,
 		outFile:        outFile,
 		outFileInfo:    outFileInfo,
@@ -142,11 +146,12 @@ func New(name, outBuildTags string, outFile *ast.File, outFileInfo *token.File, 
 		structBodies:   map[string]string{},
 		funcNames:      []string{},
 		funcBodies:     make(map[string]funcBody),
-		imports:        mutable.NewMap[string, *mutable.Set[string]](),
+		imports:        ordered.NewMap[string, *ordered.Set[string]](),
 		importUniques:  map[PkgAlias]PkgPath{},
-		rewriteOutFile: isRewrite(outFile, outFileInfo, generatedMarker(name)),
+		importSpecs:    map[PkgAlias]*ast.ImportSpec{},
+		rewriteOutFile: rewriteOutFile,
 	}
-	if outFile != nil {
+	if !rewriteOutFile && outFile != nil {
 		for _, imp := range outFile.Imports {
 			rawPath := types.ExprString(imp.Path)
 			path, err := strconv.Unquote(rawPath)
@@ -155,7 +160,7 @@ func New(name, outBuildTags string, outFile *ast.File, outFileInfo *token.File, 
 			}
 
 			alias := get.If(imp.Name != nil, func() string { return imp.Name.Name }).Else("")
-			if _, err := g.AddImport(path, alias); err != nil {
+			if _, err := g.AddImport(path, alias, imp); err != nil {
 				return nil, err
 			}
 		}
@@ -260,7 +265,7 @@ func (g *Generator) GetPackageNameOrAlias(pkgName, pkgPath string) (string, erro
 		if name == pkgAlias {
 			importAlias = ""
 		}
-		if _, err := g.AddImport(pkgPath, importAlias); err != nil {
+		if _, err := g.AddImport(pkgPath, importAlias, nil); err != nil {
 			return "", err
 		}
 	}
@@ -409,7 +414,7 @@ func (g *Generator) getInjectChunks(outFile *ast.File, base int) (map[int]map[in
 				end := int(dt.End()) - base
 				imports := g.getImports()
 				out := &bytes.Buffer{}
-				if err := writeSpecs(imports, out); err != nil {
+				if err := writeSpecs(g.fileSet, imports, out); err != nil {
 					return nil, err
 				}
 				if out.Len() > 0 {
@@ -539,6 +544,10 @@ func getReceiverName(typ ast.Expr) (string, error) {
 		return tt.Name, nil
 	case *ast.IndexExpr:
 		return getReceiverName(tt.X)
+	case *ast.IndexListExpr:
+		return getReceiverName(tt.X)
+	case *ast.SliceExpr:
+		return getReceiverName(tt.X)
 	case *ast.SelectorExpr:
 		name := tt.Sel.Name
 		x := tt.X
@@ -610,7 +619,7 @@ func (g *Generator) getImportsExpr() (string, error) {
 		return "", nil
 	}
 	out := &bytes.Buffer{}
-	if err := writeSpecs(imports, out); err != nil {
+	if err := writeSpecs(g.fileSet, imports, out); err != nil {
 		return "", err
 	}
 	return out.String(), nil
@@ -619,17 +628,22 @@ func (g *Generator) getImportsExpr() (string, error) {
 func (g *Generator) getImports() *ast.GenDecl {
 	return &ast.GenDecl{
 		Tok: token.IMPORT,
-		Specs: seq.Flat(seq2.ToSeq(g.imports.All, func(pkgPath string, aliases *mutable.Set[string]) []ast.Spec {
-			return seq.Convert(aliases.All, func(alias string) ast.Spec { return newImport(alias, pkgPath) }).Slice()
+		Specs: seq.Flat(seq2.ToSeq(g.imports.All, func(pkgPath string, aliases *ordered.Set[string]) []ast.Spec {
+			return seq.Convert(aliases.All, func(alias string) ast.Spec {
+				pname := uniquePkgName(alias, pkgPath)
+				if imp := g.importSpecs[pname]; imp != nil {
+					return imp
+				}
+				return newImport(alias, pkgPath)
+			}).Slice()
 		}), as.Is).Slice(),
 	}
 }
 
-func writeSpecs(specs ast.Node, out *bytes.Buffer) error {
-	if specs == nil || (reflect.ValueOf(specs).Kind() == reflect.Ptr && reflect.ValueOf(specs).IsNil()) {
+func writeSpecs(fset *token.FileSet, specs ast.Node, out *bytes.Buffer) error {
+	if specs == nil || (reflect.ValueOf(specs).Kind() == reflect.Pointer && reflect.ValueOf(specs).IsNil()) {
 		return nil
 	}
-	fset := token.NewFileSet()
 	if err := printer.Fprint(out, fset, specs); err != nil {
 		return err
 	}
@@ -638,7 +652,7 @@ func writeSpecs(specs ast.Node, out *bytes.Buffer) error {
 }
 
 func (g *Generator) writeConstants() error {
-	return writeSpecs(g.getConstants(), g.body)
+	return writeSpecs(g.fileSet, g.getConstants(), g.body)
 }
 
 func (g *Generator) getConstants() *ast.GenDecl {
@@ -698,7 +712,7 @@ func (g *Generator) writeFunctions() error {
 }
 
 func (g *Generator) writeTypes() error {
-	return writeSpecs(g.getTypes(), g.body)
+	return writeSpecs(g.fileSet, g.getTypes(), g.body)
 }
 
 func (g *Generator) writeStructs() error {
@@ -820,11 +834,11 @@ func (g *Generator) addConst(name, value, typ string) error {
 func (g *Generator) AddFuncDecl(node *ast.FuncDecl) error {
 	funcName := FuncDeclName(node)
 	if exists, ok := g.funcBodies[funcName]; ok {
-		es, err := stringifyAst(exists.node)
+		es, err := stringifyAst(g.fileSet, exists.node)
 		if err != nil {
 			es = err.Error()
 		}
-		ns, err := stringifyAst(node)
+		ns, err := stringifyAst(g.fileSet, node)
 		if err != nil {
 			ns = err.Error()
 		}
@@ -833,7 +847,7 @@ func (g *Generator) AddFuncDecl(node *ast.FuncDecl) error {
 		}
 	} else if !ok {
 		g.funcNames = append(g.funcNames, funcName)
-		g.funcBodies[funcName] = funcBody{node: node}
+		g.funcBodies[funcName] = funcBody{fset: g.fileSet, node: node}
 	}
 	return nil
 }
@@ -846,9 +860,9 @@ func FuncDeclName(funcDecl *ast.FuncDecl) string {
 	return name
 }
 
-func stringifyAst(node ast.Node) (result string, err error) {
+func stringifyAst(fset *token.FileSet, node ast.Node) (result string, err error) {
 	if node != nil {
-		fset, out := token.NewFileSet(), &bytes.Buffer{}
+		out := &bytes.Buffer{}
 		result, err = out.String(), printer.Fprint(out, fset, node)
 	}
 	return result, err
@@ -879,21 +893,22 @@ func (g *Generator) AddFuncOrMethod(name, body string) error {
 		return errors.Errorf("duplicated func with different value; func %s, exist '%s', new '%s'", name, exists.body, body)
 	} else if !ok {
 		g.funcNames = append(g.funcNames, name)
-		g.funcBodies[name] = funcBody{body: body}
+		g.funcBodies[name] = funcBody{fset: g.fileSet, body: body}
 	}
 	return nil
 }
 
-func (g *Generator) AddImport(pkgPath, alias string) (string, error) {
+func (g *Generator) AddImport(pkgPath, alias string, imp *ast.ImportSpec) (string, error) {
 	imports := g.imports
 	importUniques := g.importUniques
+	importSpecs := g.importSpecs
 
 	if len(pkgPath) == 0 {
 		return "", errors.New("empty package cannot be imported")
 	}
 	exists, _ := imports.Get(pkgPath)
 	if exists == nil {
-		exists = &mutable.Set[string]{}
+		exists = &ordered.Set[string]{}
 		imports.Set(pkgPath, exists)
 	}
 	if existsAlias, ok := exists.Head(); ok {
@@ -901,8 +916,7 @@ func (g *Generator) AddImport(pkgPath, alias string) (string, error) {
 		return existsAlias, nil
 	}
 
-	uniquePkgName := use.If(len(alias) > 0, alias).ElseGet(func() string { return util.GetPackageName(pkgPath) })
-
+	uniquePkgName := uniquePkgName(alias, pkgPath)
 	if existsPkgPath, ok := importUniques[uniquePkgName]; ok && existsPkgPath != pkgPath {
 		uniquePkgName = getUniqueImportName(uniquePkgName, pkgPath, importUniques)
 		alias = uniquePkgName
@@ -910,8 +924,16 @@ func (g *Generator) AddImport(pkgPath, alias string) (string, error) {
 	importUniques[uniquePkgName] = pkgPath
 
 	exists.Add(alias)
+	importSpecs[uniquePkgName] = imp
 	logger.Debugf("AddImport: package '%s', alias '%s'", pkgPath, alias)
 	return alias, nil
+}
+
+func uniquePkgName(alias, pkgPath string) string {
+	if len(alias) > 0 {
+		return alias
+	}
+	return util.GetPackageName(pkgPath)
 }
 
 func getUniqueImportName(alias, pkgPath string, importUniques map[PkgAlias]PkgPath) string {
@@ -961,7 +983,7 @@ func (g *Generator) ImportPack(pkg *types.Package, basePackagePath string) (*typ
 		return pkg, nil
 	}
 	pkgPath := pkg.Path()
-	if pkgAlias, err := g.AddImport(pkgPath, ""); err != nil {
+	if pkgAlias, err := g.AddImport(pkgPath, "", nil); err != nil {
 		return nil, err
 	} else if len(pkgAlias) > 0 {
 		return types.NewPackage(pkgPath, pkgAlias), nil

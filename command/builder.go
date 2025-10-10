@@ -14,6 +14,7 @@ import (
 	"github.com/m4gshm/gollections/op/delay/sum"
 	"github.com/m4gshm/gollections/predicate/always"
 	"github.com/m4gshm/gollections/seq"
+	"github.com/m4gshm/gollections/slice"
 	"github.com/m4gshm/gollections/slice/split"
 
 	"github.com/m4gshm/fieldr/generator"
@@ -102,10 +103,10 @@ func NewBuilderStruct() *Command {
 			autogen := len(*buildMethodName) == 0 || *buildMethodName == generator.Autoname
 			constrMethodName := generator.LegalIdentName(generator.IdentName(op.IfElse(autogen, default_constructor, *buildMethodName), exportMethods))
 
-			params := typeparams.New(model.Typ.TypeParams())
-			typeParams, typeParamsDecl := params.IdentDeclStrings(g.OutPkgPath)
 			uniqueNames := unique.NewNamesWith(unique.DistinctBySuffix("_"))
-			params.Names(g.OutPkgPath).ForEach(uniqueNames.Add)
+			params := typeparams.New(model.Typ.TypeParams(), g.Repack, g.OutPkgPath)
+			typeParams, typeParamsDecl, paramNames := params.IdentDeclNamess()
+			slice.ForEach(paramNames, uniqueNames.Add)
 
 			receiver := uniqueNames.Get("b")
 			logger.Debugf("constrMethodName %v", constrMethodName)

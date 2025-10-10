@@ -255,6 +255,17 @@
                 //     "ID"
             ]
         },
+                {
+            "name": "Debug full constructor example",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "main.go",
+            "cwd": "internal/examples/new_full",
+            "args": [
+                "-debug"
+            ]
+        },
         {
             "name": "Debug builder example",
             "type": "go",

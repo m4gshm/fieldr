@@ -511,7 +511,7 @@ func (g *Generator) generateConstValueMethod(model *struc.Model, pkgName, typ, n
 		argVar          = "f"
 		recVar          = "s"
 		recType         = GetTypeName(model.TypeName(), pkgName)
-		recParamType    = recType + typeparams.New(model.Typ.TypeParams()).IdentString(g.OutPkgPath)
+		recParamType    = recType + typeparams.New(model.Typ.TypeParams(), g.Repack, g.OutPkgPath).Ident()
 		recParamTypeRef = "*" + recParamType
 		returnTypes     = "any"
 		returnNoCase    = "nil"

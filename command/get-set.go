@@ -107,14 +107,14 @@ func generateGettersSetters(
 			if getters {
 				getterName := generator.IdentName(getterPrefix+suffix, exportMethods)
 				logger.Debugf("getter %s", getterName)
-				getterBody := generator.GenerateGetter(baseModel, pkgName, receiverVar, getterName, fieldName, fullFieldType, g.OutPkgPath, nolint, isReceiverReference, parentFieldInfo)
+				getterBody := g.GenerateGetter(baseModel, pkgName, receiverVar, getterName, fieldName, fullFieldType, nolint, isReceiverReference, parentFieldInfo)
 				fieldMethodBodies = append(fieldMethodBodies, getterBody)
 				fieldMethodNames = append(fieldMethodNames, getterName)
 			}
 			if setters {
 				setterName := generator.IdentName(setterPrefix+suffix, exportMethods)
 				logger.Debugf("setter %s", setterName)
-				setterBody := generator.GenerateSetter(baseModel, pkgName, receiverVar, setterName, fieldName, fullFieldType, g.OutPkgPath, nolint, isReceiverReference, parentFieldInfo)
+				setterBody := g.GenerateSetter(baseModel, pkgName, receiverVar, setterName, fieldName, fullFieldType, nolint, isReceiverReference, parentFieldInfo)
 				fieldMethodBodies = append(fieldMethodBodies, setterBody)
 				fieldMethodNames = append(fieldMethodNames, setterName)
 			}

@@ -7,6 +7,7 @@ import (
 	"github.com/m4gshm/gollections/collection/immutable"
 	"github.com/m4gshm/gollections/collection/mutable"
 	"github.com/m4gshm/gollections/op"
+	"github.com/m4gshm/gollections/slice"
 
 	"github.com/m4gshm/fieldr/generator"
 	"github.com/m4gshm/fieldr/generator/constructor"
@@ -49,10 +50,10 @@ func NewNewOpt() *Command {
 			}
 			requird := immutable.NewSet(*required...)
 			if !(*noConstructor) {
-				params := typeparams.New(model.Typ.TypeParams())
-				typeParams, typeParamsDecl := params.IdentDeclStrings(g.OutPkgPath)
 				uniqueNames := unique.NewNamesWith(unique.DistinctBySuffix("_"))
-				params.Names(g.OutPkgPath).ForEach(uniqueNames.Add)
+				params := typeparams.New(model.Typ.TypeParams(), g.Repack, g.OutPkgPath)
+				typeParams, typeParamsDecl, paramNames := params.IdentDeclNamess()
+				slice.ForEach(paramNames, uniqueNames.Add)
 
 				args, createInstance, err := constructor.GenerateConstructorArgs(g, uniqueNames, "", model.TypeName(),
 					typeParams, model.FieldsNameAndType, *returnVal, *flat, *noinine, requird.Contains)
@@ -112,7 +113,7 @@ func generateOptionFuncs(
 			}
 			funcName := generator.IdentName(suffix+generator.LegalIdentName(generator.IdentName(fieldName, true)), exportMethods)
 			logger.Debugf("option function name: %s", funcName)
-			funcBody := generator.GenerateOptionFieldFunc(baseModel, pkgName, receiverVar, funcName, fieldName, fullFieldType,
+			funcBody := g.GenerateOptionFieldFunc(baseModel, pkgName, receiverVar, funcName, fieldName, fullFieldType,
 				g.OutPkgPath, nolint, parentFieldInfo)
 			fieldMethods.Set(funcName, funcBody)
 		}

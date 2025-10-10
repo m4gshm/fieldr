@@ -5,71 +5,87 @@ import (
 	"fmt"
 	"go/types"
 
-	"github.com/m4gshm/fieldr/model/util"
 	"github.com/m4gshm/gollections/c"
 	"github.com/m4gshm/gollections/k"
 	"github.com/m4gshm/gollections/op/delay/string_/join"
 	"github.com/m4gshm/gollections/op/string_"
 	"github.com/m4gshm/gollections/seq"
 	"github.com/m4gshm/gollections/seq2"
+	"github.com/m4gshm/gollections/slice"
+
+	"github.com/m4gshm/fieldr/model/util"
 )
 
 var ErrNilTypeParam = errors.New("nil type parameter")
 
-type TypeParams seq.Seq[*types.TypeParam]
-type NamesConstraints = seq.SeqE[c.KV[string, string]]
-type StrKV = c.KV[string, string]
+type TypeParams struct {
+	seq.Seq[*types.TypeParam]
+	Repack
+	basePkgPath string
+}
+type NameType = c.KV[string, string]
+type NameTypes = []NameType
+type Repack = func(typ types.Type, basePackagePath string) (types.Type, error)
 
-func New(tparams *types.TypeParamList) TypeParams {
-	return TypeParams(seq.OfIndexed(tparams.Len(), tparams.At))
+func New(tparams *types.TypeParamList, repack Repack, basePkgPath string) TypeParams {
+	return TypeParams{Seq: seq.OfIndexed(tparams.Len(), tparams.At), Repack: repack, basePkgPath: basePkgPath}
 }
 
-func (params TypeParams) NamesConstraints(basePkgPath string) NamesConstraints {
-	return seq.Conv(params, func(elem *types.TypeParam) (StrKV, error) {
+func (params TypeParams) nameTypePairs() NameTypes {
+	return seq2.ToSeq(seq.Conv(params.Seq, params.elemToNameTypeConv()), func(pair NameType, err error) NameType {
+		if err != nil {
+			return k.V(fmt.Sprintf("/*error: %s*/", err.Error()), "")
+		}
+		return pair
+	}).Slice()
+}
+
+func (params TypeParams) elemToNameTypeConv() func(elem *types.TypeParam) (NameType, error) {
+	basePkgPath := params.basePkgPath
+	return func(elem *types.TypeParam) (NameType, error) {
 		if elem == nil {
 			return k.V("", ""), ErrNilTypeParam
 		}
 		nam := util.TypeString(elem, basePkgPath)
-		typ := util.TypeString(elem.Constraint(), basePkgPath)
+		c, err := params.Repack(elem.Constraint(), basePkgPath)
+		if err != nil {
+			return k.V("", ""), err
+		}
+		typ := util.TypeString(c, basePkgPath)
 		return k.V(nam, typ), nil
-	})
+	}
 }
 
-func (params TypeParams) Names(basePkgPath string) seq.Seq[string] {
-	return seq2.ToSeq(params.NamesConstraints(basePkgPath), func(nameConstraint StrKV, err error) string {
-		if err != nil {
-			return fmt.Sprintf("error: %s", err.Error())
+func (params TypeParams) IdentDeclNamess() (string, string, []string) {
+	pairs := params.nameTypePairs()
+	names := names(pairs)
+	return identString(names), declarationString(pairs), names
+}
+
+func (params TypeParams) Ident() string {
+	return identString(names(params.nameTypePairs()))
+}
+
+func names(pairs NameTypes) []string {
+	return slice.Convert(pairs, c.KV[string, string].Key)
+}
+
+func identString(names []string) string {
+	return string_.WrapNonEmpty("[", slice.Reduce(names, join.NonEmpty(", ")), "]")
+}
+
+func declarationString(pairs NameTypes) string {
+	joinedStr := slice.Reduce(pairs, func(prev NameType, pair NameType) NameType {
+		prevType := prev.V
+		prevName := prev.K
+		delim := ", "
+		name := pair.K
+		typ := pair.V
+		if typ != prevType {
+			delim = " " + prevType + ", "
 		}
-		return nameConstraint.K
-	})
-}
-
-func (params TypeParams) IdentDeclStrings(basePkgPath string) (string, string) {
-	return params.IdentString(basePkgPath), params.declarationString(basePkgPath)
-}
-
-func (params TypeParams) IdentString(basePkgPath string) string {
-	return string_.WrapNonEmpty("[", params.Names(basePkgPath).Reduce(join.NonEmpty(", ")), "]")
-}
-
-func (params TypeParams) declarationString(basePkgPath string) string {
-	nameConstraints := seq2.Convert(params.NamesConstraints(basePkgPath), func(nameConstraint StrKV, err error) (string, string) {
-		if err != nil {
-			return fmt.Sprintf("/*error: %s*/", err.Error()), ""
-		}
-		return nameConstraint.K, nameConstraint.V
-	})
-	joinedStr := seq2.Reduce(nameConstraints, func(prev *StrKV, name, constraint string) StrKV {
-		if prev != nil {
-			prevConstraint := prev.V
-			prevName := prev.K
-			delim := ", "
-			if constraint != prevConstraint {
-				delim = " " + prevConstraint + ", "
-			}
-			name = prevName + delim + name
-		}
-		return k.V(name, constraint)
+		name = prevName + delim + name
+		return k.V(name, typ)
 	})
 	return string_.WrapNonEmpty("[", string_.JoinNonEmpty(joinedStr.K, " ", joinedStr.V), "]")
 }

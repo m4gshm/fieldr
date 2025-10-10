@@ -38,7 +38,7 @@ func Test_EmbeddedGetSet(t *testing.T) {
 	assert.Equal(t, 123, entity.metadata.Version)
 
 	entity2 := *New2(
-		&E[int]{
+		&E[int, int]{
 			ID: 1,
 			RefCodeAwareEntity: &RefCodeAwareEntity{
 				CodeAwareEntity: NewCodeAware(&emptyInlined{},code),

@@ -4,14 +4,15 @@ package new_full
 
 import (
 	"bytes"
+	"cmp"
 	"example/sql_base"
 	"time"
 )
 
-func NewEntity[ID any](
+func NewEntity[ID cmp.Ordered, FID any](
 	id ID,
 	code string,
-	foreignID ID,
+	foreignID FID,
 	metadata struct {
 		Schema  string
 		Version int
@@ -26,9 +27,9 @@ func NewEntity[ID any](
 	someMap map[StringBasedType[string]]bytes.Buffer,
 	embedded EmbeddedEntity,
 	oldForeignID *foreignIDAwareEntity[ID],
-) Entity[ID] {
-	return Entity[ID]{
-		E: &E[ID]{
+) Entity[ID, FID] {
+	return Entity[ID, FID]{
+		E: &E[ID, FID]{
 			ID: id,
 			RefCodeAwareEntity: &RefCodeAwareEntity{
 				CodeAwareEntity: &CodeAwareEntity{
@@ -36,43 +37,10 @@ func NewEntity[ID any](
 					Code:         code,
 				},
 			},
-			foreignIDAwareEntity: foreignIDAwareEntity[ID]{
+			foreignIDAwareEntity: foreignIDAwareEntity[FID]{
 				ForeignID: foreignID,
 			},
 		},
-		metadata:     metadata,
-		NoDB:         noDB,
-		name:         name,
-		surname:      surname,
-		Values:       values,
-		Ts:           ts,
-		versioned:    versioned,
-		channel:      channel,
-		someMap:      someMap,
-		Embedded:     embedded,
-		OldForeignID: oldForeignID,
-	}
-}
-
-func New2[ID any](
-	e *E[ID],
-	metadata struct {
-		Schema  string
-		Version int
-	},
-	noDB NoDBFieldsEntity,
-	name StringBasedType[string],
-	surname StringBasedAlias,
-	values []int32,
-	ts []*time.Time,
-	versioned sql_base.VersionedEntity,
-	channel chan map[time.Time]string,
-	someMap map[StringBasedType[string]]bytes.Buffer,
-	embedded EmbeddedEntity,
-	oldForeignID *foreignIDAwareEntity[ID],
-) *Entity[ID] {
-	return &Entity[ID]{
-		E:            e,
 		metadata:     metadata,
 		NoDB:         noDB,
 		name:         name,

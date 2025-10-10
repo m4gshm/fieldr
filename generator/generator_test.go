@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"go/token"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,24 +27,23 @@ func Test_ArgName(t *testing.T) {
 }
 
 func Test_AddImport(t *testing.T) {
-
-	g, err := New("test", "", nil, nil, "test", nil)
+	g, err := New(token.NewFileSet(), "test", "", nil, nil, "test", nil)
 	assert.NoError(t, err)
 
-	alias, err := g.AddImport("test", "")
+	alias, err := g.AddImport("test", "", nil)
 	assert.NoError(t, err)
 	assert.Equal(t, "", alias)
 
-	alias, err = g.AddImport("test/v2", "")
+	alias, err = g.AddImport("test/v2", "", nil)
 	assert.NoError(t, err)
 	assert.Equal(t, "test1", alias)
 
 	//ignore tv2, use existed test1
-	alias, err = g.AddImport("test/v2", "tv2")
+	alias, err = g.AddImport("test/v2", "tv2", nil)
 	assert.NoError(t, err)
 	assert.Equal(t, "test1", alias)
 
-	alias, err = g.AddImport("any/test", "")
+	alias, err = g.AddImport("any/test", "", nil)
 	assert.NoError(t, err)
 	assert.Equal(t, "test2", alias)
 }

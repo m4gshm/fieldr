@@ -6,6 +6,7 @@ import (
 	"github.com/m4gshm/gollections/op/delay/replace"
 	"github.com/m4gshm/gollections/op/delay/string_"
 	"github.com/m4gshm/gollections/op/delay/sum"
+	"github.com/m4gshm/gollections/slice"
 	"github.com/m4gshm/gollections/slice/split"
 
 	"github.com/m4gshm/fieldr/model/struc"
@@ -13,15 +14,15 @@ import (
 	"github.com/m4gshm/fieldr/unique"
 )
 
-func GenerateSetter(model *struc.Model, pkgName, receiverVar, methodName, fieldName, fieldType, outPkgPath string, nolint bool, isReceiverReference bool, fieldParts []FieldInfo) string {
+func (g *Generator) GenerateSetter(model *struc.Model, pkgName, receiverVar, methodName, fieldName, fieldType string, nolint bool, isReceiverReference bool, fieldParts []FieldInfo) string {
 
 	uniqueNames := unique.NewNamesWith(unique.PreInit(receiverVar), unique.DistinctBySuffix("_"))
-	params := typeparams.New(model.Typ.TypeParams())
-	params.Names(outPkgPath).ForEach(uniqueNames.Add)
+	params := typeparams.New(model.Typ.TypeParams(), g.Repack, g.OutPkgPath)
+	typeParams, typeParamsDecl, paramNames := params.IdentDeclNamess()
+	slice.ForEach(paramNames, uniqueNames.Add)
 
 	buildedType := GetTypeName(model.TypeName(), pkgName)
 	typeName := op.IfElse(isReceiverReference, "*", "") + buildedType
-	typeParams, typeParamsDecl := params.IdentDeclStrings(outPkgPath)
 	_, conditionalPath, conditions := FiledPathAndAccessCheckCondition(receiverVar, isReceiverReference, false, fieldParts, uniqueNames)
 	varsConditionStart, varsConditionEnd := split.AndReduce(conditions, string_.Wrap("if ", " {\n"), replace.By("}\n"), op.Sum, op.Sum)
 
@@ -34,14 +35,14 @@ func GenerateSetter(model *struc.Model, pkgName, receiverVar, methodName, fieldN
 		varsConditionEnd + "}\n"
 }
 
-func GenerateGetter(model *struc.Model, pkgName, receiverVar, methodName, fieldName, fieldType, outPkgPath string, nolint bool, isReceiverReference bool, fieldParts []FieldInfo) string {
+func (g *Generator) GenerateGetter(model *struc.Model, pkgName, receiverVar, methodName, fieldName, fieldType string, nolint bool, isReceiverReference bool, fieldParts []FieldInfo) string {
 	uniqueNames := unique.NewNamesWith(unique.PreInit(receiverVar), unique.DistinctBySuffix("_"))
-	params := typeparams.New(model.Typ.TypeParams())
-	params.Names(outPkgPath).ForEach(uniqueNames.Add)
+	params := typeparams.New(model.Typ.TypeParams(), g.Repack, g.OutPkgPath)
+	typeParams, typeParamsDecl, paramNames := params.IdentDeclNamess()
+	slice.ForEach(paramNames, uniqueNames.Add)
 
 	buildedType := GetTypeName(model.TypeName(), pkgName)
 	typeName := op.IfElse(isReceiverReference, "*", "") + buildedType
-	typeParams, typeParamsDecl := params.IdentDeclStrings(outPkgPath)
 	_, conditionalPath, conditions := FiledPathAndAccessCheckCondition(receiverVar, isReceiverReference, false, fieldParts, uniqueNames)
 	varsConditionStart, varsConditionEnd := split.AndReduce(conditions, string_.Wrap("if ", " {\n"), replace.By("}\n"), op.Sum, op.Sum)
 
